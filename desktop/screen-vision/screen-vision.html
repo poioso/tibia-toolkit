@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Screen Vision</title>
+    <link rel="stylesheet" href="screen-vision.css">
+  </head>
+  <body>
+    <div class="vision-shell" id="vision-shell">
+      <header class="vision-titlebar">
+        <div class="vision-brand">
+          <img src="../../assets/ui/poioso-app-icon.png" alt="">
+          <strong><span>Screen</span><span>Vision</span></strong>
+        </div>
+
+        <div class="vision-titlebar-actions">
+          <button type="button" class="guide-pill" aria-label="Guide" data-tooltip="Abrir o guia rapido desta ferramenta.">Guide</button>
+          <span class="status-dot" aria-hidden="true"></span>
+          <button
+            type="button"
+            class="titlebar-icon-button icon-button"
+            aria-label="Destaques"
+            data-tooltip="Destaques e novidades da ferramenta."
+          >&#10024;</button>
+          <button type="button" class="window-action icon-button" id="window-minimize-button" aria-label="Minimizar" data-tooltip="Minimizar janela">
+            <span class="svg-icon" data-icon="minimize"></span>
+          </button>
+          <button type="button" class="window-action icon-button close" id="window-close-button" aria-label="Fechar" data-tooltip="Fechar janela">
+            <span class="svg-icon" data-icon="close"></span>
+          </button>
+        </div>
+      </header>
+
+        <div class="vision-toolbar">
+        <div class="vision-toolbar-left">
+          <button
+            type="button"
+            class="toolbar-icon-button icon-button"
+            id="toggle-all-lock-button"
+            aria-label="Travar ou destravar tudo"
+            data-tooltip="Travar ou destravar todas as regioes."
+          >
+            <span class="svg-icon" data-icon="lock-open"></span>
+          </button>
+          <strong class="toolbar-counter" id="region-count">0/&infin;</strong>
+          <span class="vision-toolbar-divider" aria-hidden="true"></span>
+          <button
+            type="button"
+            class="toolbar-state-tile inactive"
+            id="obs-mirror-button"
+            aria-label="Ativar espelhos no OBS"
+            data-tooltip="Ativar espelhos no OBS"
+          >
+            <img src="../../assets/ui/tools/tibia-eye/toolbar/obs.webp" alt="">
+          </button>
+          <button type="button" class="toolbar-text-button" id="add-region-button" data-tooltip="Criar uma nova regiao manualmente.">ADD REGION</button>
+          <button
+            type="button"
+            class="toolbar-square-button icon-button"
+            id="crop-tool-button"
+            aria-label="Recorte rapido de icone"
+            data-tooltip="Recorte rapido de icone. Cria uma caixa fixa para clicar, ajustar e confirmar."
+          ></button>
+        </div>
+
+        <div class="vision-toolbar-right">
+          <button
+            type="button"
+            class="toolbar-icon-button icon-button"
+            id="toggle-all-visibility-button"
+            aria-label="Mostrar ou ocultar todos"
+            data-tooltip="Mostrar ou ocultar todos os espelhos."
+          >
+            <span class="svg-icon" data-icon="eye"></span>
+          </button>
+          <button
+            type="button"
+            class="toolbar-icon-button icon-button"
+            id="settings-button"
+            aria-label="Configurações"
+            data-tooltip="Configurações"
+          >
+            <span class="svg-icon" data-icon="gear"></span>
+          </button>
+          <button
+            type="button"
+            class="toolbar-icon-button icon-button"
+            id="open-alertas-button"
+            aria-label="Alertas"
+            data-tooltip="Abrir a janela externa de Alertas."
+          >
+            <span class="svg-icon" data-icon="music"></span>
+          </button>
+        </div>
+      </div>
+
+      <main class="vision-content">
+        <div class="vision-notice hidden" id="performance-notice">
+          Mais de 20 regioes ativas. Pode haver impacto de desempenho dependendo do monitor e da escala.
+        </div>
+
+        <section class="empty-state" id="empty-state">
+          <span class="empty-state-dot" id="empty-state-dot" aria-hidden="true"></span>
+          <strong id="empty-state-title">Waiting for Tibia...</strong>
+          <p id="empty-state-copy">Abra o Tibia para comecar a adicionar areas.</p>
+        </section>
+
+        <div class="region-grid" id="region-grid"></div>
+      </main>
+
+      <footer class="vision-footer">
+        <div class="footer-meta">
+          <span>Made by <strong>Poioso</strong> <em>alpha</em></span>
+        </div>
+
+        <div class="footer-center">
+          <span class="footer-text-button">OBS Crop</span>
+        </div>
+
+        <div class="footer-actions">
+          <button
+            type="button"
+            class="footer-icon-button icon-button"
+            id="open-visual-customization-button"
+            aria-label="Personalizacao visual"
+            data-tooltip="Abrir personalizacao visual."
+          >
+            <span class="svg-icon accent" data-icon="edit"></span>
+          </button>
+          <button
+            type="button"
+            class="footer-icon-button icon-button"
+            aria-label="Notas"
+            data-tooltip="Notas overlay entram em uma proxima etapa."
+          >
+            <span class="svg-icon accent" data-icon="notes"></span>
+          </button>
+          <button type="button" class="footer-text-button" id="grid-overlay-button" data-tooltip="Abrir a grade overlay para alinhar a captura.">Grid</button>
+        </div>
+      </footer>
+    </div>
+
+    <div class="screen-vision-modal-root hidden" id="modal-root"></div>
+    <div class="floating-tooltip" id="floating-tooltip" role="tooltip" aria-hidden="true"></div>
+
+    <script type="module" src="screen-vision.js"></script>
+  </body>
+</html>

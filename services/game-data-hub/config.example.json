@@ -1,0 +1,30 @@
+{
+  "host": "127.0.0.1",
+  "port": 4318,
+  "stateFilePath": "./data/state.json",
+  "tickMs": 1000,
+  "timeoutMs": 20000,
+  "refresh": {
+    "tibiaStatisticWorldsMs": 60000,
+    "boostedMs": 60000,
+    "tibiaDataWorldsMs": 60000,
+    "tibiaDataWorldDetailMs": 60000,
+    "tibiaDataGuildsMs": 300000,
+    "tibiaDataGuildDetailMs": 300000,
+    "tibiaDataHousesMs": 300000,
+    "tibiaDataHouseDetailMs": 300000,
+    "tibiaDataKillStatisticsMs": 300000,
+    "tibiaDataHighscoresMs": 300000,
+    "tibiaDataNewsMs": 300000,
+    "tibiaDataCharacterMs": 300000,
+    "bazaarCurrentMs": 300000,
+    "bazaarHistoryMs": 900000,
+    "bazaarDetailMs": 1800000,
+    "rookieWorldsMs": 300000,
+    "rookieTrendingMs": 300000,
+    "bossWorldMs": 900000,
+    "bossDetailMs": 900000,
+    "rookieCharactersMs": 300000,
+    "rookieCharacterDetailMs": 600000
+  }
+}

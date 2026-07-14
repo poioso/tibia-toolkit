@@ -1,0 +1,58 @@
+{
+  "appId": "com.poioso.tibia-toolkit",
+  "productName": "Tibia Toolkit",
+  "afterPack": "desktop/after-pack.mjs",
+  "artifactName": "${productName} Setup ${version}.${ext}",
+  "directories": {
+    "output": "dist/tibia-toolkit-release",
+    "buildResources": "desktop/build"
+  },
+  "publish": [
+    {
+      "provider": "generic",
+      "url": "https://downloads.tibiatoolkit.com/updates"
+    }
+  ],
+  "asar": false,
+  "files": [
+    "package.json",
+    "index.html",
+    "app.js",
+    "styles.css",
+    "!assets/**/*",
+    "desktop/**/*",
+    "lib/**/*",
+    "services/game-data-hub/**/*",
+    "desktop/build/bootstrap/**/*",
+    "!desktop/vps-checker/**/*",
+    "!desktop/screen-vision-native/ScreenVision.NativeHost/**/*",
+    "!desktop/screen-vision-native/_build-verify/**/*",
+    "!desktop/**/*.log",
+    "!**/*.map",
+    "!**/*.pdb"
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon": "desktop/build/icon.ico",
+    "signAndEditExecutable": false
+  },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": false,
+    "createDesktopShortcut": "always",
+    "createStartMenuShortcut": true,
+    "shortcutName": "Tibia Toolkit",
+    "include": "installer.nsh",
+    "installerIcon": "desktop/build/icon.ico",
+    "uninstallerIcon": "desktop/build/icon.ico",
+    "installerHeaderIcon": "desktop/build/icon.ico"
+  }
+}

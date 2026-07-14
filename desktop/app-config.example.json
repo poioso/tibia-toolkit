@@ -1,0 +1,20 @@
+{
+  "marketApiBase": "https://api.example.invalid/market",
+  "marketApiBases": [
+    "https://api.example.invalid/market"
+  ],
+  "gameDataHubBase": "https://api.example.invalid/game-data",
+  "gameDataHubBases": [
+    "https://api.example.invalid/game-data"
+  ],
+  "supportersDataUrl": "https://downloads.example.invalid/supporters/supporters.json",
+  "supportersDataUrls": [
+    "https://downloads.example.invalid/supporters/supporters.json"
+  ],
+  "contentPackManifestUrls": [
+    "https://assets.example.invalid/content/latest.json"
+  ],
+  "updateUrls": [
+    "https://downloads.example.invalid/updates"
+  ]
+}

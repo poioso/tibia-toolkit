@@ -1,0 +1,36 @@
+{
+  "name": "tibia-toolkit",
+  "productName": "Tibia Toolkit",
+  "version": "0.3.0",
+  "author": "Tibia Toolkit",
+  "license": "GPL-3.0-only",
+  "description": "App desktop overlay Tibia Toolkit para consultar precos de Tibia.",
+  "type": "module",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:overlay": "electron .",
+    "test": "node tools/verify-public-source.mjs",
+    "check": "node tools/verify-public-source.mjs",
+    "build:native-host": "dotnet publish desktop/screen-vision-native/ScreenVision.NativeHost/ScreenVision.NativeHost.csproj -c Release -r win-x64 --self-contained true -o desktop/screen-vision-native/publish/win-x64 --nologo",
+    "build:installer": "node desktop/build-installer.mjs",
+    "build:release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1"
+  },
+  "devDependencies": {
+    "cheerio": "^1.1.2",
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
+    "google-translate-api-x": "^10.7.3",
+    "png-to-ico": "^3.0.2",
+    "rcedit": "^5.0.2"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.18",
+    "driver.js": "^1.6.0",
+    "electron-updater": "^6.8.9",
+    "jquery": "^3.7.1",
+    "leaflet": "^1.9.4",
+    "obs-websocket-js": "^5.0.8",
+    "playwright": "^1.61.1"
+  }
+}

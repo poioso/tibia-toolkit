@@ -1,0 +1,1290 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tibia Toolkit</title>
+    <link rel="icon" type="image/png" href="assets/ui/loading-emblem.png">
+    <script>
+      if (new URLSearchParams(window.location.search).get("mode") === "desktop") {
+        document.documentElement.classList.add("desktop-mode-root");
+      }
+    </script>
+    <link rel="stylesheet" href="node_modules/leaflet/dist/leaflet.css">
+    <link rel="stylesheet" href="node_modules/driver.js/dist/driver.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="desktop/screen-vision/screen-vision-embedded.css">
+  </head>
+  <body class="app-booting">
+    <script>
+      if (document.documentElement.classList.contains("desktop-mode-root")) {
+        document.body.classList.add("desktop-mode");
+      }
+    </script>
+    <header class="desktop-toolbar" id="desktop-toolbar">
+      <div class="desktop-toolbar-left">
+        <div class="desktop-toolbar-brand" id="desktop-toolbar-brand">
+          <img
+            class="desktop-brand-mark"
+            src="assets/ui/loading-emblem.png"
+            alt="Tibia Toolkit"
+          >
+          <img
+            class="desktop-brand-logo"
+            src="assets/ui/loading-emblem.png"
+            alt="Tibia Toolkit"
+          >
+          <button type="button" class="desktop-update-button" id="desktop-update-button" hidden aria-label="Nova atualizacao disponivel" data-tooltip="Nova atualizacao disponivel">
+            <img src="assets/ui/tutorial/update-available.gif" alt="">
+          </button>
+          <span class="desktop-brand-caption">Tibia Toolkit</span>
+        </div>
+
+        <div class="desktop-history-actions" aria-label="Navegacao" data-i18n-aria-label="toolbar.navigation">
+          <button type="button" class="desktop-history-button desktop-window-button desktop-window-image-button" id="history-back-button" aria-label="Voltar" data-tooltip="Voltar" data-i18n-aria-label="common.back" data-i18n-tooltip="common.back" disabled>
+            <span class="desktop-window-icon-stack" aria-hidden="true">
+              <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/desktop-history/voltar-off.png" alt="">
+              <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/desktop-history/voltar-on.png" alt="">
+            </span>
+          </button>
+          <button type="button" class="desktop-history-button desktop-window-button desktop-window-image-button" id="history-forward-button" aria-label="Avancar" data-tooltip="Avançar" data-i18n-aria-label="common.forward" data-i18n-tooltip="common.forward" disabled>
+            <span class="desktop-window-icon-stack" aria-hidden="true">
+              <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/desktop-history/avancar-off.png" alt="">
+              <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/desktop-history/avancar-on.png" alt="">
+            </span>
+          </button>
+        </div>
+
+        <div class="desktop-supporters-slot" id="desktop-supporters-slot">
+          <button
+            type="button"
+            class="desktop-supporters-button"
+            id="desktop-supporters-button"
+            aria-label="Top apoiadores"
+            data-tooltip="Top Apoiadores"
+          >
+            <span class="desktop-supporters-medal-shell" aria-hidden="true">
+              <img id="desktop-supporters-active-medal" src="assets/ui/supporters/medalha-diamante.png" alt="">
+            </span>
+            <span class="desktop-supporters-marquee" id="desktop-supporters-marquee" aria-hidden="true">
+              <span class="desktop-supporters-marquee-track" id="desktop-supporters-marquee-track"></span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="desktop-toolbar-right">
+        <div class="global-world-control" aria-label="Mundo global" data-i18n-aria-label="toolbar.globalWorld">
+          <div class="autocomplete-shell global-world-shell">
+            <button type="button" id="global-world-dropdown-button" class="world-dropdown-button global-world-compact-button" aria-label="Mostrar mundos" data-tooltip="Mostrar mundos" data-i18n-aria-label="toolbar.showWorlds" data-i18n-tooltip="toolbar.showWorlds">
+              <img class="global-world-compact-icon" src="assets/ui/boss-stats/last-seen-tibia.png" alt="" aria-hidden="true">
+            </button>
+            <div class="global-world-dropdown-content">
+              <input id="global-world-input" name="globalWorldName" type="text" placeholder="Digite o mundo" data-i18n-placeholder="toolbar.typeWorld" autocomplete="off">
+              <div id="global-world-suggestions" class="suggestions-panel global-world-suggestions hidden"></div>
+            </div>
+          </div>
+        </div>
+
+        <label class="desktop-opacity-control" for="desktop-opacity-input" data-tooltip="Opacidade" data-i18n-tooltip="toolbar.opacity" data-tooltip-placement="bottom">
+          <input id="desktop-opacity-input" type="range" min="45" max="100" step="1" value="100">
+          <strong id="desktop-opacity-value">100%</strong>
+        </label>
+
+        <button
+          type="button"
+          class="desktop-toolbar-link"
+          id="api-docs-button"
+          aria-label="Abrir documentaÃ§Ã£o das APIs"
+          title="Abrir documentaÃ§Ã£o das APIs"
+          data-i18n-aria-label="toolbar.apiDocs"
+          data-i18n-title="toolbar.apiDocs"
+          hidden
+        >
+          API
+        </button>
+
+        <button
+          type="button"
+          class="desktop-screen-vision-toggle-button active"
+          id="desktop-screen-vision-visibility-button"
+          aria-label="Mostrar ou ocultar todos os espelhos"
+          data-tooltip="Mostrar ou ocultar todos os espelhos."
+          data-i18n-aria-label="toolbar.toggleMirrors"
+          data-i18n-tooltip="toolbar.toggleMirrors"
+        >
+          <img src="assets/ui/tools/tibia-eye/toolbar/visivel.png" alt="">
+        </button>
+
+        <button
+          type="button"
+          class="desktop-screen-vision-toggle-button desktop-coffee-button"
+          id="desktop-coffee-button"
+          aria-label="Buy me a Coffee"
+          data-tooltip="Buy me a Coffee"
+          data-i18n-aria-label="toolbar.openBuyCoffee"
+          data-i18n-tooltip="toolbar.openBuyCoffee"
+        >
+          <img src="assets/ui/tools/tibia-eye/buy-me-a-coffee/coffee-toolbar.gif" alt="">
+        </button>
+
+        <div class="locale-switcher" id="locale-switcher">
+          <button
+            type="button"
+            class="locale-switcher-button"
+            id="locale-switcher-button"
+            aria-label="Selecionar idioma"
+            aria-expanded="false"
+            data-tooltip="Selecionar idioma"
+          >
+            <span class="locale-switcher-flag" id="locale-switcher-flag">
+              <img class="locale-switcher-flag-image" src="assets/ui/flags/en.svg" alt="English">
+            </span>
+          </button>
+          <div class="locale-switcher-menu hidden" id="locale-switcher-menu"></div>
+        </div>
+
+        <button
+          type="button"
+          class="desktop-tibia-coins-button"
+          id="desktop-tibia-coins-button"
+          aria-label="Comprar Tibia Coins com desconto"
+          data-tooltip="Compre Tibia Coins com desconto"
+          data-i18n-aria-label="toolbar.buyTibiaCoins"
+          data-i18n-tooltip="toolbar.buyTibiaCoins"
+        >
+          <img src="assets/ui/Tibia_Coin_Icon.gif" alt="">
+        </button>
+
+        <button
+          type="button"
+          class="desktop-window-button desktop-settings-button"
+          id="desktop-settings-button"
+          aria-label="Abrir configurações"
+          data-tooltip="Configurações"
+          data-i18n-aria-label="toolbar.openSettings"
+          data-i18n-tooltip="toolbar.openSettings"
+        >
+          <img src="assets/ui/desktop-settings-icon.png" alt="">
+        </button>
+
+        <div class="desktop-window-actions">
+          <button type="button" class="desktop-window-button desktop-window-image-button" id="desktop-minimize-button" aria-label="Minimizar" data-tooltip="Minimizar" data-i18n-aria-label="common.minimize" data-i18n-tooltip="common.minimize">
+            <span class="desktop-window-icon-stack" aria-hidden="true">
+              <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/desktop-minimize-idle.png" alt="">
+              <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/desktop-minimize-active.png" alt="">
+            </span>
+          </button>
+          <button type="button" class="desktop-window-button desktop-window-image-button danger" id="desktop-close-button" aria-label="Fechar" data-tooltip="Fechar" data-i18n-aria-label="common.close" data-i18n-tooltip="common.close">
+            <span class="desktop-window-icon-stack" aria-hidden="true">
+              <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/desktop-close-idle.png" alt="">
+              <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/desktop-close-active.png" alt="">
+            </span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <img class="brand-logo" src="assets/ui/tibia-market-toolkit-logo.png" alt="Tibia Toolkit">
+        </div>
+
+        <div class="nav-scroll-shell">
+          <button type="button" class="nav-scroll-button nav-scroll-left" data-nav-scroll="left" aria-label="Rolar abas para esquerda" data-i18n-aria-label="toolbar.scrollTabsLeft">&lsaquo;</button>
+          <nav class="nav-sections" id="main-nav-sections">
+            <button class="nav-button active" data-section="item-prices" data-tooltip="Preços dos Itens" aria-label="Preços dos Itens" data-i18n-tooltip="panel.itemPrices.title" data-i18n-aria-label="panel.itemPrices.title">
+              <img src="assets/ui/nav-precos.gif" alt="">
+              <span data-i18n="panel.itemPrices.title">Pre&ccedil;os dos Itens</span>
+            </button>
+            <button class="nav-button" data-section="tools" data-tooltip="Ferramentas" aria-label="Ferramentas" data-i18n-tooltip="panel.tools.title" data-i18n-aria-label="panel.tools.title">
+              <img src="assets/ui/nav-ferramentas.gif" alt="">
+              <span data-i18n="panel.tools.title">Ferramentas</span>
+            </button>
+            <button class="nav-button" data-section="npcs" data-tooltip="NPCs/Criaturas" aria-label="NPCs/Criaturas" data-i18n-tooltip="panel.npcs.title" data-i18n-aria-label="panel.npcs.title">
+              <img src="assets/ui/nav-npcs-criaturas.png" alt="">
+              <span data-i18n="panel.npcs.title">NPCs/Criaturas</span>
+            </button>
+          </nav>
+          <button type="button" class="nav-scroll-button nav-scroll-right" data-nav-scroll="right" aria-label="Rolar abas para direita" data-i18n-aria-label="toolbar.scrollTabsRight">&rsaquo;</button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <section class="panel active" id="panel-item-prices">
+          <header class="panel-header panel-header-status-only">
+            <div class="status-badge" id="connection-status" data-i18n="common.loading">Carregandoâ€¦</div>
+          </header>
+
+          <div class="card controls-card">
+            <form id="item-search-form" class="search-form">
+              <label class="field">
+                <span data-i18n="item.item">Item</span>
+                <div class="autocomplete-shell item-autocomplete-shell">
+                  <input id="item-slug-input" name="itemSlug" type="text" placeholder="Ex: Tibia Coins ou Magic Plate Armor" data-i18n-placeholder="item.typeItem" autocomplete="off">
+                  <span class="item-dropdown-loading-indicator" aria-hidden="true"></span>
+                  <button type="button" id="item-dropdown-button" class="world-dropdown-button item-dropdown-button" aria-label="Mostrar itens" data-tooltip="Mostrar itens" data-i18n-aria-label="item.showItems" data-i18n-tooltip="item.showItems"></button>
+                  <div id="item-suggestions" class="suggestions-panel hidden"></div>
+                </div>
+              </label>
+
+              <label class="field local-world-field">
+                <span data-i18n="common.world">Mundo</span>
+                <div class="autocomplete-shell">
+                  <input id="world-input" name="worldName" type="text" placeholder="Digite o mundo" data-i18n-placeholder="toolbar.typeWorld" autocomplete="off">
+                  <button type="button" id="world-dropdown-button" class="world-dropdown-button" aria-label="Mostrar mundos" data-tooltip="Mostrar mundos" data-i18n-aria-label="toolbar.showWorlds" data-i18n-tooltip="toolbar.showWorlds"></button>
+                  <div id="world-suggestions" class="suggestions-panel hidden"></div>
+                </div>
+              </label>
+
+              <div class="field currency-field item-actions-field">
+                <span data-i18n="common.currency">Moeda</span>
+                <div class="item-actions-row">
+                  <div class="currency-switch imbuement-top-switch" id="item-currency-switch">
+                    <button type="button" class="currency-button active icon-only imbuement-top-button imbuement-currency-button" data-mode="gold" aria-label="Gold" data-tooltip="Gold">
+                      <img class="currency-icon" data-icon-mode="gold" src="assets/ui/Crystal_Coin.gif" alt="Gold">
+                    </button>
+                    <button type="button" class="currency-button icon-only imbuement-top-button imbuement-currency-button" data-mode="tc" aria-label="Tibia Coin" data-tooltip="Tibia Coin">
+                      <img class="currency-icon" data-icon-mode="tc" src="assets/ui/Crystal_Coin.gif" alt="Tibia Coin">
+                    </button>
+                    <button type="button" class="currency-button icon-only imbuement-top-button imbuement-currency-button" data-mode="gt" aria-label="Gold Token" data-tooltip="Gold Token">
+                      <img class="currency-icon" data-icon-mode="gt" src="assets/ui/Crystal_Coin.gif" alt="Gold Token">
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div id="item-feedback" class="feedback"></div>
+
+          <nav class="item-view-tabs" aria-label="Visualizacao de itens" data-i18n-aria-label="item.viewTabs">
+            <button type="button" class="item-view-tab active" data-item-view="list">
+              <img src="assets/ui/item-list-tab.gif" alt="">
+              <span data-i18n="common.list">Lista</span>
+            </button>
+            <button type="button" class="item-view-tab" data-item-view="stash">
+              <img src="assets/ui/item-stash-tab.gif" alt="">
+              <span>Stash</span>
+            </button>
+          </nav>
+
+          <div id="item-list-view">
+          <article class="card shortcuts-card single-column">
+            <div class="shortcut-column">
+              <div class="shortcut-heading">
+                <h3 data-i18n="item.recent">Recentes</h3>
+                <p data-i18n="item.recentHint">Ãšltimos itens consultados neste app.</p>
+              </div>
+              <div id="recent-items" class="shortcut-grid compact"></div>
+            </div>
+          </article>
+
+          <div class="layout-grid">
+            <article class="card item-summary-card">
+              <div id="item-summary-empty" class="empty-state">
+                <h3 data-i18n="item.pickOne">Escolha um item</h3>
+                <p data-i18n="item.pickOneHint">Digite o item e carregue os valores para este mundo.</p>
+              </div>
+
+              <div id="item-summary-content" class="item-summary hidden">
+                <div class="item-hero">
+                  <img id="item-image" alt="" class="item-image">
+                  <div>
+                    <p class="muted" id="item-category"></p>
+                    <h3 id="item-name"></h3>
+                    <div class="item-description hidden" id="item-description"></div>
+                  </div>
+                </div>
+                <div class="item-dropped-by hidden" id="item-dropped-by"></div>
+                <div class="item-extra-details hidden" id="item-extra-details"></div>
+
+                <div class="item-summary-meta">
+                  <div class="market-recommendation store hidden" id="item-store-note"></div>
+                  <button type="button" class="entity-link-chip hidden" id="item-open-wiki" data-i18n="common.openWiki">Abrir wiki</button>
+                </div>
+                <div class="market-recommendation neutral hidden" id="item-market-disabled-note"></div>
+
+                <div class="price-spotlight-grid" id="item-price-spotlight-grid">
+                  <div class="market-offer-summary">
+                    <button type="button" class="tibia-coins-cta market-offer-tibia-coins-cta" data-tooltip="Compre Tibia Coins com desconto" aria-label="Compre Tibia Coins com desconto" data-i18n-tooltip="toolbar.buyTibiaCoins" data-i18n-aria-label="toolbar.buyTibiaCoins">
+                      <img src="assets/ui/Tibia_Coin_Icon.gif" alt="">
+                    </button>
+                    <div class="market-offer-icon-wrap">
+                      <img class="market-offer-icon" src="assets/ui/The_Market_(Object).gif" alt="Market">
+                    </div>
+                    <div class="market-offer-slots">
+                      <div class="market-offer-slot">
+                        <div class="market-offer-heading">
+                          <span class="market-offer-marker"></span>
+                          <span class="market-offer-title" data-i18n="item.sellOfferCurrent">Sell offer atual</span>
+                        </div>
+                        <strong id="item-lowest-sell">-</strong>
+                      </div>
+                      <div class="market-offer-slot">
+                        <div class="market-offer-heading">
+                          <span class="market-offer-marker"></span>
+                          <span class="market-offer-title" data-i18n="item.buyOfferCurrent">Buy offer atual</span>
+                        </div>
+                        <strong id="item-highest-buy">-</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p class="market-note" id="item-market-note">
+                  <span data-i18n="item.marketBookHint">Os destaques acima mostram o book atual do market.</span>
+                </p>
+
+                <div class="market-recommendation" id="item-sell-recommendation">
+                  <span data-i18n="item.loadingSellRecommendation">RecomendaÃ§Ã£o de venda carregando...</span>
+                </div>
+
+                <div class="stat-grid" id="item-market-stat-grid">
+                  <div class="stat-card">
+                    <span data-i18n="item.dayAverageSell">Media de venda no dia</span>
+                    <strong id="item-current-price">-</strong>
+                  </div>
+                  <div class="stat-card">
+                    <span data-i18n="item.monthAverageSell">Venda media no mes</span>
+                    <strong id="item-month-sell">-</strong>
+                  </div>
+                  <div class="stat-card">
+                    <span data-i18n="item.monthAverageBuy">Compra media no mes</span>
+                    <strong id="item-month-buy">-</strong>
+                  </div>
+                  <div class="stat-card">
+                    <span data-i18n="item.availability">Disponibilidade</span>
+                    <strong id="item-availability">-</strong>
+                  </div>
+                </div>
+
+                <div class="chips-row" id="item-market-chips">
+                  <span class="chip" id="item-demand-chip">Demanda: -</span>
+                  <span class="chip" id="item-status-chip">Status: -</span>
+                  <span class="chip" id="item-tc-chip">TC: -</span>
+                  <span class="chip" id="item-updated-chip">Atualizado: -</span>
+                </div>
+              </div>
+            </article>
+
+            <article class="card market-card" id="item-market-card">
+              <h3 data-i18n="item.market">Market</h3>
+              <div id="market-metrics" class="metric-table hidden"></div>
+              <div id="market-empty" class="empty-inline" data-i18n="item.marketDataPlaceholder">Os dados de market vao aparecer aqui.</div>
+            </article>
+
+            <article class="card npc-card">
+              <div class="tab-card-header">
+                <h3 data-i18n="item.npcPrices">PreÃ§os de NPCs</h3>
+                <div class="mini-tabs" id="npc-tabs">
+                  <button type="button" class="mini-tab active" data-npc-tab="buy" data-i18n="item.buy">Compra</button>
+                  <button type="button" class="mini-tab" data-npc-tab="sell" data-i18n="item.sell">Venda</button>
+                </div>
+              </div>
+              <div id="npc-buy-list" class="npc-list"></div>
+              <div id="npc-sell-list" class="npc-list hidden"></div>
+            </article>
+          </div>
+
+          <article class="card related-card">
+            <h3 data-i18n="item.related">Itens relacionados</h3>
+            <div id="related-items" class="related-grid"></div>
+          </article>
+          </div>
+
+          <div id="item-stash-view" class="stash-view hidden">
+            <article class="stash-panel">
+              <div class="stash-titlebar">Stash</div>
+              <div class="stash-toolbar">
+                <label class="stash-search">
+                  <input id="stash-search-input" type="text" placeholder="Type to search" data-i18n-placeholder="stash.typeToSearch" autocomplete="off">
+                  <button type="button" id="stash-clear-search" aria-label="Limpar busca" data-i18n-aria-label="stash.clearSearch">X</button>
+                </label>
+
+                <select id="stash-category-filter" aria-label="Filtro por tipo" data-i18n-aria-label="stash.filterByType">
+                  <option value="" data-i18n="stash.showAll">Show All</option>
+                </select>
+
+                <select id="stash-trader-filter" aria-label="Filtro por NPC" data-i18n-aria-label="stash.filterByNpc">
+                  <option value="" data-i18n="stash.noTraderSelected">No Trader Selected</option>
+                </select>
+
+                <select id="stash-sort-filter" aria-label="Ordenacao" data-i18n-aria-label="stash.sorting">
+                  <option value="name-asc" data-i18n="stash.sort.nameAsc">Name (A-Z)</option>
+                  <option value="name-desc" data-i18n="stash.sort.nameDesc">Name (Z-A)</option>
+                  <option value="market-high" data-i18n="stash.sort.marketHigh">Market Value (High to Low)</option>
+                  <option value="market-low" data-i18n="stash.sort.marketLow">Market Value (Low to High)</option>
+                  <option value="npc-high" data-i18n="stash.sort.npcHigh">Sell To Value (High to Low)</option>
+                  <option value="npc-low" data-i18n="stash.sort.npcLow">Sell To Value (Low to High)</option>
+                </select>
+              </div>
+
+              <div id="stash-grid" class="stash-grid"></div>
+
+              <div class="stash-footer">
+                <div class="stash-value-actions">
+                  <div class="stash-value-switch" id="stash-value-switch">
+                    <button type="button" class="active" data-stash-value-mode="npc" data-i18n="stash.npcPrice">Pre&ccedil;o NPC</button>
+                    <button type="button" data-stash-value-mode="market" data-i18n="stash.marketPrice">Pre&ccedil;o Market</button>
+                    <button type="button" class="icon-action-button stash-market-refresh-button hidden" id="stash-market-refresh-button" title="Atualizar pre&ccedil;os do market" aria-label="Atualizar pre&ccedil;os do market" data-tooltip="Atualizar preços do market" data-i18n-title="stash.refreshMarket" data-i18n-aria-label="stash.refreshMarket" data-i18n-tooltip="stash.refreshMarket">
+                      <span class="stash-market-refresh-icon" aria-hidden="true">↻</span>
+                    </button>
+                  </div>
+                  <div id="stash-market-refresh-warning" class="stash-refresh-warning hidden" role="alert" aria-live="polite"></div>
+                </div>
+                <span id="stash-status" data-i18n="stash.localBaseReady">Base local pronta.</span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-tools">
+          <nav class="tool-tabs" aria-label="Ferramentas" data-i18n-aria-label="panel.tools.title">
+            <button type="button" class="tool-tab active" data-tool-tab="imbuement" data-tooltip="Calculadora de Imbuement" aria-label="Calculadora de Imbuement" data-i18n-tooltip="tools.imbuement" data-i18n-aria-label="tools.imbuement">
+              <img src="assets/ui/tool-imbuement-home.gif" alt="">
+              <span data-i18n="tools.imbuement">Calculadora de Imbuement</span>
+            </button>
+            <button type="button" class="tool-tab" data-tool-tab="loot-splitter" data-tooltip="Analyzer" aria-label="Analyzer" data-i18n-tooltip="tools.analyzer" data-i18n-aria-label="tools.analyzer">
+              <img src="assets/ui/tool-analyzer.gif" alt="">
+              <span data-i18n="tools.analyzer">Analyzer</span>
+            </button>
+            <button type="button" class="tool-tab" data-tool-tab="find-party" data-tooltip="Find Party" aria-label="Find Party" data-i18n-tooltip="tools.findParty" data-i18n-aria-label="tools.findParty">
+              <img src="assets/ui/analyzer-party-tab.png" alt="">
+              <span data-i18n="tools.findParty">Find Party</span>
+            </button>
+            <button type="button" class="tool-tab" data-tool-tab="skill-calculator" data-tooltip="Calculadora de Skill" aria-label="Calculadora de Skill" data-i18n-tooltip="tools.skillCalculator" data-i18n-aria-label="tools.skillCalculator">
+              <img src="assets/ui/tool-skill-calculator.webp" alt="">
+              <span data-i18n="tools.skillCalculator">Calculadora de Skill</span>
+            </button>
+            <button type="button" class="tool-tab" data-tool-tab="wheel-of-destiny" data-tooltip="Roda do Destino" aria-label="Roda do Destino" data-i18n-tooltip="tools.wheelOfDestiny" data-i18n-aria-label="tools.wheelOfDestiny">
+              <img src="assets/wheel-of-destiny/wheel-of-destiny.png" alt="">
+              <span data-i18n="tools.wheelOfDestiny">Roda do Destino</span>
+            </button>
+            <button type="button" class="tool-tab" data-tool-tab="screen-vision" data-tooltip="Tibia Mirror" aria-label="Tibia Mirror" data-i18n-tooltip="tools.tibiaMirror" data-i18n-aria-label="tools.tibiaMirror">
+              <img src="assets/ui/tools/tibia-eye/tibia-mirror-tab.gif" alt="">
+              <span data-i18n="tools.tibiaMirror">Tibia Mirror</span>
+            </button>
+          </nav>
+
+          <article class="card tool-card tool-panel active" data-tool-panel="imbuement">
+            <div class="tool-card-header">
+              <div>
+                <h3 data-i18n="tools.imbuement">Calculadora de Imbuement</h3>
+                <p>Compare o custo do market com a rota por Gold Token e veja na hora qual caminho fica melhor.</p>
+              </div>
+              <span class="tool-badge" id="imbuement-status-badge">-</span>
+            </div>
+
+            <div class="tool-controls imbuement-controls">
+              <label class="field imbuement-world-field local-world-field">
+                <span data-i18n="common.world">Mundo</span>
+                <div class="autocomplete-shell">
+                  <input id="tool-world-input" name="toolWorldName" type="text" placeholder="Digite o mundo" data-i18n-placeholder="toolbar.typeWorld" autocomplete="off">
+                  <button type="button" id="tool-world-dropdown-button" class="world-dropdown-button" aria-label="Mostrar mundos" data-tooltip="Mostrar mundos" data-i18n-aria-label="toolbar.showWorlds" data-i18n-tooltip="toolbar.showWorlds"></button>
+                  <div id="tool-world-suggestions" class="suggestions-panel hidden"></div>
+                </div>
+              </label>
+
+              <div class="imbuement-loading hidden" id="imbuement-loading">
+                <p id="imbuement-loading-text" data-i18n="common.loadingPrices">Carregando preÃ§os...</p>
+                <div class="imbuement-loading-bar">
+                  <span id="imbuement-loading-fill"></span>
+                </div>
+              </div>
+
+              <div class="field imbuement-tier-field">
+                <span>Nivel</span>
+                <div class="currency-switch imbuement-top-switch" id="imbuement-tier-switch">
+                  <button type="button" class="currency-button imbuement-top-button imbuement-tier-button" data-tier="basic" aria-label="Basic" data-tooltip="Basic">
+                    <img class="imbuement-tier-icon" src="assets/ui/imbuement-tier-basic.png" alt="">
+                  </button>
+                  <button type="button" class="currency-button imbuement-top-button imbuement-tier-button" data-tier="intricate" aria-label="Intricate" data-tooltip="Intricate">
+                    <img class="imbuement-tier-icon" src="assets/ui/imbuement-tier-intricate.png" alt="">
+                  </button>
+                  <button type="button" class="currency-button active imbuement-top-button imbuement-tier-button" data-tier="powerful" aria-label="Powerful" data-tooltip="Powerful">
+                    <img class="imbuement-tier-icon" src="assets/ui/imbuement-tier-powerful.png" alt="">
+                  </button>
+                </div>
+              </div>
+
+              <div class="field currency-field imbuement-display-field">
+                <span>Exibir em</span>
+                <div class="currency-switch imbuement-top-switch" id="imbuement-currency-switch">
+                    <button type="button" class="currency-button active icon-only imbuement-top-button imbuement-currency-button" data-mode="gold" aria-label="Gold" data-tooltip="Gold">
+                      <img class="currency-icon" data-icon-mode="gold" src="assets/ui/Crystal_Coin.gif" alt="Gold">
+                    </button>
+                    <button type="button" class="currency-button icon-only imbuement-top-button imbuement-currency-button" data-mode="gt" aria-label="Gold Token" data-tooltip="Gold Token">
+                      <img class="currency-icon" data-icon-mode="gt" src="assets/ui/Crystal_Coin.gif" alt="Gold Token">
+                    </button>
+                    <button type="button" class="currency-button icon-only imbuement-top-button imbuement-currency-button" data-mode="tc" aria-label="Tibia Coin" data-tooltip="Tibia Coin">
+                      <img class="currency-icon" data-icon-mode="tc" src="assets/ui/Crystal_Coin.gif" alt="Tibia Coin">
+                    </button>
+                </div>
+              </div>
+
+              <div class="field imbuement-picker-field">
+                <span>Imbuement</span>
+                <button type="button" class="imbuement-picker-trigger" id="imbuement-picker-trigger">
+                  <img id="imbuement-picker-trigger-icon" alt="">
+                  <div class="imbuement-picker-trigger-copy">
+                    <strong id="imbuement-picker-trigger-name">Vampirism</strong>
+                    <small id="imbuement-picker-trigger-description">Absorção de vida</small>
+                  </div>
+                  <span class="imbuement-picker-trigger-caret" id="imbuement-picker-trigger-caret" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="imbuement-picker-panel hidden" id="imbuement-picker-panel">
+              <div class="imbuement-picker-header">
+                <strong>Escolha o imbuement</strong>
+                <span>Grade visual no estilo inventory</span>
+              </div>
+              <div class="imbuement-picker-grid" id="imbuement-picker-grid"></div>
+            </div>
+
+            <div class="imbuement-overview">
+              <div class="imbuement-title-row">
+                <h4 id="imbuement-name">Vampirism</h4>
+                <div id="imbuement-feedback" class="feedback"></div>
+              </div>
+              <div class="imbuement-hero">
+                <div class="imbuement-identity">
+                  <img id="imbuement-icon" class="imbuement-icon" alt="">
+                  <p class="muted" id="imbuement-description">AbsorÃ§Ã£o de vida</p>
+                </div>
+                <div class="imbuement-route-controls" id="imbuement-route-controls">
+                  <div class="manual-token-panel hidden" id="manual-token-panel">
+                    <label class="slide-switch manual-token-toggle">
+                      <input id="manual-token-toggle" type="checkbox">
+                      <span class="slide-track"></span>
+                      <strong>Valor manual do Gold Token</strong>
+                    </label>
+                    <input id="manual-token-input" class="manual-token-input hidden" type="text" inputmode="numeric" placeholder="Ex: 60000" disabled>
+                  </div>
+                  <div class="ingredient-token-panel hidden" id="ingredient-token-panel"></div>
+                </div>
+              </div>
+
+              <details class="imbuement-effect-details" id="imbuement-effect-details">
+                <summary>
+                  <span id="imbuement-effect-chip">Efeito: -</span>
+                  <span class="details-caret">▾</span>
+                </summary>
+                <div class="imbuement-effect-description" id="imbuement-effect-description"></div>
+              </details>
+
+              <div class="imbuement-mixed-route-panel hidden" id="imbuement-mixed-route-panel"></div>
+
+              <div class="tool-recommendation" id="imbuement-recommendation">
+                <span data-i18n="common.loadingComparison">Carregando comparaÃ§Ã£o...</span>
+              </div>
+            </div>
+
+            <div class="stat-grid tool-stat-grid">
+              <div class="stat-card tool-stat-card">
+                <img id="imbuement-market-card-icon" class="tool-stat-icon" alt="Market">
+                <div>
+                  <span>Materiais via market</span>
+                  <strong id="imbuement-market-total">-</strong>
+                </div>
+              </div>
+              <div class="stat-card tool-stat-card">
+                <img id="imbuement-fee-card-icon" class="tool-stat-icon" alt="Imbuing Shrine">
+                <div>
+                  <span>Taxa do shrine</span>
+                  <strong id="imbuement-fee-total">-</strong>
+                </div>
+              </div>
+              <div class="stat-card tool-stat-card">
+                <button type="button" class="tibia-coins-cta tool-stat-tibia-coins-cta" data-tooltip="Compre Tibia Coins com desconto" aria-label="Compre Tibia Coins com desconto" data-i18n-tooltip="toolbar.buyTibiaCoins" data-i18n-aria-label="toolbar.buyTibiaCoins">
+                  <img src="assets/ui/Tibia_Coin_Icon.gif" alt="">
+                </button>
+                <img id="imbuement-grand-card-icon" class="tool-stat-icon" alt="Gold">
+                <div>
+                  <span>Total via gold</span>
+                  <div class="tool-stat-value-line">
+                    <strong id="imbuement-grand-total">-</strong>
+                    <small id="imbuement-grand-breakdown" class="tool-stat-breakdown">-</small>
+                  </div>
+                </div>
+              </div>
+              <div class="stat-card tool-stat-card">
+                <img id="imbuement-token-card-icon" class="tool-stat-icon" alt="Gold Token">
+                <div>
+                  <span>Total via gold token</span>
+                  <div class="tool-stat-value-line">
+                    <strong id="imbuement-token-total">-</strong>
+                    <small id="imbuement-token-breakdown" class="tool-stat-breakdown">-</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tool-note" id="imbuement-route-note"></div>
+
+            <article class="card imbuement-ingredients-card">
+              <div class="shortcut-heading">
+                <h4>Ingredientes</h4>
+              </div>
+              <div id="imbuement-ingredients" class="imbuement-ingredients"></div>
+            </article>
+          </article>
+
+          <article class="card tool-card tool-panel hidden" data-tool-panel="loot-splitter">
+            <div class="loot-topbar">
+              <nav class="loot-subtabs" aria-label="Tipo de analyzer">
+                <button type="button" class="loot-subtab active" data-loot-mode="party">
+                  <img src="assets/ui/analyzer-party-tab.png" alt="">
+                  <span>Party Hunt</span>
+                </button>
+                <button type="button" class="loot-subtab" data-loot-mode="solo">
+                  <img src="assets/ui/analyzer-solo-tab.png" alt="">
+                  <span>Solo Hunt</span>
+                </button>
+              </nav>
+              <button type="button" class="icon-action-button loot-reset-header-button" id="loot-reset-button" title="Resetar" aria-label="Resetar" data-tooltip="Resetar">
+                &#8635;
+              </button>
+            </div>
+
+            <div class="tool-card-header loot-splitter-header">
+              <div>
+                <h3 data-i18n="tools.analyzer">Analyzer</h3>
+                <p data-i18n="tools.analyzerDescription">Divida o resultado do Party Hunt Analyzer sem perder o contexto da hunt.</p>
+              </div>
+            </div>
+
+            <div class="loot-solo-controls-row hidden" id="loot-solo-controls-row">
+              <label class="field loot-character-field hidden" id="loot-character-field">
+                <span data-i18n="tools.character">Personagem</span>
+                <input id="loot-character-input" name="lootCharacterName" type="text" placeholder="Ex: Poioso" autocomplete="off" data-i18n-placeholder="tools.characterPlaceholder">
+              </label>
+
+              <div class="tool-controls loot-splitter-controls">
+                <div class="loot-mode-panel hidden" id="loot-mode-panel">
+                  <div class="loot-toggle-group">
+                    <label class="slide-switch">
+                      <input id="loot-auto-mode-toggle" type="checkbox">
+                      <span class="slide-track"></span>
+                      <strong id="loot-mode-toggle-label" data-i18n="tools.useMarketPrice">Usar preço de market</strong>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="loot-feedback" class="feedback hidden"></div>
+
+            <div class="loot-analysis-grid">
+              <label class="field loot-input-field">
+                <span id="loot-input-label" data-i18n="tools.analyzerInputLabel">Texto do Party Hunt Analyzer</span>
+                <textarea id="loot-input" class="loot-input" placeholder="Cole aqui o texto copiado do Party Hunt Analyzer" data-i18n-placeholder="tools.analyzerInputPlaceholder"></textarea>
+              </label>
+
+              <article class="loot-session-card">
+                <div class="shortcut-heading">
+                  <h4 data-i18n="tools.sessionSummary">Resumo da sessão</h4>
+                </div>
+                <div class="loot-session-summary" id="loot-session-summary"></div>
+              </article>
+            </div>
+
+            <div class="loot-output-card hidden" id="loot-output-card">
+              <div class="shortcut-heading">
+                <h4 data-i18n="tools.result">Resultado</h4>
+                <p id="loot-output-subtitle" data-i18n="tools.resultSubtitle">Transferências calculadas para igualar o balance da party.</p>
+              </div>
+              <div id="loot-output" class="loot-output-lines"></div>
+            </div>
+
+            <div class="loot-player-grid" id="loot-player-grid"></div>
+
+            <article class="loot-items-card hidden" id="loot-monsters-card">
+              <div class="shortcut-heading">
+                <div class="loot-section-title-row">
+                  <h4 data-i18n="tools.slainCreatures">Criaturas abatidas</h4>
+                  <label class="slide-switch loot-inline-switch">
+                    <input id="loot-double-xp-toggle" type="checkbox">
+                    <span class="slide-track"></span>
+                    <strong>Double XP</strong>
+                  </label>
+                </div>
+                <p data-i18n="tools.clickCreatureHint">Clique em uma criatura para abrir o detalhe dela.</p>
+              </div>
+              <div class="loot-items-grid" id="loot-monsters-grid"></div>
+            </article>
+
+            <article class="loot-items-card hidden" id="loot-items-card">
+              <div class="shortcut-heading">
+                <div class="loot-section-title-row">
+                  <h4 data-i18n="tools.identifiedItems">Itens identificados</h4>
+                  <label class="slide-switch loot-inline-switch">
+                    <input id="loot-double-loot-toggle" type="checkbox">
+                    <span class="slide-track"></span>
+                    <strong>Double Loot</strong>
+                  </label>
+                </div>
+                <p data-i18n="tools.itemsAutoHint">Quando o texto colado trouxer itens, eles aparecem aqui para valor automatico ou manual.</p>
+              </div>
+              <div class="loot-items-grid" id="loot-items-grid"></div>
+            </article>
+
+          </article>
+
+          <article class="card tool-card tool-panel hidden" data-tool-panel="find-party">
+            <div class="find-party-stage">
+              <section class="find-party-vocation-block">
+                <div class="shortcut-heading find-party-vocation-heading">
+                <h4 data-i18n="findParty.selectVocation">Selecione a vocação a ser encontrada</h4>
+                  <span class="tool-badge find-party-online-badge" id="find-party-status-badge">-</span>
+                </div>
+
+                <input id="find-party-vocation-select" type="hidden" value="">
+
+                <div class="find-party-vocation-grid" aria-label="Vocação do personagem">
+                  <button type="button" class="find-party-vocation-button" data-find-party-vocation="knight" data-tooltip="Knight">
+                    <img src="assets/ui/vocations/knight-male.png" alt="">
+                    <span>Knight</span>
+                  </button>
+                  <button type="button" class="find-party-vocation-button" data-find-party-vocation="paladin" data-tooltip="Paladin">
+                    <img src="assets/ui/vocations/paladin-male.png" alt="">
+                    <span>Paladin</span>
+                  </button>
+                  <button type="button" class="find-party-vocation-button" data-find-party-vocation="druid" data-tooltip="Druid">
+                    <img src="assets/ui/vocations/druid-female.png" alt="">
+                    <span>Druid</span>
+                  </button>
+                  <button type="button" class="find-party-vocation-button" data-find-party-vocation="sorcerer" data-tooltip="Sorcerer">
+                    <img src="assets/ui/vocations/sorcerer-male.png" alt="">
+                    <span>Sorcerer</span>
+                  </button>
+                  <button type="button" class="find-party-vocation-button" data-find-party-vocation="monk" data-tooltip="Monk">
+                    <img src="assets/ui/vocations/monk-male.png" alt="">
+                    <span>Monk</span>
+                  </button>
+                </div>
+              </section>
+
+              <section class="find-party-filters-card">
+                <div class="find-party-filters-row">
+                  <label class="field find-party-character-field">
+                    <span>Personagem</span>
+                    <input id="find-party-character-input" type="text" placeholder="Ex: Poioso" autocomplete="off">
+                  </label>
+
+                  <div class="field find-party-guild-field">
+                    <span>Evitar guildas</span>
+                    <div class="autocomplete-shell find-party-guild-shell">
+                      <div class="find-party-guild-control" id="find-party-guild-control">
+                        <div class="find-party-guild-chips" id="find-party-guild-chips"></div>
+                        <div class="find-party-guild-input-row">
+                          <input id="find-party-guild-input" type="text" placeholder="Digite ou selecione" data-i18n-placeholder="findParty.typeOrSelect" autocomplete="off">
+                          <button type="button" id="find-party-guild-dropdown-button" class="world-dropdown-button" aria-label="Mostrar guildas" data-tooltip="Mostrar guildas" data-i18n-aria-label="findParty.showGuilds" data-i18n-tooltip="findParty.showGuilds"></button>
+                        </div>
+                      </div>
+                      <div id="find-party-guild-suggestions" class="suggestions-panel hidden"></div>
+                    </div>
+                  </div>
+
+                  <div class="find-party-clear-field">
+                    <button type="button" class="find-party-clear-button desktop-window-image-button" id="find-party-clear-button" aria-label="Limpar filtros" data-tooltip="Limpar filtros">
+                      <span class="desktop-window-icon-stack" aria-hidden="true">
+                        <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/desktop-close-idle.png" alt="">
+                        <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/desktop-close-active.png" alt="">
+                      </span>
+                    </button>
+                  </div>
+
+                  <div class="field find-party-range-field">
+                    <span>Faixa de level</span>
+                    <strong id="find-party-level-range">-</strong>
+                  </div>
+                </div>
+
+                <div id="find-party-feedback" class="feedback hidden"></div>
+              </section>
+
+              <article class="card find-party-results-card">
+                <div class="shortcut-heading find-party-results-heading">
+                  <div class="find-party-results-heading-copy">
+                    <h4>Personagens encontrados</h4>
+                    <p id="find-party-results-summary">-</p>
+                  </div>
+
+                  <div class="find-party-results-filter-row" aria-label="Filtros da lista">
+                    <button type="button" class="entity-chip find-party-list-filter-button" id="find-party-sort-name-button" data-find-party-sort="name" data-tooltip="Ordenar por nome" aria-label="Ordenar por nome">
+                      <span class="find-party-list-filter-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                          <path d="M12 12.2a4.1 4.1 0 1 0-4.1-4.1 4.1 4.1 0 0 0 4.1 4.1Zm0 2.1c-3.47 0-6.3 1.86-6.3 4.15V20h12.6v-1.55c0-2.29-2.83-4.15-6.3-4.15Z" fill="currentColor"/>
+                        </svg>
+                      </span>
+                    </button>
+
+                    <button type="button" class="entity-chip find-party-list-filter-button active" id="find-party-sort-level-button" data-find-party-sort="level" data-tooltip="Ordenar por level" aria-label="Ordenar por level">
+                      <span class="find-party-list-filter-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                          <path d="M5 18.5h14v1.8H5Zm1.6-3.2 3.1-3.4 2.6 2.4 4.7-5.2 1.4 1.3-5.9 6.6-2.6-2.4-1.9 2.1Z" fill="currentColor"/>
+                        </svg>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div id="find-party-results" class="find-party-results-grid"></div>
+
+                <div class="find-party-results-footer">
+                  <div class="find-party-footer-spacer" aria-hidden="true"></div>
+
+                  <div class="find-party-pagination" aria-label="Paginação">
+                    <button type="button" class="desktop-history-button desktop-window-image-button find-party-page-button" id="find-party-prev-page-button" aria-label="Página anterior" data-tooltip="Página anterior">
+                      <span class="desktop-window-icon-stack" aria-hidden="true">
+                        <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/desktop-history/voltar-off.png" alt="">
+                        <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/desktop-history/voltar-on.png" alt="">
+                      </span>
+                    </button>
+                    <strong id="find-party-page-indicator">1 / 1</strong>
+                    <button type="button" class="desktop-history-button desktop-window-image-button find-party-page-button" id="find-party-next-page-button" aria-label="Próxima página" data-tooltip="Próxima página">
+                      <span class="desktop-window-icon-stack" aria-hidden="true">
+                        <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/desktop-history/avancar-off.png" alt="">
+                        <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/desktop-history/avancar-on.png" alt="">
+                      </span>
+                    </button>
+                  </div>
+
+                  <label class="field find-party-page-size-field">
+                    <select id="find-party-page-size-select" aria-label="Quantidade de linhas">
+                      <option value="10" selected>Mostrar 10</option>
+                      <option value="20">Mostrar 20</option>
+                      <option value="50">Mostrar 50</option>
+                      <option value="100">Mostrar 100</option>
+                    </select>
+                  </label>
+                </div>
+              </article>
+            </div>
+          </article>
+
+          <article class="card tool-card tool-panel hidden" data-tool-panel="skill-calculator">
+            <div class="skill-calculator-grid">
+              <section class="skill-card skill-form-card">
+                <div class="skill-selected-preview">
+                  <img id="skill-preview-icon" src="assets/ui/skill-melee.gif" alt="">
+                  <div>
+                    <strong id="skill-preview-title">Sword/Axe/Club</strong>
+                  </div>
+                </div>
+
+                <input id="skill-type-select" type="hidden" value="sword">
+                <input id="skill-vocation-select" type="hidden" value="knight">
+
+                <div class="skill-picker-row">
+                  <div class="skill-picker-group">
+                    <span class="skill-picker-label">Skill</span>
+                    <div class="skill-choice-grid" aria-label="Skill">
+                      <button type="button" class="skill-choice-button active" data-skill-type="sword" data-tooltip="Sword/Axe/Club">
+                        <img src="assets/ui/skill-melee.gif" alt="">
+                      </button>
+                      <button type="button" class="skill-choice-button" data-skill-type="distance" data-tooltip="Distance">
+                        <img src="assets/ui/skill-distance.gif" alt="">
+                      </button>
+                      <button type="button" class="skill-choice-button" data-skill-type="magic" data-tooltip="Magic Level">
+                        <img src="assets/ui/skill-magic.gif" alt="">
+                      </button>
+                      <button type="button" class="skill-choice-button" data-skill-type="shielding" data-tooltip="Shielding">
+                        <img src="assets/ui/skill-shielding.gif" alt="">
+                      </button>
+                      <button type="button" class="skill-choice-button" data-skill-type="fist" data-tooltip="Fist">
+                        <img src="assets/ui/skill-fist.gif" alt="">
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="skill-picker-group">
+                    <span class="skill-picker-label">Vocação</span>
+                    <div class="skill-vocation-grid" aria-label="Vocação">
+                      <button type="button" class="skill-vocation-button active" data-skill-vocation="knight" data-tooltip="Knight">
+                        <img src="assets/ui/vocations/knight-male.png" alt="">
+                        <span>Knight</span>
+                      </button>
+                      <button type="button" class="skill-vocation-button" data-skill-vocation="paladin" data-tooltip="Paladin">
+                        <img src="assets/ui/vocations/paladin-male.png" alt="">
+                        <span>Paladin</span>
+                      </button>
+                      <button type="button" class="skill-vocation-button" data-skill-vocation="druid" data-tooltip="Druid">
+                        <img src="assets/ui/vocations/druid-female.png" alt="">
+                        <span>Druid</span>
+                      </button>
+                      <button type="button" class="skill-vocation-button" data-skill-vocation="sorcerer" data-tooltip="Sorcerer">
+                        <img src="assets/ui/vocations/sorcerer-male.png" alt="">
+                        <span>Sorcerer</span>
+                      </button>
+                      <button type="button" class="skill-vocation-button" data-skill-vocation="monk" data-tooltip="Monk">
+                        <img src="assets/ui/vocations/monk-male.png" alt="">
+                        <span>Monk</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="skill-form-grid">
+                  <label class="field">
+                    <span data-i18n="skill.current">Skill atual</span>
+                    <input id="skill-current-input" type="number" min="0" step="1" value="80">
+                  </label>
+                  <label class="field">
+                    <span data-i18n="skill.desired">Skill desejada</span>
+                    <input id="skill-target-input" type="number" min="1" step="1" value="90">
+                  </label>
+                </div>
+
+                <div class="skill-range-grid">
+                  <label class="field skill-range-field" id="skill-remaining-field">
+                    <span data-i18n="skill.missingNext">Faltando para a próxima skill</span>
+                    <div class="skill-range-line">
+                      <input id="skill-remaining-range" type="range" min="0" max="100" step="0.01" value="100">
+                      <input id="skill-remaining-input" type="number" min="0" max="100" step="0.01" value="100">
+                      <strong>%</strong>
+                    </div>
+                  </label>
+
+                  <label class="field skill-range-field" id="skill-loyalty-field">
+                    <span data-i18n="skill.loyaltyLabel">Loyalty</span>
+                    <div class="skill-range-line">
+                      <input id="skill-loyalty-range" type="range" min="0" max="3600" step="360" value="0">
+                      <input id="skill-loyalty-input" type="number" min="0" max="3600" step="1" value="0">
+                      <strong>pts</strong>
+                    </div>
+                    <small id="skill-loyalty-bonus">Bônus: 0%</small>
+                  </label>
+                </div>
+
+                <div class="skill-bonus-card">
+                <div class="skill-bonus-grid">
+                  <button type="button" class="skill-bonus-button active" data-skill-bonus="dummy" data-tooltip="Dummy Privado (10%)">
+                    <img src="assets/ui/tool-skill-calculator.webp" alt="">
+                    <strong>+10%</strong>
+                  </button>
+                  <button type="button" class="skill-bonus-button" data-skill-bonus="double" data-tooltip="Double Skill (2x)">
+                    <img src="assets/ui/skill-double.png" alt="">
+                    <strong>2x</strong>
+                  </button>
+                </div>
+                <input id="skill-dummy-toggle" type="checkbox" checked hidden>
+                <input id="skill-double-toggle" type="checkbox" hidden>
+                </div>
+              </section>
+            </div>
+
+            <div class="skill-summary-grid" id="skill-summary-grid"></div>
+            <div class="skill-results-grid" id="skill-results-grid"></div>
+            <div class="tool-note skill-note">
+              <span data-i18n="skill.loyaltyNote">Loyalty usa faixas fixas de 360 pontos, conforme o Sistema de Lealdade do Tibia.</span>
+            </div>
+          </article>
+
+          <article class="card tool-card tool-panel hidden wheel-of-destiny-tool-panel" data-tool-panel="wheel-of-destiny">
+            <iframe
+              id="wheel-of-destiny-frame"
+              class="wheel-of-destiny-frame"
+              data-src="assets/wheel-of-destiny/frame.html"
+              title="Roda do Destino"
+              data-i18n-title="tools.wheelOfDestiny"
+            ></iframe>
+          </article>
+
+          <article class="card tool-card tool-panel hidden tibia-eye-panel" data-tool-panel="screen-vision">
+            <div class="screen-vision-tool-card">
+              <div class="screen-vision-embedded-root">
+                <div class="vision-shell" id="vision-shell">
+                  <div class="vision-toolbar">
+                    <div class="vision-toolbar-left">
+                      <button
+                        type="button"
+                        class="toolbar-state-tile"
+                        id="toggle-all-visibility-button"
+                        aria-label="Mostrar ou ocultar todos"
+                        data-tooltip="Mostrar ou ocultar todos os espelhos."
+                        data-i18n-aria-label="toolbar.toggleMirrors"
+                        data-i18n-tooltip="toolbar.toggleMirrors"
+                      >
+                        <img src="assets/ui/tools/tibia-eye/toolbar/visivel.png" alt="">
+                      </button>
+                      <button
+                        type="button"
+                        class="toolbar-state-tile"
+                        id="toggle-all-lock-button"
+                        aria-label="Travar ou destravar tudo"
+                        data-tooltip="Travar ou destravar todos os espelhos."
+                        data-i18n-aria-label="screenVision.toggleLocksAria"
+                        data-i18n-tooltip="screenVision.toggleLocksLock"
+                      >
+                        <img src="assets/ui/tools/tibia-eye/toolbar/destrancado.png" alt="">
+                      </button>
+                      <button
+                        type="button"
+                        class="toolbar-state-tile toolbar-action-tile"
+                        id="grid-overlay-button"
+                        aria-label="Grade"
+                        data-tooltip="Ativar ou desativar a grade."
+                        data-i18n-aria-label="screenVision.grid"
+                        data-i18n-tooltip="screenVision.gridToggle"
+                      >
+                        <img src="assets/ui/tools/tibia-eye/toolbar/grade.gif" alt="">
+                      </button>
+                      <span class="vision-toolbar-divider" aria-hidden="true"></span>
+                      <button
+                        type="button"
+                        class="toolbar-state-tile toolbar-action-tile"
+                        id="add-region-button"
+                        aria-label="Criar espelho manual"
+                        data-tooltip="Criar espelho manual"
+                        data-i18n-aria-label="screenVision.createMirrorManual"
+                        data-i18n-tooltip="screenVision.createMirrorManual"
+                      >
+                        <img src="assets/ui/tools/tibia-eye/toolbar/recorte-manual.png" alt="">
+                      </button>
+                      <button
+                        type="button"
+                        class="toolbar-state-tile toolbar-action-tile"
+                        id="crop-tool-button"
+                        aria-label="Recorte rapido de icone"
+                        data-tooltip="Cria um espelho quadrado de 32x32"
+                        data-i18n-aria-label="screenVision.quickCrop"
+                        data-i18n-tooltip="screenVision.quickCropHint"
+                      >
+                        <img src="assets/ui/tools/tibia-eye/toolbar/recorte-rapido.png" alt="">
+                      </button>
+                      <strong class="toolbar-counter" id="region-count">0/&infin;</strong>
+                      <span class="vision-toolbar-divider" aria-hidden="true"></span>
+                      <button
+                        type="button"
+                        class="toolbar-state-tile inactive"
+                        id="obs-mirror-button"
+                        aria-label="Ativar espelhos no OBS"
+                        data-tooltip="Ativar espelhos no OBS"
+                        data-i18n-aria-label="screenVision.obs.enable"
+                        data-i18n-tooltip="screenVision.obs.enable"
+                      >
+                        <img src="assets/ui/tools/tibia-eye/toolbar/obs.webp" alt="">
+                      </button>
+                    </div>
+
+                    <div class="vision-toolbar-right">
+                      <button
+                        type="button"
+                        class="toolbar-icon-button icon-button"
+                        id="settings-button"
+                        aria-label="Configurações"
+                        data-tooltip="Configurações"
+                        data-i18n-aria-label="screenVision.settings.title"
+                        data-i18n-tooltip="screenVision.settings.title"
+                      >
+                        <img src="assets/ui/tools/tibia-eye/toolbar/perfis.gif" alt="">
+                      </button>
+                      <button
+                        type="button"
+                        class="toolbar-icon-button icon-button"
+                        id="open-visual-customization-button"
+                        aria-label="SQM Finder"
+                        data-tooltip="Abrir painel lateral de SQM Finder."
+                        data-i18n-aria-label="screenVision.sqmFinder"
+                        data-i18n-tooltip="screenVision.openSqmPanel"
+                      >
+                        <img src="assets/ui/tools/tibia-eye/sqm/sqmfinder.gif" alt="">
+                      </button>
+                      <button
+                        type="button"
+                        class="toolbar-icon-button icon-button"
+                        id="open-alertas-button"
+                        aria-label="Alertas"
+                        data-tooltip="Abrir painel lateral de Alertas."
+                        data-i18n-aria-label="screenVision.alerts"
+                        data-i18n-tooltip="screenVision.openAlertsPanel"
+                      >
+                        <img src="assets/ui/tools/tibia-eye/toolbar/avisos.gif" alt="">
+                      </button>
+                    </div>
+                  </div>
+
+                  <main class="vision-content">
+                    <div class="vision-notice hidden" id="performance-notice">
+                      Mais de 20 regioes ativas. Pode haver impacto de desempenho dependendo do monitor e da escala.
+                    </div>
+
+                    <section class="empty-state" id="empty-state">
+                      <img class="empty-state-waiting" id="empty-state-waiting" src="assets/ui/tools/tibia-eye/states/abra-o-tibia.gif" alt="Aguardando o Tibia">
+                      <span class="empty-state-dot hidden" id="empty-state-dot" aria-hidden="true"></span>
+                      <strong id="empty-state-title">Aguardando o Tibia</strong>
+                      <p id="empty-state-copy">Abra o Tibia maximizado para comecar a adicionar espelhos.</p>
+                      <div class="empty-state-extra hidden" id="empty-state-extra"></div>
+                    </section>
+
+                    <div class="region-grid" id="region-grid"></div>
+                  </main>
+
+                </div>
+
+                <div class="screen-vision-modal-root hidden" id="modal-root"></div>
+                <div class="floating-tooltip" id="floating-tooltip" role="tooltip" aria-hidden="true"></div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="panel" id="panel-npcs">
+          <header class="panel-header panel-header-status-only">
+            <div class="status-badge" id="npcs-status">Base local</div>
+          </header>
+
+          <nav class="entity-tabs" aria-label="NPCs e Criaturas">
+            <button type="button" class="entity-tab active" data-entity-view="npcs">
+              <img src="assets/ui/tab-npcs.gif" alt="">
+              <span>NPCs</span>
+            </button>
+            <button type="button" class="entity-tab" data-entity-view="monsters">
+              <img src="assets/ui/tab-bestiary.gif" alt="">
+              <span>Bestiary</span>
+            </button>
+            <button type="button" class="entity-tab" data-entity-view="bosses">
+              <img src="assets/ui/tab-bosstiary.gif" alt="">
+              <span>Bosstiary</span>
+            </button>
+          </nav>
+
+          <div class="entity-layout">
+            <article class="card entity-browser-card" id="npc-browser">
+              <div class="entity-toolbar">
+                <label class="field">
+                  <span>Buscar NPC</span>
+                  <input id="npc-search-input" type="text" placeholder="Ex: Rashid, Carlson, Spectulus" autocomplete="off">
+                </label>
+                <label class="field">
+                  <span>Cidade</span>
+                  <select id="npc-city-filter">
+                    <option value="">Todas</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Fun&ccedil;&atilde;o</span>
+                  <select id="npc-job-filter">
+                    <option value="">Todas</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Com&eacute;rcio</span>
+                  <select id="npc-trade-filter">
+                    <option value="">Todos</option>
+                    <option value="yes">Compra/vende</option>
+                    <option value="no">Sem com&eacute;rcio</option>
+                    <option value="unknown">Desconhecido</option>
+                  </select>
+                </label>
+              </div>
+              <div id="npc-list-panel" class="entity-list"></div>
+            </article>
+
+            <article class="card entity-browser-card hidden" id="monster-browser">
+              <div class="entity-toolbar monster-toolbar">
+                <label class="field">
+                  <span>Buscar criatura</span>
+                  <input id="monster-search-input" type="text" placeholder="Ex: Werewolf" autocomplete="off">
+                </label>
+                <div id="monster-weakness-filter" class="weakness-filter-bar" aria-label="Filtrar por fraqueza elemental" data-i18n-aria-label="npcs.filterWeakness"></div>
+              </div>
+              <div class="monster-category-header">
+                <strong data-i18n="npcs.categories">Categorias</strong>
+                <button type="button" id="monster-category-toggle" class="subtle-toggle-button">Minimizar</button>
+              </div>
+              <div id="monster-category-grid" class="monster-category-grid"></div>
+              <div id="monster-list-panel" class="entity-list"></div>
+            </article>
+
+            <article class="card entity-browser-card hidden" id="boss-browser">
+              <div class="entity-toolbar boss-toolbar">
+                <label class="field">
+                  <span>Buscar boss</span>
+                  <input id="boss-search-input" type="text" placeholder="Ex: Chagorz" autocomplete="off">
+                </label>
+                <div class="boss-filter-group" aria-label="Filtro Bosstiary">
+                  <label><input type="checkbox" data-boss-filter="bane" checked> Bane</label>
+                  <label><input type="checkbox" data-boss-filter="archfoe" checked> Archfoe</label>
+                  <label><input type="checkbox" data-boss-filter="nemesis" checked> Nemesis</label>
+                </div>
+                <div id="boss-weakness-filter" class="weakness-filter-bar" aria-label="Filtrar por fraqueza elemental" data-i18n-aria-label="npcs.filterWeakness"></div>
+              </div>
+              <div id="boss-list-panel" class="boss-list"></div>
+            </article>
+
+            <article class="card entity-detail-card">
+              <div id="entity-detail-empty" class="empty-state">
+                <h3>Escolha um NPC ou criatura</h3>
+                <p>A lista carrega leve. O detalhe completo baixa apenas quando voc&ecirc; abre.</p>
+              </div>
+              <div id="entity-detail-content" class="entity-detail hidden"></div>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <aside class="desktop-docked-panel hidden" id="desktop-docked-panel" aria-hidden="true">
+        <div class="desktop-docked-panel-shell">
+          <header class="desktop-docked-panel-header">
+            <div class="desktop-docked-panel-heading">
+              <strong id="desktop-docked-panel-title">Painel</strong>
+              <span id="desktop-docked-panel-description">Painel lateral acoplado ao app principal.</span>
+            </div>
+            <button type="button" class="desktop-docked-panel-close" id="desktop-docked-panel-close" aria-label="Fechar painel lateral" data-i18n-aria-label="common.close">
+              ×
+            </button>
+          </header>
+
+          <div class="desktop-docked-panel-content" id="desktop-docked-panel-content">
+            <section class="desktop-docked-panel-empty-card">
+              <div class="desktop-docked-panel-empty-icon" aria-hidden="true"></div>
+              <strong id="desktop-docked-panel-empty-title">Painel em preparacao</strong>
+              <p id="desktop-docked-panel-empty-copy">Vamos preencher este painel lateral no proximo passo.</p>
+            </section>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div id="map-modal" class="map-modal hidden" aria-hidden="true">
+      <div id="map-modal-card" class="map-modal-card">
+        <div id="map-modal-header" class="map-modal-header">
+          <strong id="map-modal-title">Mapa</strong>
+          <button type="button" id="map-modal-close" aria-label="Fechar mapa" data-i18n-aria-label="common.close">x</button>
+        </div>
+        <iframe id="map-modal-frame" title="TibiaMaps" loading="lazy"></iframe>
+        <img class="map-modal-watermark" src="assets/ui/poioso-app-icon.png" alt="">
+      </div>
+    </div>
+
+    <span id="app-version-micro" class="app-version-micro" data-tooltip="" aria-label=""></span>
+
+    <div id="global-loading-overlay" class="global-loading-overlay splash-mode" aria-live="polite" aria-hidden="false">
+      <div class="global-loading-card">
+        <button type="button" class="icon-action-button global-loading-action-button hidden" id="global-loading-action-button" aria-label="Interromper carregamento" title="Interromper carregamento" data-tooltip="Interromper Carregamento">
+          <span class="global-loading-action-icon-stack" aria-hidden="true">
+            <img class="global-loading-action-icon global-loading-action-icon-idle" src="assets/ui/desktop-close-idle.png" alt="">
+            <img class="global-loading-action-icon global-loading-action-icon-active" src="assets/ui/desktop-close-active.png" alt="">
+          </span>
+        </button>
+        <span class="global-loading-spinner" aria-hidden="true">
+          <img src="assets/ui/loading-emblem.png" alt="">
+        </span>
+        <strong id="global-loading-text" data-i18n="common.loading">Carregando...</strong>
+        <span id="global-loading-progress" class="global-loading-progress">0%</span>
+        <span id="global-loading-status" class="global-loading-status">Preparando interface</span>
+      </div>
+    </div>
+
+    <script src="node_modules/leaflet/dist/leaflet.js"></script>
+    <script type="module" src="app.js"></script>
+    <script type="module" src="desktop/tutorial-tour.js"></script>
+    <script type="module" src="desktop/screen-vision/screen-vision.js"></script>
+  </body>
+</html>

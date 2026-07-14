@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tutorial</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+    body {
+      padding: 16px;
+      color: #eef5ff;
+      font-family: "Nunito", "Trebuchet MS", sans-serif;
+      user-select: none;
+    }
+    .card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      padding: 13px;
+      overflow: hidden;
+      border: 1px solid rgba(88, 196, 112, .78);
+      border-radius: 10px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.052), rgba(255,255,255,.012)),
+        #1b222d;
+      box-shadow: none;
+      opacity: 0;
+    }
+    .card.is-entering {
+      animation: tutorial-popover-in 170ms cubic-bezier(.2,.8,.2,1) both;
+    }
+    @keyframes tutorial-popover-in {
+      from { opacity: 0; transform: translateY(8px) scale(.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .gif {
+      display: block;
+      width: 100%;
+      min-height: 0;
+      flex: 1 1 auto;
+      margin: 0 auto 10px;
+      border: 1px solid rgba(120,139,164,.32);
+      border-radius: 7px;
+      object-fit: cover;
+      image-rendering: pixelated;
+    }
+    .gif.gif-natural {
+      flex: 0 0 auto;
+      height: auto;
+      max-height: 240px;
+      object-fit: cover;
+    }
+    .gif[hidden] {
+      display: none !important;
+    }
+    .supplemental-images {
+      display: none;
+      flex: 0 0 auto;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      margin: -2px 0 9px;
+    }
+    .supplemental-images.visible { display: flex; }
+    .supplemental-images img {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+    .card.long-copy {
+      padding: 12px;
+    }
+    .card.long-copy .gif.gif-natural {
+      max-height: 238px;
+      margin-bottom: 8px;
+    }
+    .card.long-copy p {
+      font-size: 11.5px;
+      line-height: 1.28;
+    }
+    .card.no-gif #step-text {
+      flex: 1 1 auto;
+      display: block;
+      align-content: center;
+    }
+    .danger-note {
+      color: #ff7b65;
+      font-weight: 800;
+    }
+    .mirror-title,
+    .notice-heading {
+      display: inline-block;
+      font-size: 15.5px;
+      font-weight: 900;
+      line-height: 1.1;
+    }
+    .mirror-title { color: #eef5ff; }
+    .mirror-title-name { color: #6ce28f; }
+    .notice-heading { color: #ff8b73; }
+    .integrity-note {
+      color: #f6d5c8;
+      font-weight: 800;
+    }
+    p {
+      flex: 0 0 auto;
+      margin: 0;
+      color: #c4d4e8;
+      font-size: 13px;
+      line-height: 1.4;
+      text-align: center;
+    }
+    .value-gold { color: #ffd65a; font-weight: 900; }
+    .value-purple { color: #c987ff; font-weight: 900; }
+    .value-blue { color: #62b8ff; font-weight: 900; }
+    .value-green { color: #62df89; font-weight: 900; }
+    .value-white { color: #ffffff; font-weight: 900; }
+    footer {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 10px;
+      padding-top: 9px;
+      border-top: 1px solid rgba(120,139,164,.18);
+    }
+    .progress { color: #83f29b; font-size: 11px; font-weight: 900; }
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 78px;
+      height: 36px;
+      padding: 0;
+      border: 1px solid rgba(120,139,164,.32);
+      border-radius: 7px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.055), rgba(255,255,255,.012)),
+        repeating-linear-gradient(135deg, rgba(255,255,255,.03) 0 4px, transparent 4px 10px);
+      cursor: pointer;
+      transition: border-color 120ms ease, filter 120ms ease, transform 120ms ease;
+    }
+    button:hover, button:focus-visible {
+      border-color: rgba(88,196,112,.62);
+      filter: brightness(1.12);
+      transform: translateY(-1px);
+      box-shadow: none;
+      outline: none;
+    }
+    button:active { transform: translateY(0) scale(.98); }
+    button img { max-width: 38px; max-height: 30px; image-rendering: pixelated; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <img class="gif" id="guide-gif" alt="">
+    <div class="supplemental-images" id="step-supplemental"></div>
+    <p id="step-text"></p>
+    <footer>
+      <span class="progress" id="step-progress"></span>
+      <button id="next-button" type="button"><img id="next-icon" alt=""></button>
+    </footer>
+  </section>
+  <script>
+    const gif = document.querySelector("#guide-gif");
+    const text = document.querySelector("#step-text");
+    const progress = document.querySelector("#step-progress");
+    const nextButton = document.querySelector("#next-button");
+    const nextIcon = document.querySelector("#next-icon");
+    const card = document.querySelector(".card");
+    const supplemental = document.querySelector("#step-supplemental");
+    const footer = document.querySelector("footer");
+
+    function resizeToContentIfNeeded() {
+      const bodyBounds = document.body.getBoundingClientRect();
+      const footerBounds = footer.getBoundingClientRect();
+      const bottomPadding = Number.parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+      const requiredHeight = Math.ceil(footerBounds.bottom - bodyBounds.top + bottomPadding);
+      window.tutorialPopoverApi.resizeToContent(requiredHeight);
+    }
+
+    window.tutorialPopoverApi.onRender((payload) => {
+      card.classList.remove("is-entering");
+      // Force the browser to commit the removal before starting the next step.
+      void card.offsetWidth;
+      gif.src = payload.gif;
+      gif.hidden = payload.hideGif === true;
+      gif.style.objectFit = payload.gifFit === "contain" ? "contain" : "cover";
+      gif.classList.toggle("gif-natural", payload.gifNatural === true);
+      supplemental.replaceChildren(...(Array.isArray(payload.supplementalImages)
+        ? payload.supplementalImages.filter(Boolean).map((src) => {
+          const image = document.createElement("img");
+          image.src = src;
+          image.alt = "";
+          return image;
+        })
+        : []));
+      supplemental.classList.toggle("visible", supplemental.childElementCount > 0);
+      card.classList.toggle("long-copy", payload.longCopy === true);
+      card.classList.toggle("no-gif", payload.hideGif === true);
+      if (payload.html) {
+        text.innerHTML = payload.html;
+      } else {
+        text.textContent = payload.text;
+      }
+      progress.textContent = payload.progress;
+      nextIcon.src = payload.buttonIcon;
+      nextButton.setAttribute("aria-label", payload.buttonLabel);
+      nextButton.title = payload.buttonLabel;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (payload.autoHeight === true) {
+            resizeToContentIfNeeded();
+          }
+          card.classList.add("is-entering");
+        });
+      });
+    });
+
+    nextButton.addEventListener("click", () => window.tutorialPopoverApi.next());
+  </script>
+</body>
+</html>

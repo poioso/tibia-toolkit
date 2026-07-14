@@ -1,0 +1,30 @@
+node_modules/
+dist/
+artifacts/
+release/
+coverage/
+.cache/
+.playwright-cli/
+
+# Large externally distributed content and local build output.
+assets/
+desktop/screen-vision-native/publish/
+desktop/screen-vision-native/ScreenVision.NativeHost/bin/
+desktop/screen-vision-native/ScreenVision.NativeHost/obj/
+
+# Local configuration, credentials and private operational data.
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.pem
+*.key
+desktop/app-config.local.json
+*.log
+
+# Editor and operating-system files.
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

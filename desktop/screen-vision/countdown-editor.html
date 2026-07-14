@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Barra de cooldown</title>
+    <link rel="stylesheet" href="screen-vision.css">
+    <link rel="stylesheet" href="countdown-editor.css">
+  </head>
+  <body>
+    <div class="countdown-editor-window">
+      <section class="countdown-editor-card" id="editor-card" role="dialog" aria-modal="true">
+        <header class="countdown-editor-header">
+          <div class="countdown-editor-copy">
+            <h1 class="countdown-editor-title">Barra de cooldown</h1>
+            <p class="countdown-editor-subtitle" id="editor-subtitle">Carregando configuracao da regiao.</p>
+          </div>
+          <button
+            type="button"
+            class="countdown-editor-close"
+            id="editor-close-button"
+            aria-label="Fechar"
+            data-tooltip="Fechar esta janela."
+          >&times;</button>
+        </header>
+
+        <div class="countdown-editor-content" id="editor-content"></div>
+      </section>
+    </div>
+
+    <div class="floating-tooltip" id="floating-tooltip" role="tooltip" aria-hidden="true"></div>
+
+    <script type="module" src="countdown-editor.js"></script>
+  </body>
+</html>

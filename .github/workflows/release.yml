@@ -1,0 +1,188 @@
+name: Signed release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing annotated tag to release, for example v0.3.1
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: signed-release-${{ github.event.inputs.release_tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate tag and source
+    runs-on: windows-2025
+    outputs:
+      release_tag: ${{ steps.release.outputs.tag }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Validate version
+        id: release
+        shell: pwsh
+        run: |
+          $version = (Get-Content -Raw package.json | ConvertFrom-Json).version
+          $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.release_tag }}' } else { $env:GITHUB_REF_NAME }
+          if ($tag -ne "v$version") { throw "A tag $tag nao corresponde a versao $version." }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+  build_unsigned:
+    name: Build unsigned artifact
+    needs: validate
+    runs-on: windows-2025
+    outputs:
+      unsigned_artifact_id: ${{ steps.upload_unsigned.outputs.artifact-id }}
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ needs.validate.outputs.release_tag }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          global-json-file: global.json
+
+      - name: Install and validate source
+        run: |
+          npm ci
+          npm run check
+          npm audit --audit-level=high
+
+      - name: Build unsigned installer
+        run: npm run build:installer
+
+      - name: Verify unsigned package structure
+        shell: pwsh
+        run: .\scripts\verify-release.ps1 -AllowUnsigned
+
+      - name: Upload unsigned release for SignPath
+        id: upload_unsigned
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: unsigned-release-${{ github.run_id }}
+          path: dist/tibia-toolkit-release
+          if-no-files-found: error
+          retention-days: 7
+
+  sign_and_verify:
+    name: Sign with SignPath and verify
+    needs:
+      - validate
+      - build_unsigned
+    if: vars.SIGNPATH_ENABLED == 'true'
+    runs-on: windows-2025
+    environment: release-signing
+    outputs:
+      signed_artifact_name: signed-release-${{ github.run_id }}
+    steps:
+      - name: Check out release scripts
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ needs.validate.outputs.release_tag }}
+
+      - name: Set up Node.js for release validation
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+
+      - name: Submit signing request
+        uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ needs.build_unsigned.outputs.unsigned_artifact_id }}
+          wait-for-completion: true
+          output-artifact-directory: artifacts/signed
+
+      - name: Synchronize signed updater manifest
+        run: node tools/update-release-manifest.mjs artifacts/signed
+
+      - name: Verify signed package and Authenticode signatures
+        shell: pwsh
+        run: .\scripts\verify-release.ps1 -ReleaseDirectory .\artifacts\signed
+
+      - name: Verify project-owned Authenticode signatures
+        shell: pwsh
+        run: .\scripts\verify-signatures.ps1 -ReleaseDirectory .\artifacts\signed
+
+      - name: Create checksums
+        shell: pwsh
+        run: .\scripts\generate-checksums.ps1 -InputPath .\artifacts\signed
+
+      - name: Upload signed release artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: signed-release-${{ github.run_id }}
+          path: artifacts/signed
+          if-no-files-found: error
+          retention-days: 90
+
+  publish_draft:
+    name: Attest and create draft release
+    needs:
+      - validate
+      - sign_and_verify
+    if: vars.SIGNPATH_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      attestations: write
+      contents: write
+      id-token: write
+    steps:
+      - name: Check out release notes
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ needs.validate.outputs.release_tag }}
+
+      - name: Download signed release artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: ${{ needs.sign_and_verify.outputs.signed_artifact_name }}
+          path: release
+
+      - name: Attest signed installer provenance
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661
+        with:
+          subject-path: release/Tibia Toolkit Setup ${{ needs.validate.outputs.version }}.exe
+
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            --draft \
+            --title "Tibia Toolkit $RELEASE_VERSION" \
+            --notes-file RELEASE_NOTES.md \
+            "release/Tibia Toolkit Setup $RELEASE_VERSION.exe" \
+            release/latest.yml \
+            release/SHA256SUMS.txt

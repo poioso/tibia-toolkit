@@ -1,0 +1,186 @@
+:root {
+  color-scheme: dark;
+  --panel-bg: #212631;
+  --panel-surface: #2a313d;
+  --panel-surface-soft: #252c37;
+  --panel-border: rgba(186, 198, 214, 0.16);
+  --panel-border-strong: rgba(186, 198, 214, 0.24);
+  --panel-text: #f3f7ff;
+  --panel-muted: #9eb0c7;
+  --panel-accent: #58c470;
+  --panel-shadow: rgba(0, 0, 0, 0.34);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #20242d;
+  color: var(--panel-text);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  padding: 0;
+}
+
+.side-panel-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 22%),
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.03) 0,
+      rgba(255, 255, 255, 0.03) 4px,
+      rgba(255, 255, 255, 0.012) 4px,
+      rgba(255, 255, 255, 0.012) 8px
+    ),
+    var(--panel-bg);
+  overflow: hidden;
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+}
+
+body[data-docked-side="right"] .side-panel-shell {
+  border-left: 0;
+  border-radius: 0 18px 18px 0;
+}
+
+body[data-docked-side="left"] .side-panel-shell {
+  border-right: 0;
+  border-radius: 18px 0 0 18px;
+}
+
+body[data-panel-phase="pre-enter"][data-docked-side="right"] .side-panel-shell,
+body[data-panel-phase="exiting"][data-docked-side="right"] .side-panel-shell {
+  transform: translate3d(-24px, 0, 0);
+  opacity: 0.12;
+}
+
+body[data-panel-phase="pre-enter"][data-docked-side="left"] .side-panel-shell,
+body[data-panel-phase="exiting"][data-docked-side="left"] .side-panel-shell {
+  transform: translate3d(24px, 0, 0);
+  opacity: 0.12;
+}
+
+body[data-panel-phase="entering"] .side-panel-shell,
+body[data-panel-phase="idle"] .side-panel-shell {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+}
+
+.side-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01));
+  -webkit-app-region: drag;
+}
+
+.side-panel-title-wrap {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.side-panel-title-wrap strong {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.side-panel-title-wrap span {
+  color: var(--panel-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.side-panel-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--panel-text);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
+  -webkit-app-region: no-drag;
+}
+
+.side-panel-close:hover,
+.side-panel-close:focus-visible {
+  border-color: var(--panel-border-strong);
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.side-panel-close:active {
+  transform: scale(0.96);
+}
+
+.side-panel-content {
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+}
+
+.side-panel-empty-card {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  min-height: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.014)),
+    var(--panel-surface-soft);
+  padding: 24px;
+  text-align: center;
+}
+
+.side-panel-empty-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  border: 1px solid rgba(88, 196, 112, 0.22);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(88, 196, 112, 0.22), transparent 68%),
+    linear-gradient(145deg, rgba(88, 196, 112, 0.12), rgba(255, 255, 255, 0.04));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.side-panel-empty-card strong {
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.side-panel-empty-card p {
+  margin: 0;
+  max-width: 240px;
+  color: var(--panel-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}

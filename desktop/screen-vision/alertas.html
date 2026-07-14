@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Alertas</title>
+    <link rel="stylesheet" href="alertas.css">
+  </head>
+  <body>
+    <div class="alerts-shell">
+      <header class="alerts-titlebar">
+        <div class="alerts-brand">
+          <img src="../../assets/ui/poioso-app-icon.png" alt="">
+          <div class="alerts-brand-copy">
+            <strong><span>Alertas</span></strong>
+            <small id="profile-label">tibia eye</small>
+          </div>
+        </div>
+
+        <button type="button" class="window-close-button" id="window-close-button" aria-label="Fechar" data-tooltip="Fechar a janela de Alertas.">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+        </button>
+      </header>
+
+      <div class="alerts-toolbar">
+        <label class="global-volume" data-tooltip="Ajustar o volume global de todos os timers.">
+          <span>Volume:</span>
+          <input id="global-volume-range" type="range" min="0" max="100" step="1" value="70">
+          <strong id="global-volume-value">70%</strong>
+        </label>
+
+        <button type="button" class="add-timer-button" id="add-timer-button" data-tooltip="Criar um novo timer de alerta.">ADICIONAR TIMER</button>
+        <strong class="timer-count" id="timer-count">0/10</strong>
+      </div>
+
+      <main class="alerts-content">
+        <div id="audio-feedback" class="audio-feedback hidden"></div>
+        <div id="timer-empty-state" class="timer-empty-state hidden">
+          <strong>Nenhum timer ainda</strong>
+          <span>Clique em ADICIONAR TIMER para comecar</span>
+        </div>
+        <div id="timer-cards" class="timer-cards"></div>
+      </main>
+
+      <footer class="alerts-footer">
+        <div class="footer-meta">
+          <span>Made by <strong>Poioso</strong> <em>alpha</em></span>
+        </div>
+
+        <div class="footer-actions">
+          <span id="running-indicator" class="running-indicator" aria-hidden="true"></span>
+          <button type="button" class="listen-toggle-button" id="listen-toggle-button" data-tooltip="Iniciar ou parar a escuta das hotkeys.">Iniciar</button>
+          <label class="startup-toggle" aria-label="Iniciar ouvindo ao abrir" data-tooltip="Ao abrir esta janela, iniciar a escuta automaticamente se houver timers.">
+            <input id="startup-listening-checkbox" type="checkbox">
+            <span></span>
+          </label>
+        </div>
+      </footer>
+    </div>
+
+    <div class="floating-tooltip" id="floating-tooltip" role="tooltip" aria-hidden="true"></div>
+
+    <script type="module" src="alertas.js"></script>
+  </body>
+</html>

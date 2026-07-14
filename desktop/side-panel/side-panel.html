@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Side Panel</title>
+    <link rel="stylesheet" href="side-panel.css">
+  </head>
+  <body>
+    <div class="side-panel-shell">
+      <header class="side-panel-header">
+        <div class="side-panel-title-wrap">
+          <strong id="side-panel-title">Panel</strong>
+          <span id="side-panel-description">Side panel docked to the main app.</span>
+        </div>
+        <button type="button" class="side-panel-close" id="side-panel-close" aria-label="Close side panel">
+          ×
+        </button>
+      </header>
+
+      <main class="side-panel-content">
+        <section class="side-panel-empty-card">
+          <div class="side-panel-empty-icon" aria-hidden="true"></div>
+          <strong id="side-panel-empty-title">Panel ready</strong>
+          <p id="side-panel-empty-copy">Visual shell created to fill this area later.</p>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="side-panel.js"></script>
+  </body>
+</html>

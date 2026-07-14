@@ -1,0 +1,26 @@
+[Unit]
+Description=Tibia Toolkit Game Data Hub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tibia-toolkit
+Group=tibia-toolkit
+WorkingDirectory=/opt/tibia-toolkit-game-data-hub
+ExecStart=/usr/bin/node /opt/tibia-toolkit-game-data-hub/services/game-data-hub/server.mjs
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=GAME_DATA_HUB_CONFIG_PATH=/etc/tibia-toolkit-game-data-hub/config.json
+Environment=PLAYWRIGHT_BROWSERS_PATH=/var/lib/tibia-toolkit-game-data-hub/playwright
+Environment=OPENAI_TRANSLATION_MODEL=gpt-5-mini
+# Create this untracked, permission-restricted file only when translation is enabled:
+# /etc/tibia-toolkit-game-data-hub/secrets.env
+# OPENAI_API_KEY=...
+EnvironmentFile=-/etc/tibia-toolkit-game-data-hub/secrets.env
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

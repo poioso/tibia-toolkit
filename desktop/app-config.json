@@ -1,0 +1,35 @@
+{
+  "marketApiBase": "http://138.117.217.99:4317",
+  "marketApiBases": [
+    "http://138.117.217.99:4317",
+    "http://136.248.77.127:4317"
+  ],
+  "gameDataHubBase": "http://138.117.217.99:4318",
+  "gameDataHubBases": [
+    "http://138.117.217.99:4318",
+    "http://136.248.77.127:4318"
+  ],
+  "supportersDataUrl": "https://downloads.tibiatoolkit.com/supporters/supporters.json",
+  "supportersDataUrls": [
+    "https://downloads.tibiatoolkit.com/supporters/supporters.json",
+    "https://downloads-backup.tibiatoolkit.com/supporters/supporters.json"
+  ],
+  "contentPackManifestUrls": [
+    "https://downloads.tibiatoolkit.com/content/latest.json",
+    "https://downloads-backup.tibiatoolkit.com/content/latest.json"
+  ],
+  "contentPackDistributionTargets": [
+    {
+      "id": "oracle2",
+      "baseUrl": "https://downloads.tibiatoolkit.com/content"
+    },
+    {
+      "id": "hospedainfo",
+      "baseUrl": "https://downloads-backup.tibiatoolkit.com/content"
+    }
+  ],
+  "updateUrls": [
+    "https://downloads.tibiatoolkit.com/updates",
+    "https://downloads-backup.tibiatoolkit.com/updates"
+  ]
+}

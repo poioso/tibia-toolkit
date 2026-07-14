@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Selecionar Area</title>
+    <link rel="stylesheet" href="region-selector.css">
+  </head>
+  <body>
+    <div class="selector-shell">
+      <div id="interaction-layer" class="interaction-layer"></div>
+      <div class="selector-hud">
+        <strong>Selecionar area</strong>
+        <span>Clique e arraste para desenhar. Ajuste pelos pontos laranja e confirme no check.</span>
+      </div>
+
+      <div id="selection-size" class="selection-size hidden"></div>
+      <button id="selection-confirm" class="selection-confirm hidden" type="button" aria-label="Confirmar area" data-tooltip="Salvar esta area selecionada.">
+        ✓
+      </button>
+      <div id="selection-box" class="selection-box hidden">
+        <span class="selection-handle north" data-handle="north"></span>
+        <span class="selection-handle south" data-handle="south"></span>
+        <span class="selection-handle east" data-handle="east"></span>
+        <span class="selection-handle west" data-handle="west"></span>
+      </div>
+    </div>
+
+    <div class="floating-tooltip" id="floating-tooltip" role="tooltip" aria-hidden="true"></div>
+
+    <script type="module" src="region-selector.js"></script>
+  </body>
+</html>

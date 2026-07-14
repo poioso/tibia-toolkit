@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ScreenVision.NativeHost</AssemblyName>
+    <RootNamespace>ScreenVision.NativeHost</RootNamespace>
+    <AssemblyTitle>Tibia Toolkit Screen Vision Helper</AssemblyTitle>
+    <Product>Tibia Toolkit</Product>
+    <Company>Tibia Toolkit Project</Company>
+    <Description>Native Screen Vision helper for Tibia Toolkit</Description>
+    <Copyright>Copyright (C) Tibia Toolkit Project</Copyright>
+    <Version Condition="'$(Version)' == ''">0.3.0</Version>
+    <FileVersion Condition="'$(FileVersion)' == ''">0.3.0.0</FileVersion>
+    <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">0.3.0.0</AssemblyVersion>
+    <InformationalVersion Condition="'$(InformationalVersion)' == ''">$(Version)</InformationalVersion>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.3.0" />
+    <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>

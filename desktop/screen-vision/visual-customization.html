@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Visual Customization</title>
+    <link rel="stylesheet" href="visual-customization.css">
+  </head>
+  <body>
+    <div class="visual-shell">
+      <header class="visual-titlebar">
+        <div class="visual-brand">
+          <strong><span>Visual</span><span>Customization</span></strong>
+        </div>
+        <button type="button" class="window-close" id="window-close-button" data-tooltip="Fechar a janela de personalizacao visual.">&times;</button>
+      </header>
+
+      <main class="visual-content" id="visual-content"></main>
+    </div>
+
+    <div class="floating-tooltip" id="floating-tooltip" role="tooltip" aria-hidden="true"></div>
+
+    <script type="module" src="visual-customization.js"></script>
+  </body>
+</html>
