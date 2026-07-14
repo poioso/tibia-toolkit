@@ -38,9 +38,22 @@ jobs:
         run: npm run check
 
       - name: Scan for secrets
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          $gitleaksVersion = '8.30.1'
+          $expectedSha256 = 'd29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e'
+          $archivePath = Join-Path $env:RUNNER_TEMP "gitleaks_$gitleaksVersion`_windows_x64.zip"
+          $extractPath = Join-Path $env:RUNNER_TEMP "gitleaks_$gitleaksVersion"
+          $downloadUrl = "https://github.com/gitleaks/gitleaks/releases/download/v$gitleaksVersion/gitleaks_$gitleaksVersion`_windows_x64.zip"
+
+          Invoke-WebRequest -UseBasicParsing -Uri $downloadUrl -OutFile $archivePath
+          $actualSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $archivePath).Hash.ToLowerInvariant()
+          if ($actualSha256 -ne $expectedSha256) {
+            throw "Gitleaks checksum mismatch. Expected $expectedSha256 but received $actualSha256."
+          }
+
+          Expand-Archive -LiteralPath $archivePath -DestinationPath $extractPath -Force
+          & (Join-Path $extractPath 'gitleaks.exe') git --redact --verbose
 
       - name: Audit npm dependencies
         run: npm audit --audit-level=high
