@@ -25,7 +25,7 @@
     "rcedit": "^5.0.2"
   },
   "dependencies": {
-    "adm-zip": "^0.5.18",
+    "adm-zip": "^0.6.0",
     "driver.js": "^1.6.0",
     "electron-updater": "^6.8.9",
     "jquery": "^3.7.1",
