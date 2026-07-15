@@ -24,7 +24,7 @@ internal sealed class RegionSelectorWindow : Window
     private readonly Rectangle _selectionRectangle;
     private readonly Border _instructionsShell;
     private readonly TextBlock _instructionsText;
-    private readonly StackPanel _actionButtonsPanel;
+    private readonly Grid _actionButtonsPanel;
     private readonly ImageButton _cancelButton;
     private readonly ImageButton _confirmButton;
     private readonly Border _sizeBadge;
@@ -153,14 +153,19 @@ internal sealed class RegionSelectorWindow : Window
             "Confirmar selecao",
             ConfirmButton_Click);
 
-        _actionButtonsPanel = new StackPanel
+        _actionButtonsPanel = new Grid
         {
-            Orientation = Orientation.Horizontal,
+            Width = (ActionButtonSize * 2) + ActionButtonGap,
+            Height = ActionButtonSize,
             Visibility = Visibility.Collapsed,
             IsHitTestVisible = true
         };
+        _actionButtonsPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ActionButtonSize) });
+        _actionButtonsPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ActionButtonGap) });
+        _actionButtonsPanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(ActionButtonSize) });
+        Grid.SetColumn(_cancelButton, 0);
+        Grid.SetColumn(_confirmButton, 2);
         _actionButtonsPanel.Children.Add(_cancelButton);
-        _actionButtonsPanel.Children.Add(CreateHorizontalSpacer(ActionButtonGap));
         _actionButtonsPanel.Children.Add(_confirmButton);
         _overlayCanvas.Children.Add(_actionButtonsPanel);
 
@@ -377,16 +382,6 @@ internal sealed class RegionSelectorWindow : Window
         };
         button.Click += clickHandler;
         return button;
-    }
-
-    private static FrameworkElement CreateHorizontalSpacer(double width)
-    {
-        return new Border
-        {
-            Width = width,
-            Height = 1,
-            Background = Brushes.Transparent
-        };
     }
 
     private void StartHandleDrag(string handleName, MouseButtonEventArgs e)
@@ -841,9 +836,20 @@ internal sealed class RegionSelectorWindow : Window
             Background = Brushes.Transparent;
             BorderThickness = new Thickness(0);
             Padding = new Thickness(0);
+            Width = ActionButtonSize;
+            Height = ActionButtonSize;
             Cursor = Cursors.Hand;
             Focusable = false;
             Content = _image;
+
+            // Keep the selector image-only even when the Windows theme is active.
+            var contentPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentPresenter.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentPresenter.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            Template = new ControlTemplate(typeof(Button))
+            {
+                VisualTree = contentPresenter
+            };
 
             MouseEnter += (_, _) => UpdateVisualState(true);
             MouseLeave += (_, _) => UpdateVisualState(false);
@@ -858,18 +864,32 @@ internal sealed class RegionSelectorWindow : Window
 
         private static BitmapImage? LoadBitmap(string path)
         {
-            if (!File.Exists(path))
+            if (File.Exists(path))
+            {
+                var image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.UriSource = new Uri(path, UriKind.Absolute);
+                image.EndInit();
+                image.Freeze();
+                return image;
+            }
+
+            try
+            {
+                var fileName = System.IO.Path.GetFileName(path);
+                var image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.UriSource = new Uri($"pack://application:,,,/Assets/selector/{fileName}", UriKind.Absolute);
+                image.EndInit();
+                image.Freeze();
+                return image;
+            }
+            catch
             {
                 return null;
             }
-
-            var image = new BitmapImage();
-            image.BeginInit();
-            image.CacheOption = BitmapCacheOption.OnLoad;
-            image.UriSource = new Uri(path, UriKind.Absolute);
-            image.EndInit();
-            image.Freeze();
-            return image;
         }
     }
 }

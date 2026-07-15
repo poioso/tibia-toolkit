@@ -710,6 +710,9 @@ function bindEvents() {
     if (blockMirrorCreationWithoutProfile(els.addRegionButton)) {
       return;
     }
+    if (blockMirrorCreationWhileHidden(els.addRegionButton)) {
+      return;
+    }
 
     state.mirrorCreationNudgeDismissed = true;
     stopMirrorCreationNudge();
@@ -726,6 +729,9 @@ function bindEvents() {
       return;
     }
     if (blockMirrorCreationWithoutProfile(els.cropToolButton)) {
+      return;
+    }
+    if (blockMirrorCreationWhileHidden(els.cropToolButton)) {
       return;
     }
 
@@ -7340,6 +7346,19 @@ function blockMirrorCreationWithoutProfile(trigger) {
   return true;
 }
 
+function blockMirrorCreationWhileHidden(trigger) {
+  const allExistingMirrorsHidden = state.regions.length > 0
+    && state.regions.every((region) => region.isVisible === false);
+
+  if (!allExistingMirrorsHidden) {
+    return false;
+  }
+
+  flashBlockedActionTooltip(trigger, t("screenVision.enableMirrorsBeforeCreating"));
+  flashAttention(els.toggleAllVisibilityButton);
+  return true;
+}
+
 function startTibiaMirrorProfileTutorialDemo() {
   if (!isTibiaReadyForMirrorActions()) {
     return false;
@@ -8397,6 +8416,10 @@ async function addRegion() {
     if (result?.cancelled && result?.reason === "outside-tibia") {
       flashBlockedActionTooltip(els.addRegionButton, t("screenVision.selectionTooSmall"));
     }
+    if (result?.cancelled && result?.reason === "mirrors-hidden") {
+      flashBlockedActionTooltip(els.addRegionButton, t("screenVision.enableMirrorsBeforeCreating"));
+      flashAttention(els.toggleAllVisibilityButton);
+    }
   } finally {
     state.creatingRegion = false;
   }
@@ -8413,6 +8436,10 @@ async function addFixedRegion() {
     applyRegionsResponse(result);
     if (result?.cancelled && result?.reason === "outside-tibia") {
       flashBlockedActionTooltip(els.cropToolButton, t("screenVision.selectionOutsideTibia"));
+    }
+    if (result?.cancelled && result?.reason === "mirrors-hidden") {
+      flashBlockedActionTooltip(els.cropToolButton, t("screenVision.enableMirrorsBeforeCreating"));
+      flashAttention(els.toggleAllVisibilityButton);
     }
   } finally {
     state.creatingRegion = false;
