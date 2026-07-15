@@ -6,3 +6,5 @@ Tibia Toolkit 0.3.0
 - Audited NPC trade inventories and corrected item-to-NPC purchase and sale relationships.
 - Audited creature and boss loot, expanded loot categories and corrected item-to-creature navigation.
 - Improved the proficiency layout, alignment and responsive horizontal navigation.
+
+[Code signing policy](https://github.com/poioso/tibia-toolkit/blob/main/docs/CODE_SIGNING_POLICY.md)

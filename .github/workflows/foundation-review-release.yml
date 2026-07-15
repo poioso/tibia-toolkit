@@ -1,0 +1,88 @@
+name: Foundation review release (unsigned)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing annotated tag to publish for Foundation review, for example v0.3.0
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: foundation-review-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  build_and_publish:
+    name: Build and publish unsigned review release
+    runs-on: windows-2025
+    steps:
+      - name: Check out immutable release tag
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: refs/tags/${{ inputs.release_tag }}
+          fetch-depth: 0
+
+      - name: Validate tag and version
+        id: release
+        shell: pwsh
+        run: |
+          $tag = '${{ inputs.release_tag }}'
+          $version = (Get-Content -Raw package.json | ConvertFrom-Json).version
+          if ($tag -ne "v$version") { throw "A tag $tag nao corresponde a versao $version." }
+          if ((git cat-file -t "refs/tags/$tag") -ne 'tag') { throw "A tag $tag precisa ser anotada." }
+          if ((git rev-parse "refs/tags/$tag^{}") -ne (git rev-parse HEAD)) { throw "A tag $tag nao aponta para o commit em checkout." }
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+        with:
+          global-json-file: global.json
+
+      - name: Install and validate source
+        shell: pwsh
+        run: |
+          npm ci
+          npm run check
+          npm audit --audit-level=high
+
+      - name: Build unsigned installer
+        shell: pwsh
+        run: npm run build:installer
+
+      - name: Verify package structure and create checksums
+        shell: pwsh
+        run: |
+          .\scripts\verify-release.ps1 -AllowUnsigned
+          .\scripts\generate-checksums.ps1
+
+      - name: Publish public review release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          $releaseDirectory = 'dist\tibia-toolkit-release'
+          $installer = Join-Path $releaseDirectory "Tibia Toolkit Setup $env:RELEASE_VERSION.exe"
+          $blockmap = "$installer.blockmap"
+          $assets = @($installer, (Join-Path $releaseDirectory 'latest.yml'), (Join-Path $releaseDirectory 'SHA256SUMS.txt'))
+          if (Test-Path -LiteralPath $blockmap) { $assets += $blockmap }
+
+          gh release view $env:RELEASE_TAG *>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:RELEASE_TAG $assets --clobber
+            gh release edit $env:RELEASE_TAG --title "Tibia Toolkit $env:RELEASE_VERSION" --notes-file FOUNDATION_REVIEW_RELEASE_NOTES.md --latest
+          } else {
+            gh release create $env:RELEASE_TAG --title "Tibia Toolkit $env:RELEASE_VERSION" --notes-file FOUNDATION_REVIEW_RELEASE_NOTES.md --latest $assets
+          }
