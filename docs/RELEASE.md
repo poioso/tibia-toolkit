@@ -2,6 +2,8 @@
 
 Do not publish a release until every blocker in `OPEN_SOURCE_AUDIT.md` is closed.
 
+The complete operational rules, including the fixed download URL for the website and Discord, are in [UPDATE_RELEASE_GUIDE.md](UPDATE_RELEASE_GUIDE.md).
+
 ## Before creating a tag
 
 1. Update `package.json`, `RELEASE_NOTES.md`, and `RELEASE_NOTES.i18n.json` with the same SemVer release version.
@@ -16,6 +18,8 @@ Do not publish a release until every blocker in `OPEN_SOURCE_AUDIT.md` is closed
 The release workflow builds an unsigned artifact. It submits the artifact to SignPath only after both Foundation approval and `SIGNPATH_ENABLED=true` have been configured. It never substitutes an unsigned artifact for a signed public release.
 
 After signing, it regenerates the updater manifest so its SHA-512 and size match the signed installer, verifies project-owned executable signatures, creates checksums and provenance, and opens a draft release. A maintainer reviews the draft before it becomes public.
+
+The signed installer is published twice in each GitHub release: once with its versioned build name for traceability, and once as `Tibia-Toolkit-Setup.exe`. The second asset is byte-for-byte identical and is the only asset used by the stable public download URL.
 
 ## Local preflight
 

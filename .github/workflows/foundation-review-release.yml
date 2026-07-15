@@ -60,11 +60,29 @@ jobs:
         shell: pwsh
         run: npm run build:installer
 
-      - name: Verify package structure and create checksums
+      - name: Verify package structure
         shell: pwsh
+        run: .\scripts\verify-release.ps1 -AllowUnsigned
+
+      - name: Create stable public download asset
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
-          .\scripts\verify-release.ps1 -AllowUnsigned
-          .\scripts\generate-checksums.ps1
+          $releaseDirectory = 'dist\tibia-toolkit-release'
+          $installer = Join-Path $releaseDirectory "Tibia Toolkit Setup $env:RELEASE_VERSION.exe"
+          $stableInstaller = Join-Path $releaseDirectory 'Tibia-Toolkit-Setup.exe'
+
+          Copy-Item -LiteralPath $installer -Destination $stableInstaller -Force
+          $installerHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
+          $stableHash = (Get-FileHash -LiteralPath $stableInstaller -Algorithm SHA256).Hash
+          if ($installerHash -ne $stableHash) {
+            throw 'O asset estavel de download nao corresponde ao instalador versionado.'
+          }
+
+      - name: Create checksums
+        shell: pwsh
+        run: .\scripts\generate-checksums.ps1
 
       - name: Publish public review release
         shell: pwsh
@@ -75,8 +93,9 @@ jobs:
         run: |
           $releaseDirectory = 'dist\tibia-toolkit-release'
           $installer = Join-Path $releaseDirectory "Tibia Toolkit Setup $env:RELEASE_VERSION.exe"
+          $stableInstaller = Join-Path $releaseDirectory 'Tibia-Toolkit-Setup.exe'
           $blockmap = "$installer.blockmap"
-          $assets = @($installer, (Join-Path $releaseDirectory 'latest.yml'), (Join-Path $releaseDirectory 'SHA256SUMS.txt'))
+          $assets = @($installer, $stableInstaller, (Join-Path $releaseDirectory 'latest.yml'), (Join-Path $releaseDirectory 'SHA256SUMS.txt'))
           if (Test-Path -LiteralPath $blockmap) { $assets += $blockmap }
 
           gh release view $env:RELEASE_TAG *>$null
