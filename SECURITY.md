@@ -6,7 +6,7 @@ Only the latest official release is supported for security fixes.
 
 ## Reporting a vulnerability
 
-Do not disclose a critical vulnerability in a public issue. Use the repository's private security-advisory reporting feature after it is enabled, or use the official contact published on the project website. Include reproduction steps, affected version, and any relevant logs with secrets removed.
+Do not disclose a critical vulnerability in a public issue. Use the repository's private security-advisory reporting feature or email [security@tibiatoolkit.com](mailto:security@tibiatoolkit.com). Include reproduction steps, affected version, and any relevant logs with secrets removed.
 
 ## Release verification
 

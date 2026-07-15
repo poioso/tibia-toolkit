@@ -25,4 +25,4 @@ Uninstalling removes the installed application. Local user-data and downloaded c
 
 ## Security and contact
 
-Report security vulnerabilities privately as described in `SECURITY.md`. For privacy questions or deletion requests concerning an official project-operated endpoint, the maintainer must add a public contact address before release.
+Report security vulnerabilities privately as described in `SECURITY.md`. For privacy questions or deletion requests concerning an official project-operated endpoint, email [privacy@tibiatoolkit.com](mailto:privacy@tibiatoolkit.com).

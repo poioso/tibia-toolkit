@@ -10,7 +10,7 @@ Complete every item with real project details before submitting an application. 
 - [ ] `docs/CODE_SIGNING_POLICY.md` identifies committers, release approvers, MFA expectations, and manual approval of every signing request.
 - [ ] GitHub Actions uses hosted runners for the build path that produces the signing artifact.
 - [ ] The default branch is protected and only authorized maintainers can modify signing configuration, workflows, or releases.
-- [ ] GitHub usernames, security contact, privacy contact, and official links have replaced all placeholders.
+- [x] GitHub usernames, security contact, privacy contact, and official links have replaced all placeholders.
 - [ ] The privacy-policy and installer disclosure requirement has been reviewed against the final network behavior; if the app transfers user data beyond user-requested operation, the installer presents the policy and a disable option as required by the Foundation terms.
 - [ ] A clean clone passes secret scanning, CI, and a Windows installer build.
 - [ ] An unsigned public release has been published for the Foundation review, if requested by the program.
