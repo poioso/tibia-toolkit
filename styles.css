@@ -4552,19 +4552,6 @@ button.entity-chip:hover,
   image-rendering: pixelated;
 }
 
-.wheel-of-destiny-tool-panel {
-  padding: 10px;
-  overflow: hidden;
-}
-
-.wheel-of-destiny-frame {
-  display: block;
-  width: 100%;
-  min-height: 860px;
-  border: 0;
-  background: transparent;
-}
-
 .tool-tab.active,
 .tool-tab:hover {
   color: var(--text);

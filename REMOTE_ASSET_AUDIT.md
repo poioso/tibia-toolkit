@@ -11,7 +11,6 @@ The public source tree deliberately contains no `assets/` directory. The private
 | `assets/data` | 94.9 MiB | Static data and images from multiple sources | Excluded | Confirm each upstream source and attribution |
 | `assets/i18n` | 6.1 MiB | Project translations/data | Excluded | Review before publishing packs |
 | `assets/tibia-map-data` | 4.4 MiB | Map-related data | Excluded | Confirm source terms and attribution |
-| `assets/wheel-of-destiny` | 1.6 MiB | Game-related content | Excluded | Map to the official Fankit or other documented CipSoft permission before distribution |
 | `assets/screen-vision` and `assets/imbuements` | 1.2 MiB | Project/UI content | Excluded | Confirm authorship and license |
 
 Observed formats in the current private tree are PNG, JSON, GIF, OGG, WebP, SVG, JPG, Markdown, and placeholder files. No executable files were found in the tracked asset tree. The downloader now blocks executable or unknown extensions.

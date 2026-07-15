@@ -1,4 +1,8 @@
-# Tibia Toolkit 0.3.0 — Foundation review release
+# Tibia Toolkit 0.3.1 — corrective release
+
+The Wheel of Destiny tool was unintentionally included in v0.3.0 before it was ready for public use. It has been temporarily removed while development and validation continue.
+
+It will return in a future release once it is complete. This release supersedes v0.3.0 as the recommended public download; other features are unchanged.
 
 This is a public, unsigned release published for transparency and the initial SignPath Foundation review. The installer is built by GitHub Actions from the annotated source tag and is intentionally not Authenticode-signed yet.
 
