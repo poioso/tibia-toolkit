@@ -848,7 +848,6 @@ const els = {
   lootWorldSuggestions: document.querySelector("#loot-world-suggestions"),
   toolTabs: document.querySelectorAll("[data-tool-tab]"),
   toolPanels: document.querySelectorAll("[data-tool-panel]"),
-  wheelOfDestinyFrame: document.querySelector("#wheel-of-destiny-frame"),
   findPartyStatusBadge: document.querySelector("#find-party-status-badge"),
   findPartyVocationSelect: document.querySelector("#find-party-vocation-select"),
   findPartyVocationButtons: document.querySelectorAll(".find-party-vocation-button"),
@@ -1951,8 +1950,6 @@ async function refreshLocaleSensitiveContent(locale) {
   renderNpcTabs();
   renderStashFilters();
   renderStashValueButtons();
-  syncWheelOfDestinyLocale(locale);
-
   if (state.itemViewMode === "stash") {
     renderStashGrid();
   }
@@ -2096,22 +2093,6 @@ function bindEvents() {
     syncDesktopEffectiveBreakpoints();
     updateMainNavScrollButtons();
     positionCompactGlobalWorldPicker();
-  });
-  window.addEventListener("message", (event) => {
-    const frame = els.wheelOfDestinyFrame;
-    if (!frame?.contentWindow || event.source !== frame.contentWindow) return;
-
-    if (event.data?.type === "tibia-toolkit-wheel-ready") {
-      syncWheelOfDestinyLocale();
-      return;
-    }
-
-    if (event.data?.type === "tibia-toolkit-wheel-height") {
-      const height = Math.ceil(Number(event.data.height));
-      if (Number.isFinite(height) && height > 0) {
-        frame.style.height = `${Math.max(760, Math.min(height + 4, 2400))}px`;
-      }
-    }
   });
   updateMainNavScrollButtons();
 
@@ -10072,27 +10053,8 @@ function clampDecimal(value, min, max, fallback) {
   return Math.round(clamped * 100) / 100;
 }
 
-function getWheelOfDestinyLocale() {
-  return state.localeController?.getLocale?.() || "pt-BR";
-}
-
-function ensureWheelOfDestinyFrameLoaded() {
-  const frame = els.wheelOfDestinyFrame;
-  if (!frame || frame.getAttribute("src")) return;
-  const baseSource = frame.dataset.src || "assets/wheel-of-destiny/frame.html";
-  const source = new URL(baseSource, window.location.href);
-  source.searchParams.set("locale", getWheelOfDestinyLocale());
-  frame.setAttribute("src", source.href);
-}
-
-function syncWheelOfDestinyLocale(locale = getWheelOfDestinyLocale()) {
-  const frame = els.wheelOfDestinyFrame;
-  if (!frame?.contentWindow || !frame.getAttribute("src")) return;
-  frame.contentWindow.postMessage({ type: "tibia-toolkit-wheel-locale", locale }, "*");
-}
-
 function setToolTab(tab, options = {}) {
-  const validTabs = new Set(["imbuement", "loot-splitter", "find-party", "skill-calculator", "wheel-of-destiny", "screen-vision"]);
+  const validTabs = new Set(["imbuement", "loot-splitter", "find-party", "skill-calculator", "screen-vision"]);
   const nextTab = validTabs.has(tab) ? tab : "imbuement";
 
   if (nextTab !== state.selectedToolTab && !options.skipHistory && !state.navigationRestoring) {
@@ -10125,10 +10087,6 @@ function setToolTab(tab, options = {}) {
   if (nextTab === "find-party") {
     void ensureFindPartySnapshot();
     renderFindParty();
-  }
-
-  if (nextTab === "wheel-of-destiny") {
-    ensureWheelOfDestinyFrameLoaded();
   }
 
   setCurrentNavigationEntry(getCurrentSectionNavigationEntry());

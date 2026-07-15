@@ -12,9 +12,9 @@
     <Company>Tibia Toolkit Project</Company>
     <Description>Native Screen Vision helper for Tibia Toolkit</Description>
     <Copyright>Copyright (C) Tibia Toolkit Project</Copyright>
-    <Version Condition="'$(Version)' == ''">0.3.0</Version>
-    <FileVersion Condition="'$(FileVersion)' == ''">0.3.0.0</FileVersion>
-    <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">0.3.0.0</AssemblyVersion>
+    <Version Condition="'$(Version)' == ''">0.3.1</Version>
+    <FileVersion Condition="'$(FileVersion)' == ''">0.3.1.0</FileVersion>
+    <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">0.3.1.0</AssemblyVersion>
     <InformationalVersion Condition="'$(InformationalVersion)' == ''">$(Version)</InformationalVersion>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
