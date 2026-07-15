@@ -144,8 +144,8 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  publish_draft:
-    name: Attest and create draft release
+  publish_release:
+    name: Attest and publish signed release
     needs:
       - validate
       - sign_and_verify
@@ -173,16 +173,32 @@ jobs:
         with:
           subject-path: release/Tibia Toolkit Setup ${{ needs.validate.outputs.version }}.exe
 
-      - name: Create draft GitHub release
+      - name: Publish signed GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
           RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        shell: bash
         run: |
-          gh release create "$RELEASE_TAG" \
-            --draft \
-            --title "Tibia Toolkit $RELEASE_VERSION" \
-            --notes-file RELEASE_NOTES.md \
-            "release/Tibia Toolkit Setup $RELEASE_VERSION.exe" \
-            release/latest.yml \
+          assets=(
+            "release/Tibia Toolkit Setup $RELEASE_VERSION.exe"
+            release/latest.yml
             release/SHA256SUMS.txt
+          )
+          if [ -f "release/Tibia Toolkit Setup $RELEASE_VERSION.exe.blockmap" ]; then
+            assets+=("release/Tibia Toolkit Setup $RELEASE_VERSION.exe.blockmap")
+          fi
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+            gh release edit "$RELEASE_TAG" \
+              --title "Tibia Toolkit $RELEASE_VERSION" \
+              --notes-file RELEASE_NOTES.md \
+              --latest
+          else
+            gh release create "$RELEASE_TAG" \
+              --title "Tibia Toolkit $RELEASE_VERSION" \
+              --notes-file RELEASE_NOTES.md \
+              --latest \
+              "${assets[@]}"
+          fi
