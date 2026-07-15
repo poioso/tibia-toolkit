@@ -215,6 +215,7 @@ const APP_UPDATE_DOWNLOAD_DIALOG_ROLE = "app-update-download";
 let storeWriteQueue = Promise.resolve();
 let cacheStoreWriteQueue = Promise.resolve();
 let overlayToolsStoreWriteQueue = Promise.resolve();
+let overlayToolsMutationQueue = Promise.resolve();
 let mapWatermarkDataUrlPromise = null;
 let overlayBoundsSaveTimer = null;
 let tibiaWindowMonitorTimer = null;
@@ -1497,6 +1498,15 @@ function registerIpcHandlers() {
       };
     }
 
+    if (initialOverlayToolsState.mirrors.items.length > 0
+      && initialOverlayToolsState.mirrors.items.every((entry) => entry.isVisible === false)) {
+      return {
+        cancelled: true,
+        reason: "mirrors-hidden",
+        items: initialOverlayToolsState.mirrors.items
+      };
+    }
+
     let selection = null;
     try {
       selection = await withSuspendedGridOverlay(() => openNativeRegionSelectionWindow({
@@ -1532,8 +1542,8 @@ function registerIpcHandlers() {
       };
     }
 
-    const region = createOverlayMirrorEntry({
-      name: createNextRegionName(overlayToolsState.mirrors.items),
+    const { region, savedState } = await appendOverlayMirrorEntry((currentItems) => ({
+      name: createNextRegionName(currentItems),
       displayId: selection.displayId,
       displayLabel: selection.displayLabel,
       displayBounds: selection.displayBounds,
@@ -1552,12 +1562,9 @@ function registerIpcHandlers() {
       glowColor: "#FFFFFF",
       glowSavedColors: ["#FFFFFF"],
       glowIntensity: 10
-    });
+    }));
 
     await writeDebugLog(`screen-vision-region-create region=${JSON.stringify(region)}`);
-
-    overlayToolsState.mirrors.items = [...overlayToolsState.mirrors.items, region];
-    const savedState = await writeOverlayToolsState(overlayToolsState);
     await writeDebugLog(`screen-vision-region-saved count=${savedState.mirrors.items.length} regionId=${region.id}`);
     await syncRegionMirrorWindows(savedState);
 
@@ -1576,6 +1583,15 @@ function registerIpcHandlers() {
       return {
         cancelled: true,
         reason: "tibia-unavailable",
+        items: initialOverlayToolsState.mirrors.items
+      };
+    }
+
+    if (initialOverlayToolsState.mirrors.items.length > 0
+      && initialOverlayToolsState.mirrors.items.every((entry) => entry.isVisible === false)) {
+      return {
+        cancelled: true,
+        reason: "mirrors-hidden",
         items: initialOverlayToolsState.mirrors.items
       };
     }
@@ -1617,8 +1633,8 @@ function registerIpcHandlers() {
       };
     }
 
-    const region = createOverlayMirrorEntry({
-      name: createNextRegionName(overlayToolsState.mirrors.items),
+    const { region, savedState } = await appendOverlayMirrorEntry((currentItems) => ({
+      name: createNextRegionName(currentItems),
       displayId: selection.displayId,
       displayLabel: selection.displayLabel,
       displayBounds: selection.displayBounds,
@@ -1637,12 +1653,9 @@ function registerIpcHandlers() {
       glowColor: "#FFFFFF",
       glowSavedColors: ["#FFFFFF"],
       glowIntensity: 10
-    });
+    }));
 
     await writeDebugLog(`screen-vision-fixed-region-create region=${JSON.stringify(region)}`);
-
-    overlayToolsState.mirrors.items = [...overlayToolsState.mirrors.items, region];
-    const savedState = await writeOverlayToolsState(overlayToolsState);
     await writeDebugLog(`screen-vision-fixed-region-saved count=${savedState.mirrors.items.length} regionId=${region.id}`);
     await syncRegionMirrorWindows(savedState);
 
@@ -2764,16 +2777,38 @@ async function writeOverlayToolsState(overlayToolsState, options = {}) {
   return snapshot;
 }
 
-async function mutateRegion(regionId, updater) {
-  const overlayToolsState = await readOverlayToolsState();
-  overlayToolsState.mirrors.items = overlayToolsState.mirrors.items.map((entry) => {
-    if (entry.id !== regionId) {
-      return entry;
-    }
+function enqueueOverlayToolsMutation(mutation) {
+  const pendingMutation = overlayToolsMutationQueue.then(mutation, mutation);
+  overlayToolsMutationQueue = pendingMutation.then(() => undefined, () => undefined);
+  return pendingMutation;
+}
 
-    return normalizeOverlayMirrorEntry(updater(entry));
-  }).filter(Boolean);
-  return writeOverlayToolsState(overlayToolsState);
+async function appendOverlayMirrorEntry(createEntryOptions) {
+  return enqueueOverlayToolsMutation(async () => {
+    const overlayToolsState = await readOverlayToolsState();
+    const currentItems = Array.isArray(overlayToolsState.mirrors?.items)
+      ? overlayToolsState.mirrors.items
+      : [];
+    const region = createOverlayMirrorEntry(createEntryOptions(currentItems));
+
+    overlayToolsState.mirrors.items = [...currentItems, region];
+    const savedState = await writeOverlayToolsState(overlayToolsState);
+    return { region, savedState };
+  });
+}
+
+async function mutateRegion(regionId, updater) {
+  return enqueueOverlayToolsMutation(async () => {
+    const overlayToolsState = await readOverlayToolsState();
+    overlayToolsState.mirrors.items = overlayToolsState.mirrors.items.map((entry) => {
+      if (entry.id !== regionId) {
+        return entry;
+      }
+
+      return normalizeOverlayMirrorEntry(updater(entry));
+    }).filter(Boolean);
+    return writeOverlayToolsState(overlayToolsState);
+  });
 }
 
 async function resetMirrorVisibilityForNewProcess() {
@@ -9278,14 +9313,18 @@ async function writeStorageValue(value) {
   const hasOverlayToolsState = Object.prototype.hasOwnProperty.call(nextValue, OVERLAY_TOOLS_STORAGE_KEY);
 
   if (hasOverlayToolsState) {
-    const normalizedState = normalizeOverlayToolsState(nextValue[OVERLAY_TOOLS_STORAGE_KEY]);
-    const overlayToolsStore = await readOverlayToolsStore();
-    overlayToolsStore[OVERLAY_TOOLS_STORAGE_KEY] = normalizedState;
-    await writeOverlayToolsStore(overlayToolsStore);
-    await persistActiveScreenVisionProfileSnapshot(normalizedState).catch(() => {});
-    await syncAlertTimerHotkeys(normalizedState).catch(() => {});
-    await syncNativeAuxiliaryOverlays(normalizedState).catch(() => {});
-    await emitOverlayToolsStateChanged("overlay-state-updated").catch(() => {});
+    const incomingState = normalizeOverlayToolsState(nextValue[OVERLAY_TOOLS_STORAGE_KEY]);
+
+    // Alert/authenticator renderers persist a full overlay snapshot. While a
+    // native selector has focus that snapshot can be older than a mirror just
+    // created or moved, so it must never replace the canonical mirror list.
+    await enqueueOverlayToolsMutation(async () => {
+      const currentState = await readOverlayToolsState();
+      incomingState.mirrors = currentState.mirrors;
+      await writeOverlayToolsState(incomingState, {
+        reason: "renderer-overlay-state-updated"
+      });
+    });
     delete nextValue[OVERLAY_TOOLS_STORAGE_KEY];
   }
 
@@ -9452,6 +9491,11 @@ function isRuntimeCacheStorageEntry(entryValue) {
 }
 
 async function readOverlayToolsStore() {
+  // The Windows atomic replace briefly removes the destination before rename.
+  // Never let a concurrent mirror action interpret that interval as an empty
+  // profile and overwrite the existing mirror collection.
+  await overlayToolsStoreWriteQueue.catch(() => {});
+
   try {
     const raw = await fs.readFile(overlayToolsStorePath, "utf8");
     return JSON.parse(raw);

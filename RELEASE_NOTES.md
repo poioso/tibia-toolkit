@@ -1,6 +1,7 @@
-Tibia Toolkit 0.3.1
+Tibia Toolkit 0.3.2
 
-- The Wheel of Destiny tool was unintentionally included in v0.3.0 before it was ready for public use. It has been temporarily removed while development and validation continue.
-- It will return in a future release once it is complete. This version supersedes v0.3.0 as the recommended public download; other features are unchanged.
+- Fixed a race condition in Tibia Mirror that could replace an existing mirror when creating another one after moving a mirror, changing focus, or switching between manual and 32x32 creation.
+- Restored the image-only confirm and cancel controls in the native mirror selection window.
+- Mirror creation is now blocked while all existing mirrors are hidden, preventing an inconsistent visibility state.
 
 [Code signing policy](https://github.com/poioso/tibia-toolkit/blob/main/docs/CODE_SIGNING_POLICY.md)
