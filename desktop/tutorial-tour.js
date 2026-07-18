@@ -193,15 +193,18 @@ const TUTORIAL_WELCOME_COPY = {
 const TUTORIAL_ACTION_COPY = {
   "pt-BR": {
     next: "Continuar",
-    done: "Finalizar"
+    done: "Finalizar",
+    cancel: "Sair do tutorial"
   },
   en: {
     next: "Continue",
-    done: "Finish"
+    done: "Finish",
+    cancel: "Exit tutorial"
   },
   de: {
     next: "Weiter",
-    done: "Fertig"
+    done: "Fertig",
+    cancel: "Tutorial beenden"
   }
 };
 
@@ -2748,6 +2751,8 @@ let activeTour = null;
 let activeStepIndex = -1;
 let activeTourName = "item-prices";
 let removeNextListener = null;
+let removeCancelListener = null;
+let activeStepTransitionId = 0;
 let tutorialInteractionBlocked = false;
 const tutorialRoutesStartedThisSession = new Set();
 let imbuementTourStateSnapshot = null;
@@ -3070,8 +3075,12 @@ async function closeActiveStep({
   releaseInteraction = true,
   unlockWindow = true,
   restoreTourState = true,
-  cleanupTransient = true
+  cleanupTransient = true,
+  invalidateTransition = true
 } = {}) {
+  if (invalidateTransition) {
+    activeStepTransitionId += 1;
+  }
   const closingTourName = activeTourName;
   if (cleanupTransient) {
     setTutorialUpdateDemo(false);
@@ -3086,6 +3095,8 @@ async function closeActiveStep({
   }
   removeNextListener?.();
   removeNextListener = null;
+  removeCancelListener?.();
+  removeCancelListener = null;
   activeTour?.destroy?.();
   activeTour = null;
   activeStepIndex = -1;
@@ -3153,14 +3164,39 @@ async function runStep(index = 0, tourName = "item-prices") {
     return;
   }
 
+  // Stop listening to the previous popover before any asynchronous setup.
+  // Otherwise a slower item/network transition can accept the same click more
+  // than once and start overlapping runs of the same step.
+  removeNextListener?.();
+  removeNextListener = null;
+  removeCancelListener?.();
+  removeCancelListener = null;
+  const transitionId = ++activeStepTransitionId;
+
   activeStepIndex = index;
   activeTourName = tourName;
   ensureContextTutorialButton();
   setTutorialInteractionBlocked(true);
   await window.desktopApi?.app?.tutorial?.setWindowLocked?.(true);
+  if (transitionId !== activeStepTransitionId) {
+    return;
+  }
+
+  // Remove the old clickable popover while the new screen state is prepared.
+  await window.desktopApi?.app?.tutorial?.closeStep?.();
+  if (transitionId !== activeStepTransitionId) {
+    return;
+  }
 
   const step = steps[index];
-  await step.before?.();
+  try {
+    await step.before?.();
+  } catch (error) {
+    console.error(`[tutorial] Failed to prepare ${tourName} step ${index + 1}`, error);
+  }
+  if (transitionId !== activeStepTransitionId) {
+    return;
+  }
 
   const selector = typeof step.selector === "function" ? step.selector() : step.selector;
   const element = getElement(selector);
@@ -3170,8 +3206,12 @@ async function runStep(index = 0, tourName = "item-prices") {
     releaseInteraction: false,
     unlockWindow: false,
     restoreTourState: false,
-    cleanupTransient: !preserveTransient
+    cleanupTransient: !preserveTransient,
+    invalidateTransition: false
   });
+  if (transitionId !== activeStepTransitionId) {
+    return;
+  }
   setTutorialUpdateDemo(step.simulateUpdate === true);
   activeStepIndex = index;
   activeTourName = tourName;
@@ -3220,11 +3260,24 @@ async function runStep(index = 0, tourName = "item-prices") {
     autoHeight: true,
     progress: `${index + 1}/${steps.length}`,
     buttonIcon: toAbsoluteAssetUrl(step.done ? TUTORIAL_ASSETS.tick : TUTORIAL_ASSETS.continue),
-    buttonLabel: step.done ? actionCopy.done : actionCopy.next
+    buttonLabel: step.done ? actionCopy.done : actionCopy.next,
+    cancelIcon: toAbsoluteAssetUrl(TUTORIAL_ASSETS.cancel),
+    cancelLabel: actionCopy.cancel
   });
+  if (transitionId !== activeStepTransitionId) {
+    return;
+  }
 
   removeNextListener = window.desktopApi?.app?.tutorial?.onNext?.(() => {
+    removeNextListener?.();
+    removeNextListener = null;
     void runStep(index + 1, tourName);
+  }) || null;
+  removeCancelListener = window.desktopApi?.app?.tutorial?.onCancel?.(() => {
+    removeCancelListener?.();
+    removeCancelListener = null;
+    tibiaMirrorTutorialRestartPending = false;
+    void closeActiveStep();
   }) || null;
 }
 

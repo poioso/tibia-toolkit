@@ -32,5 +32,8 @@ contextBridge.exposeInMainWorld("tutorialPopoverApi", {
   },
   next() {
     ipcRenderer.send("tutorial-popover:next");
+  },
+  cancel() {
+    ipcRenderer.send("tutorial-popover:cancel");
   }
 });
