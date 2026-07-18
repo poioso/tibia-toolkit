@@ -192,7 +192,7 @@ internal sealed class RegionSelectorWindow : Window
         Content = root;
 
         Loaded += OnLoaded;
-        KeyDown += OnKeyDown;
+        PreviewKeyDown += OnKeyDown;
         MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
         MouseMove += Overlay_MouseMove;
         MouseLeftButtonUp += Overlay_MouseLeftButtonUp;
@@ -223,13 +223,18 @@ internal sealed class RegionSelectorWindow : Window
 
     private void OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Escape)
+        if (e.Key == Key.Escape)
         {
+            e.Handled = true;
+            CancelSelection();
             return;
         }
 
-        DialogResult = false;
-        Close();
+        if (e.Key == Key.Return && _selectionReady)
+        {
+            e.Handled = true;
+            ConfirmSelection();
+        }
     }
 
     private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -533,6 +538,11 @@ internal sealed class RegionSelectorWindow : Window
     }
 
     private void OnCancelButtonClick(object sender, RoutedEventArgs e)
+    {
+        CancelSelection();
+    }
+
+    private void CancelSelection()
     {
         DialogResult = false;
         Close();

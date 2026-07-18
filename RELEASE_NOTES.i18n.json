@@ -1,5 +1,5 @@
 {
-  "pt-BR": "Tibia Toolkit 0.3.3\n\n- Corrigida uma condição de corrida na transição dos tutoriais que podia fazer o primeiro tour guiado repetir ou entrar em loop próximo ao passo 4 em computadores mais lentos ou após cliques repetidos.\n- Adicionado um botão localizado para sair em todos os tutoriais guiados, permitindo encerrar o tour em qualquer etapa e recuperar imediatamente a interação normal com o aplicativo.",
-  "en": "Tibia Toolkit 0.3.3\n\n- Fixed a tutorial transition race that could make the first guided tour repeat or loop around step 4 on slower computers or after repeated clicks.\n- Added a localized exit button to every guided tutorial so users can stop a tour at any step and immediately regain normal app interaction.",
-  "de": "Tibia Toolkit 0.3.3\n\n- Eine Race Condition beim Wechsel zwischen Tutorial-Schritten wurde behoben, durch die sich die erste geführte Tour auf langsameren Computern oder nach wiederholten Klicks um Schritt 4 wiederholen oder in einer Schleife festhängen konnte.\n- Allen geführten Tutorials wurde ein lokalisierter Beenden-Button hinzugefügt, damit die Tour in jedem Schritt beendet und die normale Bedienung der Anwendung sofort wiederhergestellt werden kann."
+  "pt-BR": "Tibia Toolkit 0.3.4\n\n- Correção emergencial: restaurados os botões de confirmar e cancelar na seleção de região do Tibia Mirror, com Enter para confirmar e Esc para cancelar.",
+  "en": "Tibia Toolkit 0.3.4\n\n- Emergency fix: restored the confirm and cancel controls in the Tibia Mirror region selector and added Enter/Esc keyboard actions.",
+  "de": "Tibia Toolkit 0.3.4\n\n- Notfallkorrektur: Die Bestätigen- und Abbrechen-Schaltflächen in der Regionsauswahl von Tibia Mirror wurden wiederhergestellt. Enter bestätigt und Esc bricht ab."
 }

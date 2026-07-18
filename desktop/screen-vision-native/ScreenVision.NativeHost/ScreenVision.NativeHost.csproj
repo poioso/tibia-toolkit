@@ -25,7 +25,10 @@
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Assets\**\*">
+    <!-- The selector runs from a self-contained native host. Embed its controls
+         so thin/content-pack installs cannot lose the confirm/cancel images. -->
+    <Resource Include="Assets\selector\*.png" />
+    <Content Include="Assets\**\*" Exclude="Assets\selector\*.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
