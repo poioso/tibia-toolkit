@@ -46,6 +46,11 @@ contextBridge.exposeInMainWorld("desktopApi", {
         ipcRenderer.on("tutorial:next", listener);
         return () => ipcRenderer.removeListener("tutorial:next", listener);
       },
+      onCancel(callback) {
+        const listener = () => callback();
+        ipcRenderer.on("tutorial:cancel", listener);
+        return () => ipcRenderer.removeListener("tutorial:cancel", listener);
+      },
       onResetAll(callback) {
         const listener = () => callback();
         ipcRenderer.on("tutorial:reset-all", listener);

@@ -29,6 +29,19 @@
       box-shadow: none;
       opacity: 0;
     }
+    .cancel-button {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 2;
+      width: 34px;
+      height: 34px;
+      background-color: rgba(17, 23, 31, .88);
+    }
+    .cancel-button img {
+      max-width: 24px;
+      max-height: 24px;
+    }
     .card.is-entering {
       animation: tutorial-popover-in 170ms cubic-bezier(.2,.8,.2,1) both;
     }
@@ -157,6 +170,7 @@
 </head>
 <body>
   <section class="card">
+    <button class="cancel-button" id="cancel-button" type="button"><img id="cancel-icon" alt=""></button>
     <img class="gif" id="guide-gif" alt="">
     <div class="supplemental-images" id="step-supplemental"></div>
     <p id="step-text"></p>
@@ -171,6 +185,8 @@
     const progress = document.querySelector("#step-progress");
     const nextButton = document.querySelector("#next-button");
     const nextIcon = document.querySelector("#next-icon");
+    const cancelButton = document.querySelector("#cancel-button");
+    const cancelIcon = document.querySelector("#cancel-icon");
     const card = document.querySelector(".card");
     const supplemental = document.querySelector("#step-supplemental");
     const footer = document.querySelector("footer");
@@ -209,8 +225,13 @@
       }
       progress.textContent = payload.progress;
       nextIcon.src = payload.buttonIcon;
+      cancelIcon.src = payload.cancelIcon;
+      cancelButton.setAttribute("aria-label", payload.cancelLabel);
+      cancelButton.title = payload.cancelLabel;
+      cancelButton.disabled = false;
       nextButton.setAttribute("aria-label", payload.buttonLabel);
       nextButton.title = payload.buttonLabel;
+      nextButton.disabled = false;
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           if (payload.autoHeight === true) {
@@ -221,7 +242,16 @@
       });
     });
 
-    nextButton.addEventListener("click", () => window.tutorialPopoverApi.next());
+    nextButton.addEventListener("click", () => {
+      nextButton.disabled = true;
+      cancelButton.disabled = true;
+      window.tutorialPopoverApi.next();
+    });
+    cancelButton.addEventListener("click", () => {
+      cancelButton.disabled = true;
+      nextButton.disabled = true;
+      window.tutorialPopoverApi.cancel();
+    });
   </script>
 </body>
 </html>

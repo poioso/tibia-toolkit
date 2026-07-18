@@ -1,7 +1,7 @@
 {
   "name": "tibia-toolkit",
   "productName": "Tibia Toolkit",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "author": "Tibia Toolkit",
   "license": "GPL-3.0-only",
   "description": "App desktop overlay Tibia Toolkit para consultar precos de Tibia.",
@@ -25,7 +25,7 @@
     "rcedit": "^5.0.2"
   },
   "dependencies": {
-    "adm-zip": "^0.5.18",
+    "adm-zip": "^0.6.0",
     "driver.js": "^1.6.0",
     "electron-updater": "^6.8.9",
     "jquery": "^3.7.1",

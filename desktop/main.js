@@ -985,6 +985,13 @@ function registerIpcHandlers() {
     }
   });
 
+  ipcMain.on("tutorial-popover:cancel", () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.focus();
+      mainWindow.webContents.send("tutorial:cancel");
+    }
+  });
+
   ipcMain.handle("app:splash-progress", async (_event, progress) => {
     await updateSplashProgress(progress);
     return true;

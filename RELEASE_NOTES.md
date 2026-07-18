@@ -1,7 +1,6 @@
-Tibia Toolkit 0.3.2
+Tibia Toolkit 0.3.3
 
-- Fixed a race condition in Tibia Mirror that could replace an existing mirror when creating another one after moving a mirror, changing focus, or switching between manual and 32x32 creation.
-- Restored the image-only confirm and cancel controls in the native mirror selection window.
-- Mirror creation is now blocked while all existing mirrors are hidden, preventing an inconsistent visibility state.
+- Fixed a tutorial transition race that could make the first guided tour repeat or loop around step 4 on slower computers or after repeated clicks.
+- Added a localized exit button to every guided tutorial so users can stop a tour at any step and immediately regain normal app interaction.
 
 [Code signing policy](https://github.com/poioso/tibia-toolkit/blob/main/docs/CODE_SIGNING_POLICY.md)
