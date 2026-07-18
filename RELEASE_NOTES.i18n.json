@@ -1,5 +1,5 @@
 {
-  "pt-BR": "Tibia Toolkit 0.3.4\n\n- Correção emergencial: restaurados os botões de confirmar e cancelar na seleção de região do Tibia Mirror, com Enter para confirmar e Esc para cancelar.",
-  "en": "Tibia Toolkit 0.3.4\n\n- Emergency fix: restored the confirm and cancel controls in the Tibia Mirror region selector and added Enter/Esc keyboard actions.",
-  "de": "Tibia Toolkit 0.3.4\n\n- Notfallkorrektur: Die Bestätigen- und Abbrechen-Schaltflächen in der Regionsauswahl von Tibia Mirror wurden wiederhergestellt. Enter bestätigt und Esc bricht ab."
+  "pt-BR": "Tibia Toolkit 0.3.5\n\n- Correção emergencial de empacotamento: a seleção de região do Tibia Mirror agora inclui as imagens dos botões de confirmar e cancelar nas versões instaladas.",
+  "en": "Tibia Toolkit 0.3.5\n\n- Emergency packaging fix: the Tibia Mirror region selector now includes its confirm and cancel button images in installed builds.",
+  "de": "Tibia Toolkit 0.3.5\n\n- Notfallkorrektur der Paketierung: Die Regionsauswahl von Tibia Mirror enthält nun auch in installierten Versionen die Bilder für die Schaltflächen zum Bestätigen und Abbrechen."
 }
