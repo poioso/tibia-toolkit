@@ -1269,6 +1269,17 @@ function registerIpcHandlers() {
     return true;
   });
 
+  ipcMain.handle("screen-vision:close-docked-panel", async (_event, payload = {}) => {
+    const expectedPanelKey = typeof payload.panelKey === "string" ? payload.panelKey : "";
+
+    if (expectedPanelKey && dockedToolPanelKey !== expectedPanelKey) {
+      return false;
+    }
+
+    await closeDockedToolPanel();
+    return true;
+  });
+
   ipcMain.handle("screen-vision:tutorial:reset-all", async () => {
     if (!mainWindow || mainWindow.isDestroyed()) {
       return false;

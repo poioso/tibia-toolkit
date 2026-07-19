@@ -5894,7 +5894,7 @@ async function handleDockedPanelClick(event) {
     }
 
     if (panelKey) {
-      await window.screenVisionApi.tools.open(panelKey).catch(() => null);
+      await window.screenVisionApi.tools.close(panelKey).catch(() => null);
     }
     return;
   }

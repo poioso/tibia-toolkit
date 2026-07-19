@@ -197,6 +197,9 @@ contextBridge.exposeInMainWorld("desktopApi", {
     tools: {
       open(tool, options) {
         return ipcRenderer.invoke("screen-vision:open", { tool, options });
+      },
+      close(panelKey) {
+        return ipcRenderer.invoke("screen-vision:close-docked-panel", { panelKey });
       }
     },
     dialogs: {
