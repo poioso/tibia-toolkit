@@ -28,7 +28,7 @@ jobs:
       version: ${{ steps.release.outputs.version }}
     steps:
       - name: Check out release tag
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ inputs.release_tag || github.ref }}
           fetch-depth: 0
@@ -51,7 +51,7 @@ jobs:
       unsigned_artifact_id: ${{ steps.upload_unsigned.outputs.artifact-id }}
     steps:
       - name: Check out release tag
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ needs.validate.outputs.release_tag }}
 
@@ -100,7 +100,7 @@ jobs:
       signed_artifact_name: signed-release-${{ github.run_id }}
     steps:
       - name: Check out release scripts
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ needs.validate.outputs.release_tag }}
 
@@ -174,7 +174,7 @@ jobs:
       id-token: write
     steps:
       - name: Check out release notes
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           ref: ${{ needs.validate.outputs.release_tag }}
 
