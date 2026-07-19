@@ -4,6 +4,9 @@ Do not publish a release until every blocker in `OPEN_SOURCE_AUDIT.md` is closed
 
 The complete operational rules, including the fixed download URL for the website and Discord, are in [UPDATE_RELEASE_GUIDE.md](UPDATE_RELEASE_GUIDE.md).
 
+The mandatory post-release announcement procedure for GitHub, the official
+website, and Discord is in [RELEASE_ANNOUNCEMENTS.md](RELEASE_ANNOUNCEMENTS.md).
+
 ## Before creating a tag
 
 1. Update `package.json`, `RELEASE_NOTES.md`, and `RELEASE_NOTES.i18n.json` with the same SemVer release version.
@@ -20,6 +23,16 @@ The release workflow builds an unsigned artifact. It submits the artifact to Sig
 After signing, it regenerates the updater manifest so its SHA-512 and size match the signed installer, verifies project-owned executable signatures, creates checksums and provenance, and opens a draft release. A maintainer reviews the draft before it becomes public.
 
 The signed installer is published twice in each GitHub release: once with its versioned build name for traceability, and once as `Tibia-Toolkit-Setup.exe`. The second asset is byte-for-byte identical and is the only asset used by the stable public download URL.
+
+## Public announcement
+
+After the exact tested artifacts are public and the permanent download URL has
+been verified, publish matching patch notes on GitHub, in `Noticias do Tibia
+Toolkit` for `pt-BR`, `en`, and `de`, and in the Discord `updates` channel. The
+Discord announcement is posted in English by the configured bot with
+`@everyone` and a mention of the `downloads` channel. Follow
+[RELEASE_ANNOUNCEMENTS.md](RELEASE_ANNOUNCEMENTS.md) and do not announce beta
+artifacts.
 
 ## Local preflight
 

@@ -56,6 +56,14 @@ contextBridge.exposeInMainWorld("desktopApi", {
         ipcRenderer.on("tutorial:reset-all", listener);
         return () => ipcRenderer.removeListener("tutorial:reset-all", listener);
       }
+    },
+    wheelInformation: {
+      show(payload) {
+        return ipcRenderer.invoke("wheel-information:show", payload);
+      },
+      hide() {
+        return ipcRenderer.invoke("wheel-information:hide");
+      }
     }
   },
   data: {

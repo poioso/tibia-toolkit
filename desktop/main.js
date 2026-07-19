@@ -185,6 +185,8 @@ let applicationShutdownComplete = false;
 let nativeHostShutdownRequested = false;
 let closeChoiceDialogOpen = false;
 let activeClosePreference = null;
+let wheelInformationWindow = null;
+let wheelInformationAnchor = null;
 let tutorialPopoverWindow = null;
 let tutorialExpandedWindowBounds = null;
 const screenVisionWindows = new Map();
@@ -283,6 +285,11 @@ const dockedToolPanelDefinitions = {
     titleKey: "screenVision.coffee.title",
     description: "",
     width: 418
+  },
+  "wheel-perks-panel": {
+    titleKey: "wheel.summary.title",
+    description: "",
+    width: 390
   }
 };
 
@@ -729,7 +736,95 @@ function restoreMapWindowTopmost() {
   }
 }
 
+function getWheelInformationBounds(owner, rect, width, height) {
+  const ownerBounds = owner.getBounds();
+  const target = {
+    x: ownerBounds.x + Math.round(Number(rect?.x) || 0),
+    y: ownerBounds.y + Math.round(Number(rect?.y) || 0),
+    width: Math.max(1, Math.round(Number(rect?.width) || 1)),
+    height: Math.max(1, Math.round(Number(rect?.height) || 1))
+  };
+  const area = screen.getDisplayMatching(target).workArea;
+  const gap = 12;
+  const right = { x: target.x + target.width + gap, y: target.y + 8 };
+  const left = { x: target.x - width - gap, y: target.y + 8 };
+  const candidate = right.x + width <= area.x + area.width ? right : left;
+  return {
+    x: Math.max(area.x, Math.min(candidate.x, area.x + area.width - width)),
+    y: Math.max(area.y, Math.min(candidate.y, area.y + area.height - height)),
+    width,
+    height
+  };
+}
+
 function registerIpcHandlers() {
+  ipcMain.handle("wheel-information:show", async (event, payload = {}) => {
+    const owner = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+    if (!owner || owner.isDestroyed()) return false;
+    const width = 350;
+    const height = 260;
+    wheelInformationAnchor = { owner, rect: payload.rect || {} };
+    const bounds = getWheelInformationBounds(owner, wheelInformationAnchor.rect, width, height);
+    if (!wheelInformationWindow || wheelInformationWindow.isDestroyed()) {
+      wheelInformationWindow = new BrowserWindow({
+        ...bounds,
+        frame: false,
+        transparent: true,
+        resizable: false,
+        movable: false,
+        focusable: false,
+        show: false,
+        skipTaskbar: true,
+        alwaysOnTop: true,
+        parent: owner,
+        hasShadow: false,
+        webPreferences: {
+          preload: path.join(__dirname, "wheel-information-popover-preload.cjs"),
+          contextIsolation: true,
+          nodeIntegration: false,
+          sandbox: false
+        }
+      });
+      wheelInformationWindow.setIgnoreMouseEvents(true);
+      wheelInformationWindow.setAlwaysOnTop(true, "pop-up-menu");
+      wheelInformationWindow.on("closed", () => {
+        wheelInformationWindow = null;
+        wheelInformationAnchor = null;
+      });
+      await wheelInformationWindow.loadFile(path.join(__dirname, "wheel-information-popover.html"));
+    } else {
+      wheelInformationWindow.setParentWindow(owner);
+      wheelInformationWindow.setBounds(bounds, false);
+    }
+    wheelInformationWindow.webContents.send("wheel-information:render", payload);
+    wheelInformationWindow.showInactive();
+    wheelInformationWindow.moveTop();
+    return true;
+  });
+
+  ipcMain.handle("wheel-information:hide", async () => {
+    if (wheelInformationWindow && !wheelInformationWindow.isDestroyed()) {
+      wheelInformationWindow.hide();
+    }
+    return true;
+  });
+
+  ipcMain.on("wheel-information:resize", (event, requestedHeight) => {
+    if (!wheelInformationWindow || wheelInformationWindow.isDestroyed()
+      || event.sender !== wheelInformationWindow.webContents || !wheelInformationAnchor
+      || wheelInformationAnchor.owner.isDestroyed()) {
+      return;
+    }
+    const height = Math.max(120, Math.min(520, Math.round(Number(requestedHeight) || 260)));
+    const bounds = getWheelInformationBounds(
+      wheelInformationAnchor.owner,
+      wheelInformationAnchor.rect,
+      wheelInformationWindow.getBounds().width,
+      height
+    );
+    wheelInformationWindow.setBounds(bounds, false);
+  });
+
   ipcMain.handle("tutorial:show-step", async (event, payload = {}) => {
     const owner = BrowserWindow.fromWebContents(event.sender) || mainWindow;
     if (!owner || owner.isDestroyed()) {
@@ -4681,7 +4776,7 @@ async function openDockedToolPanel(panelKey, options = {}) {
 async function openScreenVisionWindow(tool = "screen-vision", options = {}) {
   const showWindow = options?.showWindow !== false;
   const focusWindow = options?.focusWindow !== false;
-  if (tool === "alertas-panel" || tool === "authenticator-panel" || tool === "profiles-panel" || tool === "sqm-finder-panel" || tool === "tibia-coins-panel" || tool === "supporters-panel" || tool === "buy-me-a-coffee-panel" || tool === "settings-panel") {
+  if (tool === "alertas-panel" || tool === "authenticator-panel" || tool === "profiles-panel" || tool === "sqm-finder-panel" || tool === "tibia-coins-panel" || tool === "supporters-panel" || tool === "buy-me-a-coffee-panel" || tool === "settings-panel" || tool === "wheel-perks-panel") {
     return openDockedToolPanel(tool, { ...options, focusWindow });
   }
   const normalizedTool = tool === "alertas" || tool === "visual-customization"

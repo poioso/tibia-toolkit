@@ -4566,6 +4566,19 @@ button.entity-chip:hover,
   margin-bottom: 12px;
 }
 
+.loot-topbar-actions-only {
+  justify-content: flex-end;
+}
+
+.tool-category-subtabs {
+  justify-content: center;
+  margin: 0 0 12px;
+}
+
+.tool-category-subtabs .loot-subtab {
+  flex: 0 0 auto;
+}
+
 .loot-subtabs {
   display: flex;
   align-items: stretch;
@@ -14937,6 +14950,37 @@ body.desktop-mode.desktop-main-width-medium .tool-tab {
   line-height: 0;
 }
 
+body.desktop-mode.desktop-main-width-medium.desktop-docked-panel-open[data-docked-panel-key="wheel-perks-panel"] .nav-sections,
+body.desktop-mode.desktop-main-width-medium.desktop-docked-panel-open[data-docked-panel-key="wheel-perks-panel"] .tool-tabs {
+  gap: 0;
+  padding-left: 0;
+}
+
+body.desktop-mode.desktop-main-width-medium.desktop-docked-panel-open[data-docked-panel-key="wheel-perks-panel"] .nav-button,
+body.desktop-mode.desktop-main-width-medium.desktop-docked-panel-open[data-docked-panel-key="wheel-perks-panel"] .tool-tab {
+  gap: 7px;
+  min-height: 42px;
+  line-height: 1.1;
+}
+
+body.desktop-mode.desktop-main-width-medium.desktop-docked-panel-open[data-docked-panel-key="wheel-perks-panel"] .nav-button span,
+body.desktop-mode.desktop-main-width-medium.desktop-docked-panel-open[data-docked-panel-key="wheel-perks-panel"] .tool-tab span {
+  max-width: 180px;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+body.desktop-mode.desktop-main-width-medium.desktop-docked-panel-open[data-docked-panel-key="wheel-perks-panel"] .nav-button img {
+  width: 32px;
+  height: 32px;
+}
+
+body.desktop-mode.desktop-main-width-medium.desktop-docked-panel-open[data-docked-panel-key="wheel-perks-panel"] .tool-tab img {
+  width: 20px;
+  height: 20px;
+}
+
 body.desktop-mode.desktop-main-width-wide .nav-scroll-shell {
   width: auto;
   display: flex;
@@ -14959,6 +15003,141 @@ body.desktop-mode.desktop-main-width-wide .tool-tabs {
 
 body.desktop-mode.desktop-main-width-wide .tool-tab {
   padding: 5px 8px 7px;
+}
+
+/* Wheel of Destiny */
+.wheel-of-destiny-tool-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.wheel-of-destiny-frame {
+  display: block;
+  width: 100%;
+  min-height: 620px;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+body.desktop-mode .docked-wheel-perks-content {
+  padding: 12px;
+  scrollbar-color: rgba(88, 196, 112, 0.72) rgba(18, 23, 30, 0.78);
+  scrollbar-width: thin;
+}
+
+body.desktop-mode .docked-wheel-perks-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+body.desktop-mode .docked-wheel-perks-content::-webkit-scrollbar-track {
+  background: rgba(18, 23, 30, 0.78);
+}
+
+body.desktop-mode .docked-wheel-perks-content::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(18, 23, 30, 0.78);
+  border-radius: 0;
+  background: rgba(88, 196, 112, 0.72);
+}
+
+body.desktop-mode .docked-wheel-perks-stage,
+body.desktop-mode .docked-wheel-perks-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+}
+
+body.desktop-mode .docked-wheel-perk-section {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 7px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.022), transparent 52%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.018) 0 4px, transparent 4px 10px),
+    #252b35;
+  overflow: hidden;
+}
+
+body.desktop-mode .docked-wheel-perk-section h3 {
+  margin: 0;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  color: #f3f7ff;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+body.desktop-mode .docked-wheel-perk-rows {
+  display: grid;
+  min-width: 0;
+  padding: 3px 8px;
+}
+
+body.desktop-mode .docked-wheel-perk-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 5px 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+body.desktop-mode .docked-wheel-perk-row:last-child {
+  border-bottom: 0;
+}
+
+body.desktop-mode .docked-wheel-perk-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #e8eef8;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+body.desktop-mode .docked-wheel-perk-label span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+body.desktop-mode .docked-wheel-perk-row > strong {
+  color: #f3f7ff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+body.desktop-mode .docked-wheel-perk-icon {
+  position: relative;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+body.desktop-mode .docked-wheel-perk-icon img {
+  display: block;
+  max-width: none;
+}
+
+body.desktop-mode .docked-wheel-perk-icon.is-sprite {
+  display: inline-block;
+}
+
+body.desktop-mode .docked-wheel-perk-empty {
+  margin: 0;
+  padding: 10px 2px;
+  color: #91a0b4;
+  font-size: 0.7rem;
+  line-height: 1.4;
 }
 
 body.desktop-mode.desktop-main-width-wide .global-world-control {

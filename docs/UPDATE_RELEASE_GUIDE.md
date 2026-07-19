@@ -37,10 +37,23 @@ Never use a `/releases/latest/` link as SignPath evidence because it changes whe
 4. After SignPath Foundation accepts the project, manually approve the SignPath signing request for every release. Do not bypass this approval.
 5. Verify the signed versioned installer, application executable, and native helper. Regenerate `latest.yml` and checksums only from the signed installer.
 6. Publish the GitHub release only after the signed artifacts are ready. Ensure it includes the stable `Tibia-Toolkit-Setup.exe` asset and is marked as the latest public release.
-7. Verify that the fixed public URL downloads the stable asset and that its SHA-256 equals the versioned installer SHA-256. Only then announce the release; the site and Discord links themselves do not change.
+7. Verify that the fixed public URL downloads the stable asset and that its SHA-256 equals the versioned installer SHA-256.
+8. Include localized `releaseNotesByLocale` entries for `pt-BR`, `en`, and `de` in the public `latest.yml` asset.
+9. Wait for the Hospedainfo synchronization timer to promote that exact manifest, then verify the website `Patch Notes` button reports the current public version in all three locales.
+10. Publish the matching localized entry in `Noticias do Tibia Toolkit`, reusing the standard update GIF instead of duplicating it.
+11. Post the English patch notes in the official Discord `updates` channel as the configured bot, mention `@everyone`, and direct users to the `downloads` channel.
+12. Verify GitHub, the permanent download URL, updater, website, and Discord with [RELEASE_ANNOUNCEMENTS.md](RELEASE_ANNOUNCEMENTS.md).
 
-## Current transition state
+## Current update infrastructure
 
-Until the in-app updater is explicitly migrated to GitHub Releases, existing installed copies continue to use the two configured update servers and the beta-to-public test procedure. This does not change the fixed GitHub link used by the website and Discord for initial downloads.
+The website and Discord use the fixed GitHub download link. Existing installed
+copies read the updater channel from `downloads.tibiatoolkit.com` and its
+compatibility alias `downloads-backup.tibiatoolkit.com`; both hostnames are
+served from the same Hospedainfo directory. Oracle 2 is no longer an update or
+deployment destination.
+
+After a public GitHub release is published, the Hospedainfo timer
+`tibia-toolkit-github-sync.timer` downloads and validates the installer,
+blockmap, checksums, and `latest.yml`, then promotes the manifest last.
 
 Foundation-review releases published before SignPath approval are unsigned review artifacts. Do not describe them as signed, and do not replace an existing versioned asset. After approval, the stable asset must be a byte-identical copy of the signed installer from its verified GitHub build.

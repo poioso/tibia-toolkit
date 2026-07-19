@@ -442,25 +442,47 @@
 
         <section class="panel" id="panel-tools">
           <nav class="tool-tabs" aria-label="Ferramentas" data-i18n-aria-label="panel.tools.title">
-            <button type="button" class="tool-tab active" data-tool-tab="imbuement" data-tooltip="Calculadora de Imbuement" aria-label="Calculadora de Imbuement" data-i18n-tooltip="tools.imbuement" data-i18n-aria-label="tools.imbuement">
-              <img src="assets/ui/tool-imbuement-home.gif" alt="">
-              <span data-i18n="tools.imbuement">Calculadora de Imbuement</span>
+            <button type="button" class="tool-tab active" data-tool-tab="imbuement" data-tool-group="calculators" data-tool-group-tab="true" data-tooltip="Calculadoras" aria-label="Calculadoras" data-i18n-tooltip="tools.calculators" data-i18n-aria-label="tools.calculators">
+              <img src="assets/ui/tools/calculadora.gif" alt="">
+              <span data-i18n="tools.calculators">Calculadoras</span>
             </button>
-            <button type="button" class="tool-tab" data-tool-tab="loot-splitter" data-tooltip="Analyzer" aria-label="Analyzer" data-i18n-tooltip="tools.analyzer" data-i18n-aria-label="tools.analyzer">
-              <img src="assets/ui/tool-analyzer.gif" alt="">
-              <span data-i18n="tools.analyzer">Analyzer</span>
+            <button type="button" class="tool-tab" data-tool-tab="loot-splitter" data-tool-group="hunting" data-tool-group-tab="true" data-tooltip="Hunting Tools" aria-label="Hunting Tools" data-i18n-tooltip="tools.huntingTools" data-i18n-aria-label="tools.huntingTools">
+              <img src="assets/data/items/sprites/2621.png" alt="">
+              <span data-i18n="tools.huntingTools">Hunting Tools</span>
             </button>
-            <button type="button" class="tool-tab" data-tool-tab="find-party" data-tooltip="Find Party" aria-label="Find Party" data-i18n-tooltip="tools.findParty" data-i18n-aria-label="tools.findParty">
-              <img src="assets/ui/analyzer-party-tab.png" alt="">
-              <span data-i18n="tools.findParty">Find Party</span>
-            </button>
-            <button type="button" class="tool-tab" data-tool-tab="skill-calculator" data-tooltip="Calculadora de Skill" aria-label="Calculadora de Skill" data-i18n-tooltip="tools.skillCalculator" data-i18n-aria-label="tools.skillCalculator">
-              <img src="assets/ui/tool-skill-calculator.webp" alt="">
-              <span data-i18n="tools.skillCalculator">Calculadora de Skill</span>
+            <button type="button" class="tool-tab" data-tool-tab="wheel-of-destiny" data-tooltip="Roda do Destino" aria-label="Roda do Destino" data-i18n-tooltip="tools.wheelOfDestiny" data-i18n-aria-label="tools.wheelOfDestiny">
+              <img src="assets/wheel-of-destiny/wheel-of-destiny.png" alt="">
+              <span data-i18n="tools.wheelOfDestiny">Roda do Destino</span>
             </button>
             <button type="button" class="tool-tab" data-tool-tab="screen-vision" data-tooltip="Tibia Mirror" aria-label="Tibia Mirror" data-i18n-tooltip="tools.tibiaMirror" data-i18n-aria-label="tools.tibiaMirror">
               <img src="assets/ui/tools/tibia-eye/tibia-mirror-tab.gif" alt="">
               <span data-i18n="tools.tibiaMirror">Tibia Mirror</span>
+            </button>
+          </nav>
+
+          <nav class="loot-subtabs tool-category-subtabs" data-tool-subnav="calculators" aria-label="Calculadoras" data-i18n-aria-label="tools.calculators">
+            <button type="button" class="loot-subtab active" data-tool-tab="imbuement" data-tool-subtab="true" data-tooltip="Calculadora de Imbuement" aria-label="Calculadora de Imbuement" data-i18n-tooltip="tools.imbuement" data-i18n-aria-label="tools.imbuement">
+              <img src="assets/ui/tool-imbuement-home.gif" alt="">
+              <span data-i18n="tools.imbuement">Calculadora de Imbuement</span>
+            </button>
+            <button type="button" class="loot-subtab" data-tool-tab="skill-calculator" data-tool-subtab="true" data-tooltip="Calculadora de Skill" aria-label="Calculadora de Skill" data-i18n-tooltip="tools.skillCalculator" data-i18n-aria-label="tools.skillCalculator">
+              <img src="assets/ui/tool-skill-calculator.webp" alt="">
+              <span data-i18n="tools.skillCalculator">Calculadora de Skill</span>
+            </button>
+          </nav>
+
+          <nav class="loot-subtabs tool-category-subtabs hidden" data-tool-subnav="hunting" aria-label="Hunting Tools" data-i18n-aria-label="tools.huntingTools">
+            <button type="button" class="loot-subtab active" data-tool-tab="loot-splitter" data-tool-subtab="true" data-loot-mode="party" data-tooltip="Party Hunt" aria-label="Party Hunt">
+              <img src="assets/ui/analyzer-party-tab.png" alt="">
+              <span>Party Hunt</span>
+            </button>
+            <button type="button" class="loot-subtab" data-tool-tab="loot-splitter" data-tool-subtab="true" data-loot-mode="solo" data-tooltip="Solo Hunt" aria-label="Solo Hunt">
+              <img src="assets/ui/analyzer-solo-tab.png" alt="">
+              <span>Solo Hunt</span>
+            </button>
+            <button type="button" class="loot-subtab" data-tool-tab="find-party" data-tool-subtab="true" data-tooltip="Find Party" aria-label="Find Party" data-i18n-tooltip="tools.findParty" data-i18n-aria-label="tools.findParty">
+              <img src="assets/ui/analyzer-party-tab.png" alt="">
+              <span data-i18n="tools.findParty">Find Party</span>
             </button>
           </nav>
 
@@ -630,17 +652,7 @@
           </article>
 
           <article class="card tool-card tool-panel hidden" data-tool-panel="loot-splitter">
-            <div class="loot-topbar">
-              <nav class="loot-subtabs" aria-label="Tipo de analyzer">
-                <button type="button" class="loot-subtab active" data-loot-mode="party">
-                  <img src="assets/ui/analyzer-party-tab.png" alt="">
-                  <span>Party Hunt</span>
-                </button>
-                <button type="button" class="loot-subtab" data-loot-mode="solo">
-                  <img src="assets/ui/analyzer-solo-tab.png" alt="">
-                  <span>Solo Hunt</span>
-                </button>
-              </nav>
+            <div class="loot-topbar loot-topbar-actions-only">
               <button type="button" class="icon-action-button loot-reset-header-button" id="loot-reset-button" title="Resetar" aria-label="Resetar" data-tooltip="Resetar">
                 &#8635;
               </button>
@@ -979,6 +991,17 @@
             <div class="tool-note skill-note">
               <span data-i18n="skill.loyaltyNote">Loyalty usa faixas fixas de 360 pontos, conforme o Sistema de Lealdade do Tibia.</span>
             </div>
+          </article>
+
+          <article class="card tool-card tool-panel hidden wheel-of-destiny-tool-panel" data-tool-panel="wheel-of-destiny">
+            <iframe
+              id="wheel-of-destiny-frame"
+              class="wheel-of-destiny-frame"
+              src="assets/wheel-of-destiny/frame.html?v=30"
+              title="Roda do Destino"
+              data-i18n-title="tools.wheelOfDestiny"
+              scrolling="no"
+            ></iframe>
           </article>
 
           <article class="card tool-card tool-panel hidden tibia-eye-panel" data-tool-panel="screen-vision">

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: transparent; color: #eef2f8; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+    body { padding: 4px; overflow: hidden; }
+    .card {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid rgba(88, 196, 119, .82);
+      border-radius: 7px;
+      background: #252a33;
+      font-size: 12px;
+      line-height: 1.45;
+      animation: appear 90ms ease both;
+    }
+    @keyframes appear { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    h1 { margin: 0 0 8px; padding: 0 0 7px; border-bottom: 1px solid rgba(255,255,255,.09); font-size: 12px; font-weight: 800; }
+    #content, #content table { width: 100%; }
+    table { border-collapse: separate; border-spacing: 0; }
+    .hide { display: none !important; }
+    .SkillPercentage { position: relative; height: 22px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,.09); border-radius: 5px; background: #171c23; overflow: hidden; }
+    .PercentageBar { position: absolute; inset: 0 auto 0 0; background: #58c477; }
+    .SkillPercentage .Text { position: relative; z-index: 1; display: grid; place-items: center; height: 100%; font-size: 10px; font-weight: 800; }
+    .PerkWrapper, .GemWrapper, .VesselWrapper { margin-top: 7px; padding: 7px; border: 1px solid rgba(255,255,255,.09); border-radius: 6px; background: rgba(19,24,31,.34); }
+    .Bold { font-weight: 800; }
+    .SkillValue, .LargePerkValue, .VesselValue, .ModEffectValue { margin-top: 4px; color: #b8c7da; }
+    .LargePerkName { margin-top: 5px; color: #e1b94d; font-weight: 800; text-align: center; }
+    .HasInlinePerkIcon { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 7px; align-items: start; }
+    .HasInlinePerkIcon > .Bold { grid-column: 1 / -1; }
+    .InlinePerkIcon { grid-column: 1; grid-row: 2; margin-top: 4px; overflow: hidden; }
+    .HasInlinePerkIcon > .SkillValue { grid-column: 2; grid-row: 2; }
+    .InlinePerkIcon img, .wheel-summary-icon img, .TextCenter img, .ModEffectIconWrapper img {
+      display: block;
+      max-width: none;
+      object-fit: contain;
+    }
+    .wheel-summary-icon { display: inline-flex; margin-right: 6px; vertical-align: -3px; }
+    .TextCenter { display: flex; justify-content: center; }
+    .ModEffectWrapper { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 7px; align-items: start; }
+    .SmallButtonRow, .GemDropdownWrapper { display: none !important; }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <h1 id="title"></h1>
+    <div id="content"></div>
+  </section>
+  <script>
+    const title = document.querySelector("#title");
+    const content = document.querySelector("#content");
+    window.wheelInformationPopoverApi.onRender((payload) => {
+      title.textContent = payload.title || "";
+      content.innerHTML = payload.html || "";
+      requestAnimationFrame(() => {
+        window.wheelInformationPopoverApi.resizeToContent(Math.ceil(document.body.scrollHeight + 2));
+      });
+    });
+  </script>
+</body>
+</html>
