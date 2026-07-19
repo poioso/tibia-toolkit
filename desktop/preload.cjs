@@ -56,6 +56,14 @@ contextBridge.exposeInMainWorld("desktopApi", {
         ipcRenderer.on("tutorial:reset-all", listener);
         return () => ipcRenderer.removeListener("tutorial:reset-all", listener);
       }
+    },
+    wheelInformation: {
+      show(payload) {
+        return ipcRenderer.invoke("wheel-information:show", payload);
+      },
+      hide() {
+        return ipcRenderer.invoke("wheel-information:hide");
+      }
     }
   },
   data: {
@@ -189,6 +197,9 @@ contextBridge.exposeInMainWorld("desktopApi", {
     tools: {
       open(tool, options) {
         return ipcRenderer.invoke("screen-vision:open", { tool, options });
+      },
+      close(panelKey) {
+        return ipcRenderer.invoke("screen-vision:close-docked-panel", { panelKey });
       }
     },
     dialogs: {

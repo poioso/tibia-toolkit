@@ -9,9 +9,12 @@ const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_ARCHIVE_ENTRIES = 25_000;
 const MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024;
 const ALLOWED_ASSET_EXTENSIONS = new Set([
+  ".css",
   ".gif",
   ".gitkeep",
+  ".html",
   ".jpg",
+  ".js",
   ".json",
   ".md",
   ".ogg",
@@ -19,6 +22,15 @@ const ALLOWED_ASSET_EXTENSIONS = new Set([
   ".svg",
   ".webp"
 ]);
+const ALLOWED_ASSET_DOTFILES = new Set([".gitkeep"]);
+
+function getAllowedAssetExtension(assetPath) {
+  const baseName = path.basename(assetPath).toLowerCase();
+  if (ALLOWED_ASSET_DOTFILES.has(baseName)) {
+    return baseName;
+  }
+  return path.extname(assetPath).toLowerCase();
+}
 
 function normalizeUrlList(values = []) {
   return values
@@ -173,7 +185,7 @@ async function extractArchive(archivePath, destination) {
       continue;
     }
 
-    const extension = path.extname(normalizedName).toLowerCase();
+    const extension = getAllowedAssetExtension(normalizedName);
     if (!ALLOWED_ASSET_EXTENSIONS.has(extension)) {
       throw new Error(`O pacote de conteudo possui uma extensao nao permitida: ${extension || "(sem extensao)"}.`);
     }

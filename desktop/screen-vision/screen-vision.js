@@ -491,6 +491,7 @@ const state = {
     phase: "closed"
   },
   dockedPanelMainWidthLock: 0,
+  wheelPerksSummary: null,
   grid: {
     enabled: false,
     gridSize: 32
@@ -593,6 +594,8 @@ async function boot() {
 }
 
 function bindEvents() {
+  window.addEventListener("message", handleWheelOfDestinyMessage);
+
   els.windowMinimizeButton?.addEventListener("click", () => {
     void window.screenVisionApi.window.minimize();
   });
@@ -1439,6 +1442,15 @@ function getDockedPanelCopy(panelKey) {
     };
   }
 
+  if (panelKey === "wheel-perks-panel") {
+    return {
+      title: t("wheel.summary.title"),
+      description: "",
+      emptyTitle: t("wheel.summary.title"),
+      emptyCopy: t("wheel.summary.empty")
+    };
+  }
+
   return {
     title: t("sidePanel.title"),
     description: "",
@@ -1658,6 +1670,10 @@ function isDockedSupportersPanelOpen() {
 
 function isDockedSettingsPanelOpen() {
   return state.dockedPanel.open && state.dockedPanel.panelKey === "settings-panel";
+}
+
+function isDockedWheelPerksPanelOpen() {
+  return state.dockedPanel.open && state.dockedPanel.panelKey === "wheel-perks-panel";
 }
 
 async function loadDockedProfilesState(options = {}) {
@@ -1886,6 +1902,7 @@ function renderDockedPanel() {
   document.body.classList.toggle("desktop-docked-panel-open", Boolean(panelState.open));
   document.body.classList.toggle("desktop-docked-panel-left", Boolean(panelState.open) && side === "left");
   document.body.classList.toggle("desktop-docked-panel-right", Boolean(panelState.open) && side === "right");
+  document.body.dataset.dockedPanelKey = panelState.open ? (panelState.panelKey || "") : "";
   document.body.dataset.dockedPanelSide = side;
   document.body.dataset.dockedPanelPhase = phase;
   host.classList.toggle("hidden", (!panelState.open && phase === "closed") || phase === "left-pre-shift");
@@ -2010,6 +2027,10 @@ function renderDockedPanelShell(panelState, copy) {
     return renderDockedSettingsPanel(panelState, copy);
   }
 
+  if (panelState.panelKey === "wheel-perks-panel") {
+    return renderDockedWheelPerksPanel(panelState, copy);
+  }
+
   return renderDockedGenericPlaceholderPanel(panelState, copy);
 }
 
@@ -2071,6 +2092,120 @@ function renderDockedGenericPlaceholderPanel(panelState, copy) {
     title: copy.title,
     bodyMarkup: renderDockedToolStage({
       bodyMarkup: renderDockedToolPlaceholderCard(copy.emptyTitle, copy.emptyCopy)
+    })
+  });
+}
+
+function normalizeWheelPerksSummary(value) {
+  const summary = value && typeof value === "object" ? value : {};
+  const sections = Array.isArray(summary.sections) ? summary.sections : [];
+
+  return {
+    sections: sections.slice(0, 4).map((section) => ({
+      key: String(section?.key || "").slice(0, 40),
+      title: String(section?.title || "").slice(0, 120),
+      rows: (Array.isArray(section?.rows) ? section.rows : []).slice(0, 80).map((row) => ({
+        label: String(row?.label || "").slice(0, 240),
+        value: String(row?.value || "").slice(0, 240),
+        icon: row?.icon && typeof row.icon === "object" ? {
+          src: String(row.icon.src || "").slice(0, 2048),
+          iconIndex: Number.isInteger(Number(row.icon.iconIndex))
+            ? Math.max(0, Math.min(10000, Number(row.icon.iconIndex)))
+            : null,
+          frameSize: Number.isFinite(Number(row.icon.frameSize))
+            ? Math.max(1, Math.min(256, Number(row.icon.frameSize)))
+            : null,
+          offsetX: Math.max(-4000, Math.min(0, Number(row.icon.offsetX) || 0)),
+          cropped: Boolean(row.icon.cropped)
+        } : null
+      })).filter((row) => row.label || row.value)
+    })).filter((section) => section.title)
+  };
+}
+
+function handleWheelOfDestinyMessage(event) {
+  const frame = document.querySelector("#wheel-of-destiny-frame");
+
+  if (!frame || event.source !== frame.contentWindow) {
+    return;
+  }
+
+  const type = String(event.data?.type || "");
+  if (type !== "tibia-toolkit-wheel-summary" && type !== "tibia-toolkit-wheel-summary-open") {
+    return;
+  }
+
+  state.wheelPerksSummary = normalizeWheelPerksSummary(event.data?.summary);
+
+  if (type === "tibia-toolkit-wheel-summary-open") {
+    if (isDockedWheelPerksPanelOpen()) {
+      refreshDockedWheelPerksPanelContent();
+    } else {
+      void window.screenVisionApi.tools.open("wheel-perks-panel").catch(() => null);
+    }
+    return;
+  }
+
+  if (isDockedWheelPerksPanelOpen()) {
+    refreshDockedWheelPerksPanelContent();
+  }
+}
+
+function renderWheelSummaryIcon(icon) {
+  if (!icon?.src) {
+    return "";
+  }
+
+  return `
+    <span class="docked-wheel-perk-icon" aria-hidden="true">
+      <img src="${escapeHtml(icon.src)}" alt="" style="width:18px;height:18px;object-fit:contain;">
+    </span>
+  `;
+}
+
+function renderDockedWheelPerksBodyMarkup(copy) {
+  const sections = state.wheelPerksSummary?.sections || [];
+  return sections.length
+    ? `<div class="docked-wheel-perks-list">
+        ${sections.map((section) => `
+          <section class="docked-wheel-perk-section">
+            <h3>${escapeHtml(section.title)}</h3>
+            <div class="docked-wheel-perk-rows">
+              ${section.rows.length ? section.rows.map((row) => `
+                <div class="docked-wheel-perk-row">
+                  <div class="docked-wheel-perk-label">
+                    ${renderWheelSummaryIcon(row.icon)}
+                    <span>${escapeHtml(row.label)}</span>
+                  </div>
+                  <strong>${escapeHtml(row.value)}</strong>
+                </div>
+              `).join("") : `<p class="docked-wheel-perk-empty">${escapeHtml(t("wheel.summary.empty"))}</p>`}
+            </div>
+          </section>
+        `).join("")}
+      </div>`
+    : renderDockedToolPlaceholderCard(copy.emptyTitle, copy.emptyCopy);
+}
+
+function refreshDockedWheelPerksPanelContent() {
+  const stage = els.dockedPanelHost?.querySelector(".docked-wheel-perks-stage");
+  if (!stage) {
+    return;
+  }
+
+  stage.innerHTML = renderDockedWheelPerksBodyMarkup(getDockedPanelCopy("wheel-perks-panel"));
+}
+
+function renderDockedWheelPerksPanel(panelState, copy) {
+  const bodyMarkup = renderDockedWheelPerksBodyMarkup(copy);
+
+  return renderDockedToolShell({
+    side: panelState.side,
+    title: copy.title,
+    contentClassName: "docked-wheel-perks-content",
+    bodyMarkup: renderDockedToolStage({
+      className: "docked-wheel-perks-stage",
+      bodyMarkup
     })
   });
 }
@@ -5758,6 +5893,25 @@ function renderDockedAlertCard(timer, index) {
 }
 
 async function handleDockedPanelClick(event) {
+  const eventTarget = event.target instanceof Element
+    ? event.target
+    : event.target?.parentElement;
+  const closeButton = eventTarget?.closest?.("[data-docked-action='close-panel']");
+
+  if (closeButton) {
+    hideFloatingTooltip();
+    const panelKey = state.dockedPanel.panelKey || "";
+
+    if (panelKey === "alertas-panel") {
+      resetDockedAlertTransientUiState();
+    }
+
+    if (panelKey) {
+      await window.screenVisionApi.tools.close(panelKey).catch(() => null);
+    }
+    return;
+  }
+
   if (isDockedSqmFinderPanelOpen()) {
     await handleDockedSqmFinderPanelClick(event);
     return;
@@ -5794,14 +5948,6 @@ async function handleDockedPanelClick(event) {
   }
 
   if (!isDockedAlertPanelOpen()) {
-    const closeButton = event.target.closest("[data-docked-action='close-panel']");
-
-      if (closeButton) {
-        const panelKey = state.dockedPanel.panelKey || "";
-        if (panelKey) {
-          await window.screenVisionApi.tools.open(panelKey).catch(() => null);
-      }
-    }
     return;
   }
 

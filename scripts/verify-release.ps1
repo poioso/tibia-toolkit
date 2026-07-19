@@ -34,6 +34,16 @@ $installerSize = (Get-Item -LiteralPath $installerPath).Length
 if (-not $manifestHash -or $manifestHash -ne $installerHash) { throw 'latest.yml nao corresponde ao SHA-512 do instalador.' }
 if (-not $manifestSize -or [Int64]$manifestSize -ne $installerSize) { throw 'latest.yml nao corresponde ao tamanho do instalador.' }
 
+if ($manifest -notmatch '(?m)^releaseNotesByLocale:\s*$') {
+    throw 'latest.yml nao possui releaseNotesByLocale.'
+}
+foreach ($locale in @('pt-BR', 'en', 'de')) {
+    $localePattern = '(?m)^\s{2}["'']?' + [regex]::Escape($locale) + '["'']?:\s*\|-\s*$'
+    if ($manifest -notmatch $localePattern) {
+        throw "latest.yml nao possui notas localizadas para $locale."
+    }
+}
+
 foreach ($target in $targets | Where-Object { $_ -like '*.exe' }) {
     $signature = Get-AuthenticodeSignature -LiteralPath $target
     Write-Host ("{0}: {1}" -f (Split-Path -Leaf $target), $signature.Status)

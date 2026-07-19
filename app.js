@@ -847,7 +847,9 @@ const els = {
   lootWorldDropdownButton: document.querySelector("#loot-world-dropdown-button"),
   lootWorldSuggestions: document.querySelector("#loot-world-suggestions"),
   toolTabs: document.querySelectorAll("[data-tool-tab]"),
+  toolSubnavs: document.querySelectorAll("[data-tool-subnav]"),
   toolPanels: document.querySelectorAll("[data-tool-panel]"),
+  wheelOfDestinyFrame: document.querySelector("#wheel-of-destiny-frame"),
   findPartyStatusBadge: document.querySelector("#find-party-status-badge"),
   findPartyVocationSelect: document.querySelector("#find-party-vocation-select"),
   findPartyVocationButtons: document.querySelectorAll(".find-party-vocation-button"),
@@ -1025,6 +1027,7 @@ async function boot() {
     onChanged(locale) {
       updateLocaleSwitcher();
       renderDesktopUpdateUi();
+      syncWheelOfDestinyLocale(locale);
       void refreshLocaleSensitiveContent(locale);
     }
   });
@@ -2140,6 +2143,23 @@ function bindEvents() {
     button.addEventListener("click", () => {
       setToolTab(button.dataset.toolTab || "imbuement");
     });
+  });
+
+  els.wheelOfDestinyFrame?.addEventListener("load", () => {
+    syncWheelOfDestinyLocale();
+  });
+
+  window.addEventListener("message", (event) => {
+    if (event.source !== els.wheelOfDestinyFrame?.contentWindow) {
+      return;
+    }
+
+    if (event.data?.type === "tibia-toolkit-wheel-height") {
+      const height = Math.max(620, Math.min(2400, Number(event.data.height) || 0));
+      if (height) {
+        els.wheelOfDestinyFrame.style.height = `${height}px`;
+      }
+    }
   });
 
   els.findPartyVocationButtons?.forEach((button) => {
@@ -10053,8 +10073,42 @@ function clampDecimal(value, min, max, fallback) {
   return Math.round(clamped * 100) / 100;
 }
 
+function syncWheelOfDestinyLocale(locale = state.localeController?.getLocale?.() || "pt-BR") {
+  els.wheelOfDestinyFrame?.contentWindow?.postMessage({
+    type: "tibia-toolkit-wheel-locale",
+    locale
+  }, "*");
+}
+
+function getToolGroup(tab) {
+  if (tab === "imbuement" || tab === "skill-calculator") {
+    return "calculators";
+  }
+  if (tab === "loot-splitter" || tab === "find-party") {
+    return "hunting";
+  }
+  return tab;
+}
+
+function syncToolNavigation() {
+  const activeGroup = getToolGroup(state.selectedToolTab);
+
+  els.toolTabs.forEach((button) => {
+    const isGroupTab = button.dataset.toolGroupTab === "true";
+    const isActive = isGroupTab
+      ? button.dataset.toolGroup === activeGroup
+      : button.dataset.toolTab === state.selectedToolTab
+        && (!button.dataset.lootMode || button.dataset.lootMode === state.lootMode);
+    button.classList.toggle("active", isActive);
+  });
+
+  els.toolSubnavs.forEach((subnav) => {
+    subnav.classList.toggle("hidden", subnav.dataset.toolSubnav !== activeGroup);
+  });
+}
+
 function setToolTab(tab, options = {}) {
-  const validTabs = new Set(["imbuement", "loot-splitter", "find-party", "skill-calculator", "screen-vision"]);
+  const validTabs = new Set(["imbuement", "loot-splitter", "find-party", "skill-calculator", "wheel-of-destiny", "screen-vision"]);
   const nextTab = validTabs.has(tab) ? tab : "imbuement";
 
   if (nextTab !== state.selectedToolTab && !options.skipHistory && !state.navigationRestoring) {
@@ -10063,9 +10117,7 @@ function setToolTab(tab, options = {}) {
 
   state.selectedToolTab = nextTab;
 
-  els.toolTabs.forEach((button) => {
-    button.classList.toggle("active", button.dataset.toolTab === nextTab);
-  });
+  syncToolNavigation();
 
   els.toolPanels.forEach((panel) => {
     panel.classList.toggle("hidden", panel.dataset.toolPanel !== nextTab);
@@ -10087,6 +10139,10 @@ function setToolTab(tab, options = {}) {
   if (nextTab === "find-party") {
     void ensureFindPartySnapshot();
     renderFindParty();
+  }
+
+  if (nextTab === "wheel-of-destiny") {
+    syncWheelOfDestinyLocale();
   }
 
   setCurrentNavigationEntry(getCurrentSectionNavigationEntry());
@@ -10828,6 +10884,7 @@ function setLootMode(mode) {
   els.lootSubtabs.forEach((button) => {
     button.classList.toggle("active", button.dataset.lootMode === state.lootMode);
   });
+  syncToolNavigation();
 
   if (els.lootInputLabel) {
     els.lootInputLabel.textContent = state.lootMode === "solo"

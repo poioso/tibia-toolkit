@@ -30,6 +30,7 @@ const TUTORIAL_ASSETS = {
   worldList: "assets/ui/tutorial/lista-mundos.gif",
   list: "assets/ui/tutorial/lista.gif",
   tools: "assets/ui/tutorial/ferramentas-canivete.gif",
+  wheelOfDestiny: "assets/ui/tutorial/roda-do-destino.png",
   imbuement: "assets/ui/tutorial/imbuement.gif",
   default: "assets/ui/tutorial/inicio.gif",
   invisible: "assets/ui/tutorial/invisivel.gif",
@@ -274,6 +275,10 @@ const TUTORIAL_ROUTE_CONFIG = Object.freeze({
   "skill-calculator": {
     launchPolicy: "first-visit",
     firstVisitStorageKey: "tibia-tools:tutorial:v2:skill-calculator:seen"
+  },
+  "wheel-of-destiny": {
+    launchPolicy: "first-visit",
+    firstVisitStorageKey: "tibia-tools:tutorial:v2:wheel-of-destiny:seen"
   },
   npcs: {
     launchPolicy: "first-visit",
@@ -992,6 +997,98 @@ const TUTORIAL_SKILL_CALCULATOR_STEP_META = [
       getTutorialApi()?.scrollToSelector?.("#skill-summary-grid .skill-outcome-block:nth-child(2)", "center");
       await wait(100);
     }
+  }
+];
+
+const TUTORIAL_WHEEL_OF_DESTINY_STEP_META = [
+  {
+    selector: '[data-tool-tab="wheel-of-destiny"]',
+    placement: "bottom",
+    gif: TUTORIAL_ASSETS.wheelOfDestiny,
+    gifNatural: true,
+    gifFit: "contain",
+    before: async () => {
+      getTutorialApi()?.setToolTab?.("wheel-of-destiny");
+      await waitForWheelTutorialFrame();
+      await wait(120);
+    }
+  },
+  {
+    selector: () => `#${WHEEL_TUTORIAL_PROXY_ID}`,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("vocation")
+  },
+  {
+    selector: () => `#${WHEEL_TUTORIAL_PROXY_ID}`,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("points")
+  },
+  {
+    selector: () => `#${WHEEL_TUTORIAL_PROXY_ID}`,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.list,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("code")
+  },
+  {
+    selector: () => `#${WHEEL_TUTORIAL_PROXY_ID}`,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("center-slice")
+  },
+  {
+    selector: getWheelInformationTutorialSelector,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("information")
+  },
+  {
+    selector: () => `#${WHEEL_TUTORIAL_PROXY_ID}`,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("controls")
+  },
+  {
+    selector: () => `#${WHEEL_TUTORIAL_PROXY_ID}`,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("revelation")
+  },
+  {
+    selector: () => `#${WHEEL_TUTORIAL_PROXY_ID}`,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("vessel")
+  },
+  {
+    selector: () => `#${WHEEL_TUTORIAL_PROXY_ID}`,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("gem-mods")
+  },
+  {
+    selector: () => `#${WHEEL_TUTORIAL_PROXY_ID}`,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.list,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("summary-button")
+  },
+  {
+    selector: ".docked-wheel-perks-list",
+    placement: "left",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: () => prepareWheelTutorialStep("summary-panel")
   }
 ];
 
@@ -2019,7 +2116,7 @@ const TUTORIAL_TOOLS_STEP_COPY = {
 const TUTORIAL_ANALYZER_STEP_COPY = {
   "pt-BR": [
     {
-      text: "Essa e a ferramenta Analyzer. Aqui voce encontra recursos para analisar e otimizar sua hunt."
+      text: "Essa e a categoria Hunting Tools. Aqui voce encontra recursos para analisar, organizar e otimizar suas hunts."
     },
     {
       text: "Essa e a ferramenta de analise de hunts em Party. Ela mostra a performance de cada personagem e os valores que precisam ser distribuidos entre todos."
@@ -2046,7 +2143,7 @@ const TUTORIAL_ANALYZER_STEP_COPY = {
   ],
   en: [
     {
-      text: "This is the Analyzer tool. Here you will find resources to analyze and optimize your hunt."
+      text: "This is the Hunting Tools category. Here you will find resources to analyze, organize and optimize your hunts."
     },
     {
       text: "This is the Party Hunt analysis tool. It shows each character's performance and the values that need to be distributed among everyone."
@@ -2073,7 +2170,7 @@ const TUTORIAL_ANALYZER_STEP_COPY = {
   ],
   de: [
     {
-      text: "Das ist das Analyzer-Werkzeug. Hier findest du Funktionen, um deine Hunt zu analysieren und zu optimieren."
+      text: "Das ist die Kategorie Hunting Tools. Hier findest du Funktionen, um deine Hunts zu analysieren, zu organisieren und zu optimieren."
     },
     {
       text: "Das ist das Analysewerkzeug fuer Party Hunts. Es zeigt die Leistung jedes Charakters und die Werte, die unter allen verteilt werden muessen."
@@ -2394,6 +2491,51 @@ const TUTORIAL_SKILL_CALCULATOR_STEP_COPY = {
       text: "Das ist die benoetigte Trainingszeit, um alle Exercise Weapons zu verwenden.",
       done: true
     }
+  ]
+};
+
+const TUTORIAL_WHEEL_OF_DESTINY_STEP_COPY = {
+  "pt-BR": [
+    { text: "Esta é a Roda do Destino. Aqui você pode montar, testar e compartilhar uma distribuição de Promotion Points antes de usá-la no jogo." },
+    { text: "Comece escolhendo sua vocação. Cada vocação possui uma roda e perks diferentes." },
+    { text: "Aqui você acompanha quantos Promotion Points a montagem utiliza. Na caixa, informe o limite de pontos que deseja considerar no planejamento." },
+    { text: "O código da montagem é gerado automaticamente. Use estes botões para copiar o código ou a URL, importar outra montagem ou resetar a roda." },
+    { text: "A montagem começa no centro. Complete uma fatia para liberar as fatias adjacentes e avançar até a parte externa da roda." },
+    { text: "Passe o cursor sobre uma fatia para consultar seus efeitos. O perk de Dedicação aumenta por ponto; o de Convicção é liberado quando a fatia fica completa." },
+    { text: "Use estes botões para remover ou adicionar pontos. A barra mostra o progresso da fatia selecionada." },
+    { text: "Os perks de Revelação ficam nos quatro domínios. Eles ganham novos estágios conforme você investe mais pontos no mesmo domínio." },
+    { text: "Os recipientes recebem gemas do mesmo domínio. Lesser Gems possuem 1 mod, Regular Gems 2 e Greater Gems 3." },
+    { text: "Passe o cursor sobre um recipiente para conferir a gema e seus mods. Cada perk completo de Vessel Resonance ativa um mod da gema." },
+    { text: "Clique aqui para abrir o Resumo de perks e conferir o resultado completo da montagem." },
+    { text: "Aqui ficam reunidos os bônus de Dedicação, Revelação, Convicção e Recipientes. Revise a montagem antes de copiar o código.", done: true }
+  ],
+  en: [
+    { text: "This is the Wheel of Destiny. Here you can build, test and share a Promotion Point setup before using it in the game." },
+    { text: "Start by choosing your vocation. Each vocation has a different wheel and different perks." },
+    { text: "Here you can see how many Promotion Points the setup uses. In the field, enter the point limit you want to consider while planning." },
+    { text: "The setup code is generated automatically. Use these buttons to copy the code or full URL, import another setup or reset the wheel." },
+    { text: "A setup starts in the center. Complete a slice to unlock the adjacent slices and advance toward the outer part of the wheel." },
+    { text: "Move the cursor over a slice to view its effects. The Dedication Perk grows with each point; the Conviction Perk unlocks when the slice is complete." },
+    { text: "Use these buttons to remove or add points. The bar shows the progress of the selected slice." },
+    { text: "Revelation Perks are placed in the four domains. They gain new stages as you invest more points in the same domain." },
+    { text: "Vessels receive gems from the same domain. Lesser Gems have 1 mod, Regular Gems 2 and Greater Gems 3." },
+    { text: "Move the cursor over a vessel to view its gem and mods. Each completed Vessel Resonance Perk activates one gem mod." },
+    { text: "Click here to open the Perks Summary and review the complete result of the setup." },
+    { text: "This panel gathers the Dedication, Revelation, Conviction and Vessel bonuses. Review the setup before copying the code.", done: true }
+  ],
+  de: [
+    { text: "Das ist das Schicksalsrad. Hier kannst du eine Verteilung der Promotion Points erstellen, testen und teilen, bevor du sie im Spiel verwendest." },
+    { text: "Wähle zuerst deine Vocation. Jede Vocation hat ein anderes Rad und andere Perks." },
+    { text: "Hier siehst du, wie viele Promotion Points die Zusammenstellung verwendet. Gib im Feld das Punktelimit ein, das du bei der Planung berücksichtigen möchtest." },
+    { text: "Der Code der Zusammenstellung wird automatisch erzeugt. Mit diesen Buttons kannst du den Code oder die vollständige URL kopieren, eine andere Zusammenstellung importieren oder das Rad zurücksetzen." },
+    { text: "Eine Zusammenstellung beginnt in der Mitte. Fülle eine Scheibe vollständig, um benachbarte Scheiben freizuschalten und nach außen vorzurücken." },
+    { text: "Bewege den Mauszeiger über eine Scheibe, um ihre Effekte zu sehen. Der Dedication Perk wächst mit jedem Punkt; der Conviction Perk wird bei einer vollständig gefüllten Scheibe freigeschaltet." },
+    { text: "Mit diesen Buttons kannst du Punkte entfernen oder hinzufügen. Die Leiste zeigt den Fortschritt der ausgewählten Scheibe." },
+    { text: "Revelation Perks befinden sich in den vier Bereichen. Sie erhalten weitere Stufen, wenn du mehr Punkte in denselben Bereich investierst." },
+    { text: "Vessels nehmen Gems aus demselben Bereich auf. Lesser Gems haben 1 Mod, Regular Gems 2 und Greater Gems 3." },
+    { text: "Bewege den Mauszeiger über ein Vessel, um seinen Gem und seine Mods zu sehen. Jeder vollständig gefüllte Vessel Resonance Perk aktiviert einen Gem-Mod." },
+    { text: "Klicke hier, um die Perks-Zusammenfassung zu öffnen und das vollständige Ergebnis der Zusammenstellung zu prüfen." },
+    { text: "Hier werden die Boni aus Dedication, Revelation, Conviction und Vessels zusammengefasst. Prüfe die Zusammenstellung, bevor du den Code kopierst.", done: true }
   ]
 };
 
@@ -2747,6 +2889,14 @@ const TUTORIAL_TIBIA_MIRROR_STEP_COPY = {
 
 const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const WHEEL_TUTORIAL_PROXY_ID = "tt-wheel-of-destiny-focus-proxy";
+const WHEEL_TUTORIAL_DEMO_CODE = "K0Y2CAgZRpQMLImwET_P__X-c_FAAA";
+const WHEEL_TUTORIAL_CANVAS_POINTS = Object.freeze({
+  center: [[0.55, 0.45], [0.45, 0.45], [0.55, 0.55], [0.45, 0.55]],
+  revelation: [[0.92, 0.08], [0.08, 0.08], [0.92, 0.92], [0.08, 0.92]],
+  vessel: [[0.80, 0.038], [0.20, 0.038], [0.80, 0.962], [0.20, 0.962]]
+});
+
 let activeTour = null;
 let activeStepIndex = -1;
 let activeTourName = "item-prices";
@@ -2762,6 +2912,9 @@ let skillCalculatorTourStateSnapshot = null;
 let npcCatalogTourStateSnapshot = null;
 let bestiaryTourStateSnapshot = null;
 let bosstiaryTourStateSnapshot = null;
+let wheelOfDestinyTourStateSnapshot = null;
+let wheelTutorialDemoLoaded = false;
+let wheelTutorialSelectedPoint = null;
 let tibiaMirrorTutorialRestartPending = false;
 const TUTORIAL_WELCOME_STORAGE_KEY = "tibia-tools:tutorial:v2:welcome:seen";
 
@@ -2783,6 +2936,371 @@ async function waitForTibiaMirrorTutorialApi(timeoutMs = 1200) {
   }
 
   return api;
+}
+
+function getWheelTutorialFrame() {
+  return document.querySelector("#wheel-of-destiny-frame");
+}
+
+function getWheelTutorialDocument() {
+  try {
+    return getWheelTutorialFrame()?.contentDocument || null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+async function waitForWheelTutorialFrame(timeoutMs = 3500) {
+  const deadline = Date.now() + timeoutMs;
+  let frameDocument = getWheelTutorialDocument();
+
+  while ((
+    !frameDocument?.querySelector("#wod-canvas")
+    || !frameDocument?.querySelector(".wheel-vocation-panel")
+    || typeof frameDocument.defaultView?.__TT_WOD_REDRAW__ !== "function"
+  ) && Date.now() < deadline) {
+    await wait(40);
+    frameDocument = getWheelTutorialDocument();
+  }
+
+  return frameDocument;
+}
+
+function captureWheelOfDestinyTourState() {
+  const frameDocument = getWheelTutorialDocument();
+  return {
+    code: frameDocument?.querySelector("#wod-code")?.textContent?.trim() || "",
+    limit: frameDocument?.querySelector("#wod-limitpoints")?.value || "",
+    dockedPanelKey: document.body.classList.contains("desktop-docked-panel-open")
+      ? document.body.dataset.dockedPanelKey || ""
+      : ""
+  };
+}
+
+async function setWheelTutorialCode(code) {
+  const frameDocument = await waitForWheelTutorialFrame();
+  if (!frameDocument) {
+    return false;
+  }
+
+  const normalizedCode = String(code || "").trim();
+  if (!normalizedCode) {
+    frameDocument.querySelector("#wod-code-reset")?.click();
+    await wait(180);
+    return true;
+  }
+
+  const input = frameDocument.querySelector("#wod-code-input");
+  if (!input) {
+    return false;
+  }
+
+  input.value = normalizedCode;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  frameDocument.querySelector("#wod-code-import")?.click();
+  await wait(260);
+  return true;
+}
+
+function removeWheelTutorialProxy() {
+  document.querySelector(`#${WHEEL_TUTORIAL_PROXY_ID}`)?.remove();
+  wheelTutorialSelectedPoint = null;
+}
+
+async function restoreWheelOfDestinyTourState(snapshot) {
+  removeWheelTutorialProxy();
+  document.querySelector("#tibia-toolkit-wheel-information")?.classList.remove("visible");
+
+  if (!snapshot) {
+    wheelTutorialDemoLoaded = false;
+    return;
+  }
+
+  await setWheelTutorialCode(snapshot.code);
+  const frameDocument = getWheelTutorialDocument();
+  const limitInput = frameDocument?.querySelector("#wod-limitpoints");
+  if (limitInput) {
+    limitInput.value = snapshot.limit;
+    limitInput.dispatchEvent(new Event("input", { bubbles: true }));
+    limitInput.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  const currentPanelKey = document.body.classList.contains("desktop-docked-panel-open")
+    ? document.body.dataset.dockedPanelKey || ""
+    : "";
+  if (currentPanelKey !== snapshot.dockedPanelKey) {
+    if (snapshot.dockedPanelKey) {
+      const openPanelRequest = window.screenVisionApi?.tools?.open?.(snapshot.dockedPanelKey);
+      await openPanelRequest?.catch?.(() => null);
+    } else if (currentPanelKey === "wheel-perks-panel") {
+      const closePanelRequest = window.screenVisionApi?.tools?.open?.("wheel-perks-panel");
+      await closePanelRequest?.catch?.(() => null);
+    }
+  }
+
+  wheelTutorialDemoLoaded = false;
+}
+
+function getWheelTutorialProxy() {
+  let proxy = document.querySelector(`#${WHEEL_TUTORIAL_PROXY_ID}`);
+  if (!proxy) {
+    proxy = document.createElement("div");
+    proxy.id = WHEEL_TUTORIAL_PROXY_ID;
+    proxy.setAttribute("aria-hidden", "true");
+    Object.assign(proxy.style, {
+      position: "fixed",
+      zIndex: "1",
+      pointerEvents: "none",
+      opacity: "0",
+      left: "0px",
+      top: "0px",
+      width: "1px",
+      height: "1px"
+    });
+    document.body.appendChild(proxy);
+  }
+  return proxy;
+}
+
+function getWheelParentRect(innerRect) {
+  const frameRect = getWheelTutorialFrame()?.getBoundingClientRect();
+  if (!frameRect || !innerRect) {
+    return null;
+  }
+  return {
+    left: frameRect.left + innerRect.left,
+    top: frameRect.top + innerRect.top,
+    width: innerRect.width,
+    height: innerRect.height,
+    right: frameRect.left + innerRect.right,
+    bottom: frameRect.top + innerRect.bottom
+  };
+}
+
+function unionWheelRects(elements = []) {
+  const rects = elements
+    .filter(Boolean)
+    .map((element) => element.getBoundingClientRect())
+    .filter((rect) => rect.width > 0 && rect.height > 0);
+  if (!rects.length) {
+    return null;
+  }
+  const left = Math.min(...rects.map((rect) => rect.left));
+  const top = Math.min(...rects.map((rect) => rect.top));
+  const right = Math.max(...rects.map((rect) => rect.right));
+  const bottom = Math.max(...rects.map((rect) => rect.bottom));
+  return { left, top, right, bottom, width: right - left, height: bottom - top };
+}
+
+async function positionWheelTutorialProxy(innerRect, options = {}) {
+  let parentRect = getWheelParentRect(innerRect);
+  if (!parentRect) {
+    return null;
+  }
+
+  const mainContent = document.querySelector(".main-content");
+  if (mainContent && options.scroll !== false) {
+    const toolbarClearance = 120;
+    const availableHeight = Math.max(240, window.innerHeight - toolbarClearance);
+    const targetCenter = parentRect.top + (parentRect.height / 2);
+    const viewportCenter = toolbarClearance + (availableHeight / 2);
+    const delta = targetCenter - viewportCenter;
+    if (Math.abs(delta) > 40) {
+      mainContent.scrollTop += delta;
+      await wait(120);
+      parentRect = getWheelParentRect(innerRect);
+    }
+  }
+
+  const padding = Math.max(0, Number(options.padding) || 0);
+  const proxy = getWheelTutorialProxy();
+  Object.assign(proxy.style, {
+    left: `${Math.round(parentRect.left - padding)}px`,
+    top: `${Math.round(parentRect.top - padding)}px`,
+    width: `${Math.max(1, Math.round(parentRect.width + (padding * 2)))}px`,
+    height: `${Math.max(1, Math.round(parentRect.height + (padding * 2)))}px`
+  });
+  return proxy;
+}
+
+function getWheelCanvasPointRect(canvas, point, radius = 46) {
+  const rect = canvas.getBoundingClientRect();
+  const centerX = rect.left + (rect.width * point[0]);
+  const centerY = rect.top + (rect.height * point[1]);
+  return {
+    left: centerX - radius,
+    top: centerY - radius,
+    right: centerX + radius,
+    bottom: centerY + radius,
+    width: radius * 2,
+    height: radius * 2
+  };
+}
+
+function dispatchWheelCanvasMouse(canvas, point, type = "click", button = 0) {
+  const rect = canvas.getBoundingClientRect();
+  const clientX = rect.left + (rect.width * point[0]);
+  const clientY = rect.top + (rect.height * point[1]);
+  const ownerWindow = canvas.ownerDocument.defaultView || window;
+  const eventOptions = {
+    bubbles: true,
+    cancelable: true,
+    view: ownerWindow,
+    clientX,
+    clientY,
+    button,
+    buttons: type === "mousemove" ? 0 : 1
+  };
+
+  if (type === "mousemove" && typeof ownerWindow.PointerEvent === "function") {
+    canvas.dispatchEvent(new ownerWindow.PointerEvent("pointerenter", eventOptions));
+    canvas.dispatchEvent(new ownerWindow.PointerEvent("pointermove", eventOptions));
+  }
+  canvas.dispatchEvent(new ownerWindow.MouseEvent(type, eventOptions));
+}
+
+function isWheelSelectionVisible(frameDocument, kind) {
+  const selector = kind === "center"
+    ? "#wod-selection-box-medium"
+    : kind === "revelation"
+      ? "#wod-selection-box-large"
+      : "#wod-selection-box-socket";
+  const element = frameDocument.querySelector(selector);
+  return Boolean(element && !element.classList.contains("hide") && element.getBoundingClientRect().height > 0);
+}
+
+function isWheelInformationVisible(frameDocument, kind) {
+  const selector = kind === "center"
+    ? "#wod-information-box-medium"
+    : kind === "revelation"
+      ? "#wod-information-box-large"
+      : "#wod-information-box-socket";
+  const element = frameDocument.querySelector(selector);
+  return Boolean(element && !element.classList.contains("hide") && element.getBoundingClientRect().height > 0);
+}
+
+async function selectWheelTutorialCanvasPoint(kind) {
+  const frameDocument = await waitForWheelTutorialFrame();
+  const canvas = frameDocument?.querySelector("#wod-canvas");
+  if (!canvas) {
+    return null;
+  }
+
+  const candidates = WHEEL_TUTORIAL_CANVAS_POINTS[kind] || WHEEL_TUTORIAL_CANVAS_POINTS.center;
+  for (const point of candidates) {
+    dispatchWheelCanvasMouse(canvas, point, "mousemove");
+    if (kind === "center") {
+      dispatchWheelCanvasMouse(canvas, point, "click");
+    }
+    await wait(90);
+    if (isWheelSelectionVisible(frameDocument, kind) || isWheelInformationVisible(frameDocument, kind)) {
+      wheelTutorialSelectedPoint = point;
+      return { canvas, point };
+    }
+  }
+
+  wheelTutorialSelectedPoint = candidates[0];
+  return { canvas, point: candidates[0] };
+}
+
+async function ensureWheelTutorialDemoCode() {
+  if (wheelTutorialDemoLoaded) {
+    return;
+  }
+  await setWheelTutorialCode(WHEEL_TUTORIAL_DEMO_CODE);
+  wheelTutorialDemoLoaded = true;
+}
+
+function getWheelInformationTutorialSelector() {
+  const information = document.querySelector("#tibia-toolkit-wheel-information.visible");
+  return information ? "#tibia-toolkit-wheel-information.visible" : `#${WHEEL_TUTORIAL_PROXY_ID}`;
+}
+
+async function prepareWheelTutorialStep(kind) {
+  getTutorialApi()?.setToolTab?.("wheel-of-destiny");
+  const frameDocument = await waitForWheelTutorialFrame();
+  if (!frameDocument) {
+    return;
+  }
+
+  if (kind === "vocation") {
+    await positionWheelTutorialProxy(frameDocument.querySelector(".wheel-vocation-panel")?.getBoundingClientRect(), { padding: 4 });
+    return;
+  }
+
+  if (kind === "points") {
+    const pointsRect = unionWheelRects([
+      frameDocument.querySelector("#wod-reqpoints"),
+      frameDocument.querySelector("#wod-limitpoints")
+    ]);
+    await positionWheelTutorialProxy(pointsRect, { padding: 8 });
+    return;
+  }
+
+  if (kind === "code") {
+    await positionWheelTutorialProxy(frameDocument.querySelector(".wheel-code-panel")?.getBoundingClientRect(), { padding: 4 });
+    return;
+  }
+
+  if (["center-slice", "information", "controls"].includes(kind)) {
+    const selected = await selectWheelTutorialCanvasPoint("center");
+    if (!selected) return;
+
+    if (kind === "center-slice") {
+      await positionWheelTutorialProxy(getWheelCanvasPointRect(selected.canvas, selected.point, 48), { padding: 2 });
+      return;
+    }
+
+    if (kind === "information") {
+      dispatchWheelCanvasMouse(selected.canvas, selected.point, "mousemove");
+      await wait(160);
+      const information = document.querySelector("#tibia-toolkit-wheel-information.visible");
+      if (!information) {
+        await positionWheelTutorialProxy(getWheelCanvasPointRect(selected.canvas, selected.point, 48), { padding: 2 });
+      }
+      return;
+    }
+
+    const controls = frameDocument.querySelector("#wheel-selection-toolbar");
+    const controlsRect = controls?.getBoundingClientRect();
+    await positionWheelTutorialProxy(controlsRect, { padding: 4 });
+    return;
+  }
+
+  if (kind === "revelation") {
+    await ensureWheelTutorialDemoCode();
+    const selected = await selectWheelTutorialCanvasPoint("revelation");
+    if (selected) {
+      await positionWheelTutorialProxy(getWheelCanvasPointRect(selected.canvas, selected.point, 42), { padding: 2 });
+    }
+    return;
+  }
+
+  if (kind === "vessel" || kind === "gem-mods") {
+    await ensureWheelTutorialDemoCode();
+    const selected = await selectWheelTutorialCanvasPoint("vessel");
+    if (!selected) return;
+
+    dispatchWheelCanvasMouse(selected.canvas, selected.point, "mousemove");
+    await wait(kind === "gem-mods" ? 180 : 90);
+    await positionWheelTutorialProxy(getWheelCanvasPointRect(selected.canvas, selected.point, 42), { padding: 2 });
+    return;
+  }
+
+  if (kind === "summary-button") {
+    await positionWheelTutorialProxy(frameDocument.querySelector("#wheel-summary-panel-button")?.getBoundingClientRect(), { padding: 4 });
+    return;
+  }
+
+  if (kind === "summary-panel") {
+    if (document.body.dataset.dockedPanelKey !== "wheel-perks-panel") {
+      frameDocument.querySelector("#wheel-summary-panel-button")?.click();
+      const deadline = Date.now() + 1800;
+      while (!document.querySelector(".docked-wheel-perks-list") && Date.now() < deadline) {
+        await wait(50);
+      }
+    }
+  }
 }
 
 function getElement(selector) {
@@ -2874,6 +3392,8 @@ function getTourSteps(tourName = "item-prices") {
             ? { meta: TUTORIAL_PARTY_FINDER_STEP_META, copy: TUTORIAL_PARTY_FINDER_STEP_COPY }
             : tourName === "skill-calculator"
               ? { meta: TUTORIAL_SKILL_CALCULATOR_STEP_META, copy: TUTORIAL_SKILL_CALCULATOR_STEP_COPY }
+              : tourName === "wheel-of-destiny"
+                ? { meta: TUTORIAL_WHEEL_OF_DESTINY_STEP_META, copy: TUTORIAL_WHEEL_OF_DESTINY_STEP_COPY }
               : tourName === "npcs"
                 ? { meta: TUTORIAL_NPCS_STEP_META, copy: TUTORIAL_NPCS_STEP_COPY }
                 : tourName === "bestiary"
@@ -2968,6 +3488,11 @@ async function beginTutorialRoute(tourName, options = {}) {
   }
   if (tourName === "bosstiary") {
     bosstiaryTourStateSnapshot ??= getTutorialApi()?.getBossiaryTourState?.() || null;
+  }
+  if (tourName === "wheel-of-destiny") {
+    getTutorialApi()?.setToolTab?.("wheel-of-destiny");
+    await waitForWheelTutorialFrame();
+    wheelOfDestinyTourStateSnapshot ??= captureWheelOfDestinyTourState();
   }
 
   await runStep(0, tourName);
@@ -3141,6 +3666,10 @@ async function closeActiveStep({
   if (restoreTourState && closingTourName === "bosstiary" && bosstiaryTourStateSnapshot) {
     getTutorialApi()?.restoreBossiaryTourState?.(bosstiaryTourStateSnapshot);
     bosstiaryTourStateSnapshot = null;
+  }
+  if (restoreTourState && closingTourName === "wheel-of-destiny") {
+    await restoreWheelOfDestinyTourState(wheelOfDestinyTourStateSnapshot);
+    wheelOfDestinyTourStateSnapshot = null;
   }
   if (restoreTourState && closingTourName === "tibia-mirror") {
     await getTibiaMirrorTutorialApi()?.finishProfileDemo?.();
@@ -3457,6 +3986,9 @@ function getActiveContextTourName() {
   if (toolTab === "skill-calculator") {
     return "skill-calculator";
   }
+  if (toolTab === "wheel-of-destiny") {
+    return "wheel-of-destiny";
+  }
   if (toolTab === "screen-vision") {
     return "tibia-mirror-intro";
   }
@@ -3562,6 +4094,7 @@ window.TibiaToolsTutorial = {
   startSoloAnalyzerTour: () => beginTutorialRoute("solo-analyzer", { force: true }),
   startPartyFinderTour: () => beginTutorialRoute("party-finder", { force: true }),
   startSkillCalculatorTour: () => beginTutorialRoute("skill-calculator", { force: true }),
+  startWheelOfDestinyTour: () => beginTutorialRoute("wheel-of-destiny", { force: true }),
   startNpcsTour: () => beginTutorialRoute("npcs", { force: true }),
   startBestiaryTour: () => beginTutorialRoute("bestiary", { force: true }),
   startBossiaryTour: () => beginTutorialRoute("bosstiary", { force: true }),
@@ -3644,6 +4177,20 @@ function bindSkillCalculatorTourTrigger() {
   skillCalculatorTab.dataset.tutorialSkillCalculatorBound = "true";
   skillCalculatorTab.addEventListener("click", () => {
     void beginTutorialRoute("skill-calculator");
+  });
+}
+
+function bindWheelOfDestinyTourTrigger() {
+  const wheelTab = document.querySelector('[data-tool-tab="wheel-of-destiny"]');
+  if (!wheelTab || wheelTab.dataset.tutorialWheelBound === "true") {
+    return;
+  }
+
+  wheelTab.dataset.tutorialWheelBound = "true";
+  wheelTab.addEventListener("click", () => {
+    // Let the regular tab handler reveal and initialize the same-origin frame
+    // before the first spotlight is calculated.
+    window.setTimeout(() => void beginTutorialRoute("wheel-of-destiny"), 180);
   });
 }
 
@@ -3734,6 +4281,7 @@ if (document.readyState === "loading") {
     bindSoloAnalyzerTourTrigger();
     bindPartyFinderTourTrigger();
     bindSkillCalculatorTourTrigger();
+    bindWheelOfDestinyTourTrigger();
     bindNpcsTourTrigger();
     bindBestiaryTourTrigger();
     bindBossiaryTourTrigger();
@@ -3750,6 +4298,7 @@ if (document.readyState === "loading") {
   bindSoloAnalyzerTourTrigger();
   bindPartyFinderTourTrigger();
   bindSkillCalculatorTourTrigger();
+  bindWheelOfDestinyTourTrigger();
   bindNpcsTourTrigger();
   bindBestiaryTourTrigger();
   bindBossiaryTourTrigger();

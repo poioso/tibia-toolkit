@@ -31,15 +31,23 @@ const yamlNotes = notes
   .split("\n")
   .map((line) => `  ${line}`)
   .join("\n");
-const localizedEntries = ["pt-BR", "en", "de"]
-  .map((locale) => [locale, String(localizedNotes?.[locale] || "").trim().replace(/\r?\n/g, "\n")])
-  .filter(([, value]) => value);
-const yamlLocalizedNotes = localizedEntries.length > 0
-  ? `releaseNotesByLocale:\n${localizedEntries.map(([locale, value]) => [
-      `  ${JSON.stringify(locale)}: |-`,
-      ...value.split("\n").map((line) => `    ${line}`)
-    ].join("\n")).join("\n")}\n`
-  : "";
+const requiredLocales = ["pt-BR", "en", "de"];
+const localizedEntries = requiredLocales.map((locale) => [
+  locale,
+  String(localizedNotes?.[locale] || "").trim().replace(/\r?\n/g, "\n")
+]);
+const missingLocales = localizedEntries
+  .filter(([, value]) => !value)
+  .map(([locale]) => locale);
+
+if (missingLocales.length > 0) {
+  throw new Error(`Adicione as notas localizadas antes de gerar a atualizacao: ${missingLocales.join(", ")}.`);
+}
+
+const yamlLocalizedNotes = `releaseNotesByLocale:\n${localizedEntries.map(([locale, value]) => [
+  `  ${JSON.stringify(locale)}: |-`,
+  ...value.split("\n").map((line) => `    ${line}`)
+].join("\n")).join("\n")}\n`;
 
 await fs.writeFile(
   manifestPath,

@@ -124,6 +124,22 @@ jobs:
       - name: Synchronize signed updater manifest
         run: node tools/update-release-manifest.mjs artifacts/signed
 
+      - name: Create stable public download asset
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          $releaseDirectory = 'artifacts\signed'
+          $installer = Join-Path $releaseDirectory "Tibia Toolkit Setup $env:RELEASE_VERSION.exe"
+          $stableInstaller = Join-Path $releaseDirectory 'Tibia-Toolkit-Setup.exe'
+
+          Copy-Item -LiteralPath $installer -Destination $stableInstaller -Force
+          $installerHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
+          $stableHash = (Get-FileHash -LiteralPath $stableInstaller -Algorithm SHA256).Hash
+          if ($installerHash -ne $stableHash) {
+            throw 'O asset estavel de download nao corresponde ao instalador assinado.'
+          }
+
       - name: Verify signed package and Authenticode signatures
         shell: pwsh
         run: .\scripts\verify-release.ps1 -ReleaseDirectory .\artifacts\signed
@@ -182,6 +198,7 @@ jobs:
         run: |
           assets=(
             "release/Tibia Toolkit Setup $RELEASE_VERSION.exe"
+            release/Tibia-Toolkit-Setup.exe
             release/latest.yml
             release/SHA256SUMS.txt
           )
