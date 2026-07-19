@@ -52,9 +52,21 @@
   <script>
     const title = document.querySelector("#title");
     const content = document.querySelector("#content");
+    function normalizeRuntimeImageSources(root) {
+      root.querySelectorAll("img[src]").forEach((image) => {
+        const source = image.getAttribute("src")?.trim() || "";
+        if (!source || /^(?:data:|blob:|https?:|tibiatoolkit:)/i.test(source)) return;
+
+        const normalized = source
+          .replace(/^(?:\.\.\/)+assets\//i, "")
+          .replace(/^\.?\/+/i, "");
+        image.src = `tibiatoolkit://app/assets/${normalized}`;
+      });
+    }
     window.wheelInformationPopoverApi.onRender((payload) => {
       title.textContent = payload.title || "";
       content.innerHTML = payload.html || "";
+      normalizeRuntimeImageSources(content);
       requestAnimationFrame(() => {
         window.wheelInformationPopoverApi.resizeToContent(Math.ceil(document.body.scrollHeight + 2));
       });
