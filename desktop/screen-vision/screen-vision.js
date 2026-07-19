@@ -5880,6 +5880,25 @@ function renderDockedAlertCard(timer, index) {
 }
 
 async function handleDockedPanelClick(event) {
+  const eventTarget = event.target instanceof Element
+    ? event.target
+    : event.target?.parentElement;
+  const closeButton = eventTarget?.closest?.("[data-docked-action='close-panel']");
+
+  if (closeButton) {
+    hideFloatingTooltip();
+    const panelKey = state.dockedPanel.panelKey || "";
+
+    if (panelKey === "alertas-panel") {
+      resetDockedAlertTransientUiState();
+    }
+
+    if (panelKey) {
+      await window.screenVisionApi.tools.open(panelKey).catch(() => null);
+    }
+    return;
+  }
+
   if (isDockedSqmFinderPanelOpen()) {
     await handleDockedSqmFinderPanelClick(event);
     return;
@@ -5916,14 +5935,6 @@ async function handleDockedPanelClick(event) {
   }
 
   if (!isDockedAlertPanelOpen()) {
-    const closeButton = event.target.closest("[data-docked-action='close-panel']");
-
-      if (closeButton) {
-        const panelKey = state.dockedPanel.panelKey || "";
-        if (panelKey) {
-          await window.screenVisionApi.tools.open(panelKey).catch(() => null);
-      }
-    }
     return;
   }
 
