@@ -2139,7 +2139,7 @@ function handleWheelOfDestinyMessage(event) {
 
   if (type === "tibia-toolkit-wheel-summary-open") {
     if (isDockedWheelPerksPanelOpen()) {
-      renderDockedPanel();
+      refreshDockedWheelPerksPanelContent();
     } else {
       void window.screenVisionApi.tools.open("wheel-perks-panel").catch(() => null);
     }
@@ -2147,7 +2147,7 @@ function handleWheelOfDestinyMessage(event) {
   }
 
   if (isDockedWheelPerksPanelOpen()) {
-    renderDockedPanel();
+    refreshDockedWheelPerksPanelContent();
   }
 }
 
@@ -2163,9 +2163,9 @@ function renderWheelSummaryIcon(icon) {
   `;
 }
 
-function renderDockedWheelPerksPanel(panelState, copy) {
+function renderDockedWheelPerksBodyMarkup(copy) {
   const sections = state.wheelPerksSummary?.sections || [];
-  const bodyMarkup = sections.length
+  return sections.length
     ? `<div class="docked-wheel-perks-list">
         ${sections.map((section) => `
           <section class="docked-wheel-perk-section">
@@ -2185,6 +2185,19 @@ function renderDockedWheelPerksPanel(panelState, copy) {
         `).join("")}
       </div>`
     : renderDockedToolPlaceholderCard(copy.emptyTitle, copy.emptyCopy);
+}
+
+function refreshDockedWheelPerksPanelContent() {
+  const stage = els.dockedPanelHost?.querySelector(".docked-wheel-perks-stage");
+  if (!stage) {
+    return;
+  }
+
+  stage.innerHTML = renderDockedWheelPerksBodyMarkup(getDockedPanelCopy("wheel-perks-panel"));
+}
+
+function renderDockedWheelPerksPanel(panelState, copy) {
+  const bodyMarkup = renderDockedWheelPerksBodyMarkup(copy);
 
   return renderDockedToolShell({
     side: panelState.side,
