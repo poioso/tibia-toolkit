@@ -70,7 +70,7 @@ jobs:
         run: .\scripts\verify-release.ps1 -AllowUnsigned
 
       - name: Upload SBOM
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: sbom-${{ github.sha }}
           path: artifacts/sbom/npm.spdx.json
@@ -78,7 +78,7 @@ jobs:
           retention-days: 30
 
       - name: Upload unsigned test artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: unsigned-test-build-${{ github.sha }}
           path: dist/tibia-toolkit-release
