@@ -6,6 +6,14 @@ import { fileURLToPath } from "node:url";
 import { fetchBazaarAuctionDetail } from "./bazaar-detail.mjs";
 import { buildBazaarOverviewSourceUrl, fetchBazaarOverview } from "./bazaar-overview.mjs";
 import { closeBazaarBrowser } from "./bazaar-scraper.mjs";
+import {
+  MINI_WORLD_CHANGES_KEY,
+  collectMiniWorldChanges,
+  getDueMiniWorldChangeSlots,
+  getTodayDueMiniWorldChangeSlots,
+  normalizeMiniWorldChangesConfig,
+  pruneCompletedMiniWorldChangeSlots
+} from "./mini-world-changes.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -157,6 +165,44 @@ async function handleRequest({ request, response, config, runtime, state, schedu
     if (url.pathname === "/api/game/boosted") {
       const payload = await getCombinedBoosted({ config, runtime, state });
       sendJson(response, 200, payload);
+      return;
+    }
+
+    if (url.pathname === "/api/game/mini-world-changes") {
+      const payload = await getCachedMiniWorldChanges({ config, state });
+      sendJson(response, payload ? 200 : 503, payload || { error: "Mini World Changes cache is not ready." });
+      return;
+    }
+
+    if (url.pathname === "/api/game/mini-world-changes/catalog") {
+      const payload = await getCachedMiniWorldChanges({ config, state });
+      sendJson(
+        response,
+        payload ? 200 : 503,
+        payload
+          ? { data: { catalog: payload.data.catalog }, meta: payload.meta }
+          : { error: "Mini World Changes cache is not ready." }
+      );
+      return;
+    }
+
+    const miniWorldChangesWorldMatch = url.pathname.match(/^\/api\/game\/mini-world-changes\/worlds\/([^/]+)$/);
+    if (miniWorldChangesWorldMatch) {
+      const requestedWorld = decodeURIComponent(miniWorldChangesWorldMatch[1]).trim();
+      const payload = await getCachedMiniWorldChanges({ config, state });
+      if (!payload) {
+        sendJson(response, 503, { error: "Mini World Changes cache is not ready." });
+        return;
+      }
+
+      const world = payload.data.worlds.find(
+        (entry) => entry.name.localeCompare(requestedWorld, "en", { sensitivity: "base" }) === 0
+      );
+      sendJson(
+        response,
+        world ? 200 : 404,
+        world ? { data: { world }, meta: payload.meta } : { error: `Unknown Tibia world: ${requestedWorld}` }
+      );
       return;
     }
 
@@ -608,6 +654,8 @@ async function handleRequest({ request, response, config, runtime, state, schedu
 }
 
 async function schedulerTick({ config, runtime, state, scheduledModules }) {
+  await runMiniWorldChangesScheduler({ config, runtime, state }).catch(() => {});
+
   for (const module of scheduledModules) {
     const meta = state.modules[module.key] || null;
     const nextRefreshAt = Date.parse(meta?.nextRefreshAt || 0) || 0;
@@ -636,6 +684,96 @@ async function schedulerTick({ config, runtime, state, scheduledModules }) {
       ]).catch(() => {});
     }
   }
+}
+
+async function runMiniWorldChangesScheduler({ config, runtime, state, now = new Date() }) {
+  const schedule = config.miniWorldChanges;
+  if (!schedule.enabled) return;
+
+  const meta = state.modules[MINI_WORLD_CHANGES_KEY] || {};
+  const snapshot = await readSnapshot(config, MINI_WORLD_CHANGES_KEY);
+  let completedSlots = pruneCompletedMiniWorldChangeSlots(meta.completedSlots);
+
+  if (!snapshot && schedule.bootstrapWhenEmpty && !meta.bootstrapAttemptAt) {
+    const bootstrapAttemptAt = now.toISOString();
+    updateModuleMeta(state, MINI_WORLD_CHANGES_KEY, { bootstrapAttemptAt, completedSlots });
+    await saveState(config, runtime, state);
+    await refreshMiniWorldChangesSnapshot({ config, runtime, state, now, slot: "bootstrap" });
+    completedSlots = pruneCompletedMiniWorldChangeSlots([
+      ...completedSlots,
+      ...getTodayDueMiniWorldChangeSlots({
+        now,
+        timeZone: schedule.timeZone,
+        collectionTimes: schedule.collectionTimes
+      })
+    ]);
+    updateModuleMeta(state, MINI_WORLD_CHANGES_KEY, { completedSlots });
+    await saveState(config, runtime, state);
+    return;
+  }
+
+  const dueSlots = getDueMiniWorldChangeSlots({
+    now,
+    timeZone: schedule.timeZone,
+    collectionTimes: schedule.collectionTimes,
+    completedSlots
+  });
+  const slot = dueSlots[0];
+  if (!slot) return;
+
+  completedSlots = pruneCompletedMiniWorldChangeSlots([...completedSlots, slot]);
+  updateModuleMeta(state, MINI_WORLD_CHANGES_KEY, {
+    completedSlots,
+    lastScheduledSlot: slot,
+    lastScheduledAttemptAt: now.toISOString()
+  });
+  await saveState(config, runtime, state);
+  await refreshMiniWorldChangesSnapshot({ config, runtime, state, now, slot });
+}
+
+async function refreshMiniWorldChangesSnapshot({ config, runtime, state, now, slot }) {
+  const schedule = config.miniWorldChanges;
+  return refreshSnapshot({
+    config,
+    runtime,
+    state,
+    key: MINI_WORLD_CHANGES_KEY,
+    refreshMs: 24 * 60 * 60_000,
+    sourceUrl: "https://tibiatrade.gg/mini-world-changes",
+    fetcher: async () => {
+      const data = await collectMiniWorldChanges({
+        sourceBase: schedule.sourceBase,
+        timeoutMs: config.timeoutMs,
+        collectedAt: now.toISOString(),
+        schedule
+      });
+      updateModuleMeta(state, MINI_WORLD_CHANGES_KEY, {
+        lastCompletedSlot: slot,
+        lastScheduledSuccessAt: new Date().toISOString()
+      });
+      return data;
+    }
+  });
+}
+
+async function getCachedMiniWorldChanges({ config, state }) {
+  const data = await readSnapshot(config, MINI_WORLD_CHANGES_KEY);
+  if (!data) return null;
+
+  const meta = state.modules[MINI_WORLD_CHANGES_KEY] || {};
+  return {
+    data,
+    meta: {
+      fetchedAt: meta.fetchedAt || null,
+      lastSuccessAt: meta.lastSuccessAt || null,
+      lastAttemptAt: meta.lastAttemptAt || null,
+      lastCompletedSlot: meta.lastCompletedSlot || null,
+      lastScheduledSlot: meta.lastScheduledSlot || null,
+      lastError: meta.lastError || null,
+      stale: false,
+      refreshing: false
+    }
+  };
 }
 
 async function getCombinedWorldStatistics({ config, runtime, state }) {
@@ -853,6 +991,7 @@ function buildStatusPayload({ config, state, scheduledModules }) {
     dataDir: config.dataDir,
     stateFilePath: config.stateFilePath,
     refresh: config.refresh,
+    miniWorldChanges: config.miniWorldChanges,
     scheduledModules: scheduledModules.map((module) => ({
       key: module.key,
       refreshMs: module.refreshMs,
@@ -971,6 +1110,8 @@ async function loadConfig(overrides = {}) {
   );
   const dataDir = path.dirname(stateFilePath);
 
+  const fileMiniWorldChanges = fileConfig?.miniWorldChanges || {};
+
   return {
     configPath,
     host: overrides.host || process.env.GAME_DATA_HUB_HOST || fileConfig?.host || DEFAULT_HOST,
@@ -990,6 +1131,14 @@ async function loadConfig(overrides = {}) {
     stateFilePath,
     dataDir,
     snapshotsDir: path.join(dataDir, "snapshots"),
+    miniWorldChanges: normalizeMiniWorldChangesConfig({
+      enabled: overrides.miniWorldChangesEnabled ?? process.env.GAME_DATA_HUB_MWC_ENABLED ?? fileMiniWorldChanges.enabled,
+      sourceBase: overrides.miniWorldChangesSourceBase || process.env.GAME_DATA_HUB_MWC_SOURCE_BASE || fileMiniWorldChanges.sourceBase,
+      timeZone: overrides.miniWorldChangesTimeZone || process.env.GAME_DATA_HUB_MWC_TIME_ZONE || fileMiniWorldChanges.timeZone,
+      serverSaveTime: overrides.miniWorldChangesServerSaveTime || process.env.GAME_DATA_HUB_MWC_SERVER_SAVE_TIME || fileMiniWorldChanges.serverSaveTime,
+      collectionTimes: overrides.miniWorldChangesCollectionTimes || process.env.GAME_DATA_HUB_MWC_COLLECTION_TIMES || fileMiniWorldChanges.collectionTimes,
+      bootstrapWhenEmpty: overrides.miniWorldChangesBootstrapWhenEmpty ?? process.env.GAME_DATA_HUB_MWC_BOOTSTRAP_WHEN_EMPTY ?? fileMiniWorldChanges.bootstrapWhenEmpty
+    }),
     refresh: {
       tibiaStatisticWorldsMs: parsePositiveInteger(
         overrides.tibiaStatisticWorldsMs,
@@ -1368,15 +1517,22 @@ async function collectPersistentNewsArchive(config) {
 function protectNewsBrandTerms(value, protectWholeValue = false) {
   const terms = [];
   const input = String(value || "");
+  const restoreTerms = (translated) => {
+    let restored = String(translated || "");
+    terms.forEach((term, index) => {
+      const marker = `\\[\\[\\s*TIBIA_TERM_${index}\\s*\\]\\]`;
+      const duplicatedTerm = new RegExp(`${marker}\\s*[|:]?\\s*${escapeRegex(term)}`, "gi");
+      const bareMarker = new RegExp(`${marker}\\s*[|:]?`, "gi");
+      restored = restored.replace(duplicatedTerm, term).replace(bareMarker, term);
+    });
+    return restored;
+  };
+
   if (protectWholeValue && /[\p{L}\p{N}]/u.test(input)) {
     terms.push(input);
     return {
       value: "[[TIBIA_TERM_0]]",
-      restore(translated) {
-        return String(translated || "").replace(/\[\[TIBIA_TERM_(\d+)\]\]/g, (placeholder, index) => {
-          return terms[Number(index)] || placeholder;
-        });
-      }
+      restore: restoreTerms
     };
   }
 
@@ -1388,12 +1544,41 @@ function protectNewsBrandTerms(value, protectWholeValue = false) {
 
   return {
     value: protectedValue,
-    restore(translated) {
-      return String(translated || "").replace(/\[\[TIBIA_TERM_(\d+)\]\]/g, (placeholder, index) => {
-        return terms[Number(index)] || placeholder;
-      });
-    }
+    restore: restoreTerms
   };
+}
+
+function normalizeNewsTranslationContext(value, locale) {
+  let normalized = String(value || "");
+  if (locale === "de") {
+    // Canonical linked names stay in English, but the surrounding German prose
+    // must not inherit the English preposition that precedes the protected link.
+    normalized = normalized.replace(/\bWith(?=\s*(?:&nbsp;\s*)?<a\b)/gi, "Mit");
+  }
+  return normalized;
+}
+
+function repairNewsTranslationPlaceholders(originalHtml, translatedHtml, locale) {
+  const normalizedHtml = normalizeNewsTranslationContext(translatedHtml, locale);
+  if (!/\[\[\s*TIBIA_TERM_\d+\s*\]\]/i.test(normalizedHtml)) {
+    return normalizedHtml;
+  }
+
+  const originalTextNodes = splitNewsHtmlTextNodes(originalHtml).nodes.filter((node) => node.markup === undefined);
+  const translatedNodes = splitNewsHtmlTextNodes(normalizedHtml).nodes;
+  let textIndex = 0;
+
+  const repairedHtml = translatedNodes
+    .map((node) => {
+      if (node.markup !== undefined) return node.markup;
+      const originalNode = originalTextNodes[textIndex++];
+      if (!originalNode) return `${node.leading}${node.source}${node.trailing}`;
+      const restored = originalNode.protectedText.restore(node.source);
+      const safeText = /\[\[\s*TIBIA_TERM_\d+\s*\]\]/i.test(restored) ? originalNode.source : restored;
+      return `${node.leading}${normalizeTibiansTranslation(originalNode.source, safeText, locale)}${node.trailing}`;
+    })
+    .join("");
+  return normalizeNewsTranslationContext(repairedHtml, locale);
 }
 
 function splitNewsHtmlTextNodes(contentHtml) {
@@ -1401,6 +1586,8 @@ function splitNewsHtmlTextNodes(contentHtml) {
   const units = [];
   const fragments = String(contentHtml || "").split(/(<!--[\s\S]*?-->|<[^>]*>)/g);
   let insideLink = false;
+  let insideListItem = false;
+  const listStack = [];
 
   for (const fragment of fragments) {
     if (!fragment) continue;
@@ -1408,6 +1595,12 @@ function splitNewsHtmlTextNodes(contentHtml) {
       nodes.push({ markup: fragment });
       if (/^<\s*a\b/i.test(fragment)) insideLink = true;
       if (/^<\s*\/\s*a\s*>/i.test(fragment)) insideLink = false;
+      if (/^<\s*(ul|ol)\b/i.test(fragment)) {
+        listStack.push(/^<\s*ol\b/i.test(fragment) ? "ordered-list" : "unordered-list");
+      }
+      if (/^<\s*li\b/i.test(fragment)) insideListItem = true;
+      if (/^<\s*\/\s*li\s*>/i.test(fragment)) insideListItem = false;
+      if (/^<\s*\/\s*(ul|ol)\s*>/i.test(fragment)) listStack.pop();
       continue;
     }
 
@@ -1422,9 +1615,18 @@ function splitNewsHtmlTextNodes(contentHtml) {
     // items, mechanics, creatures or places), so preserve them byte-for-byte.
     const protectedText = protectNewsBrandTerms(body, insideLink);
     const id = `node_${units.length}`;
-    units.push({ id, text: protectedText.value });
+    units.push({
+      id,
+      text: protectedText.value,
+      htmlContext: insideListItem
+        ? `${listStack[listStack.length - 1] || "list"}:list-item`
+        : insideLink
+          ? "link-label"
+          : "text-node"
+    });
     nodes.push({
       id,
+      source: body,
       leading: match?.[1] || "",
       trailing: match?.[3] || "",
       protectedText
@@ -1441,6 +1643,21 @@ function plainTextFromNewsHtml(contentHtml) {
     .replace(/<[^>]+>/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function normalizeTibiansTranslation(source, translated, locale) {
+  if (!/\bTibians\b/.test(String(source || ""))) return String(translated || "");
+  if (locale === "pt-BR") {
+    return String(translated || "")
+      .replace(/\bTibians\b/g, "Tibianos")
+      .replace(/\bTibianer(?:n)?\b/g, "Tibianos");
+  }
+  if (locale === "de") {
+    return String(translated || "")
+      .replace(/\bTibianer(?:n)?\b/g, "Tibians")
+      .replace(/\bTibianos\b/g, "Tibians");
+  }
+  return String(translated || "");
 }
 
 async function translateNewsArticle(original, locale) {
@@ -1460,7 +1677,7 @@ async function translateNewsArticle(original, locale) {
     body: JSON.stringify({
       model,
       instructions:
-        "You translate official Tibia news for publication. Translate only prose into the requested language. Never translate or alter canonical Tibia names: items, creatures, bosses, NPCs, characters, quests, missions, places, towns, worlds, servers, spells, game mechanics, product names, URLs, email addresses, or strings inside [[...]] placeholders. Preserve every placeholder byte-for-byte. Keep factual tone. Return only the requested JSON.",
+        "You translate official Tibia news for publication. Translate only prose into the requested language. Every textNodes entry represents one immutable HTML text node, and htmlContext identifies whether it belongs to a link label or to an ordered/unordered list item. Preserve every id exactly once. Never merge, split, omit, duplicate or reorder text nodes. Keep every list item independent and in its original order; do not turn list items into paragraphs and do not add bullet glyphs or numbering because the preserved HTML provides the markers. Never translate or alter canonical Tibia names: items, creatures, bosses, NPCs, characters, quests, missions, places, towns, worlds, servers, spells, game mechanics, product names, URLs, email addresses, or strings inside [[...]] placeholders. Translate all surrounding prose completely even when it is adjacent to a protected placeholder; in German, English prepositions such as With must be translated (for example, With before a protected term becomes Mit). Exception: translate the plural demonym Tibians as Tibianos in Brazilian Portuguese, but preserve Tibians exactly in German. Preserve every placeholder byte-for-byte. Keep factual tone. Return only the requested JSON.",
       input: JSON.stringify({ targetLanguage, title: protectedTitle.value, textNodes: units }),
       text: {
         format: {
@@ -1519,12 +1736,18 @@ async function translateNewsArticle(original, locale) {
   const contentHtml = nodes
     .map((node) => {
       if (node.markup !== undefined) return node.markup;
-      return `${node.leading}${node.protectedText.restore(translatedNodes.get(node.id))}${node.trailing}`;
+      const restored = node.protectedText.restore(translatedNodes.get(node.id));
+      return `${node.leading}${normalizeTibiansTranslation(node.source, restored, locale)}${node.trailing}`;
     })
     .join("");
 
+  const restoredTitle = protectedTitle.restore(translationPayload.title);
+  if (/\[\[\s*TIBIA_TERM_\d+\s*\]\]/i.test(restoredTitle) || /\[\[\s*TIBIA_TERM_\d+\s*\]\]/i.test(contentHtml)) {
+    throw new Error("OpenAI translation leaked a protected Tibia term placeholder");
+  }
+
   return {
-    title: protectedTitle.restore(translationPayload.title),
+    title: restoredTitle,
     content: plainTextFromNewsHtml(contentHtml),
     contentHtml,
     sourceHash: original.sourceHash,
@@ -1543,6 +1766,21 @@ async function ensureNewsArchiveTranslations({ config, runtime, archive, locale 
 
   const task = (async () => {
     let changed = false;
+    for (const article of archive.articles) {
+      const original = article.original;
+      const cached = article.translations?.[locale];
+      if (!original || !cached) continue;
+
+      const repairedTitle = protectNewsBrandTerms(original.title).restore(cached.title);
+      const repairedHtml = repairNewsTranslationPlaceholders(original.contentHtml, cached.contentHtml, locale);
+      if (repairedTitle !== cached.title || repairedHtml !== cached.contentHtml) {
+        cached.title = /\[\[\s*TIBIA_TERM_\d+\s*\]\]/i.test(repairedTitle) ? original.title : repairedTitle;
+        cached.contentHtml = repairedHtml;
+        cached.content = plainTextFromNewsHtml(repairedHtml);
+        changed = true;
+      }
+    }
+
     // A API só entra para a notícia que acabou de chegar. As anteriores são
     // preservadas como arquivo local e recebem revisão/manual translation fora
     // deste ciclo, evitando custo e retraduções em massa.
@@ -1582,6 +1820,9 @@ async function ensureNewsArchiveTranslations({ config, runtime, archive, locale 
 function presentNewsArchive(archive, locale) {
   return (Array.isArray(archive?.articles) ? archive.articles : []).map((article) => {
     const content = locale === "en" ? article.original : article.translations?.[locale] || article.original;
+    const contentHtml = locale === "en"
+      ? content?.contentHtml || ""
+      : repairNewsTranslationPlaceholders(article.original?.contentHtml || "", content?.contentHtml || "", locale);
     return {
       id: article.id,
       date: article.date,
@@ -1589,8 +1830,8 @@ function presentNewsArchive(archive, locale) {
       category: article.category,
       type: "news",
       url: article.url,
-      content: content?.content || "",
-      contentHtml: content?.contentHtml || ""
+      content: plainTextFromNewsHtml(contentHtml) || content?.content || "",
+      contentHtml
     };
   });
 }

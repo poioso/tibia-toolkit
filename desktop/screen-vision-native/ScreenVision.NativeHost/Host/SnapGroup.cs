@@ -81,6 +81,21 @@ internal sealed class SnapGroup : IDisposable
     {
         IsDragging = false;
         _groupMoveStartPositions.Clear();
+
+        foreach (var window in _windows)
+        {
+            window.FlushInteractionBounds();
+        }
+    }
+
+    internal void BringToFront(RegionMirrorWindow anchor)
+    {
+        foreach (var window in _windows.Where((window) => !ReferenceEquals(window, anchor)))
+        {
+            window.PromoteForInteraction();
+        }
+
+        anchor.PromoteForInteraction();
     }
 
     internal void UpdateBorderDisplay()

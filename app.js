@@ -9,6 +9,7 @@ import {
 import {
   closeDesktopOverlay,
   fetchBossTracker,
+  fetchMiniWorldChanges,
   fetchBootstrap,
   fetchCreatureDetail,
   fetchCreatureIndex,
@@ -41,7 +42,11 @@ import {
 } from "./lib/runtime-api.js";
 import { bootstrapRendererLocale } from "./lib/renderer-locale.js";
 import { t } from "./lib/app-i18n.js";
-import { loadPhraseTranslationMap, translatePhraseSync } from "./lib/phrase-translations.js";
+import {
+  loadPhraseTranslationMap,
+  registerProtectedPhrases,
+  translatePhraseSync
+} from "./lib/phrase-translations.js";
 import {
   ALL_IMBUEMENT_INGREDIENT_NAMES,
   IMBUEMENT_CATEGORY_LABELS,
@@ -69,7 +74,7 @@ const LOOT_ANALYZER_DRAFTS_KEY = "lootAnalyzerDrafts";
 const LOOT_ANALYZER_DRAFTS_FALLBACK_KEY = "poioso:lootAnalyzerDrafts";
 const MAX_RECENT_ITEMS = 8;
 const NAVIGATION_HISTORY_LIMIT = 30;
-const INITIAL_SPLASH_MIN_VISIBLE_MS = 4000;
+const INITIAL_SPLASH_MIN_VISIBLE_MS = 900;
 const STASH_MARKET_REFRESH_COOLDOWN_MS = 1000 * 60;
 const DEFAULT_IMBUEMENT_KEY = "vampirism";
 const DEFAULT_IMBUEMENT_TIER = "powerful";
@@ -659,6 +664,13 @@ const state = {
   creatureGearVocation: "knight",
   creatureGearWeaponStyle: "1H",
   monsterCategoriesCollapsed: false,
+  miniWorldChangesCatalog: [],
+  miniWorldChangesActiveWorld: null,
+  miniWorldChangesActiveError: "",
+  miniWorldChangesLoaded: false,
+  miniWorldChangesLoading: false,
+  miniWorldChangesRequestId: 0,
+  currentMiniWorldChangeId: "",
   currentNavigationEntry: null,
   navigationBackStack: [],
   navigationForwardStack: [],
@@ -837,6 +849,22 @@ const els = {
   mapModalTitle: document.querySelector("#map-modal-title"),
   mapModalFrame: document.querySelector("#map-modal-frame"),
   mapModalClose: document.querySelector("#map-modal-close"),
+  miniWorldChangesOverview: document.querySelector("#mini-world-changes-overview"),
+  miniWorldChangesWorldName: document.querySelector("#mini-world-changes-world-name"),
+  miniWorldChangesActive: document.querySelector("#mini-world-changes-active"),
+  miniWorldChangesCount: document.querySelector("#mini-world-changes-count"),
+  miniWorldChangesCatalog: document.querySelector("#mini-world-changes-catalog"),
+  miniWorldChangeDetail: document.querySelector("#mini-world-change-detail"),
+  miniWorldChangeDetailTitle: document.querySelector("#mini-world-change-detail-title"),
+  miniWorldChangeDetailContent: document.querySelector("#mini-world-change-detail-content"),
+  miniWorldChangeActiveBadge: document.querySelector("#mini-world-change-active-badge"),
+  miniWorldChangeBack: document.querySelector("#mini-world-change-back"),
+  miniWorldChangeOpenWiki: document.querySelector("#mini-world-change-open-wiki"),
+  miniWorldChangeImageViewer: document.querySelector("#mini-world-change-image-viewer"),
+  miniWorldChangeImageViewerTitle: document.querySelector("#mini-world-change-image-viewer-title"),
+  miniWorldChangeImageViewerImage: document.querySelector("#mini-world-change-image-viewer-image"),
+  miniWorldChangeImageViewerCaption: document.querySelector("#mini-world-change-image-viewer-caption"),
+  miniWorldChangeImageViewerClose: document.querySelector("#mini-world-change-image-viewer-close"),
   worldInput: document.querySelector("#world-input"),
   worldDropdownButton: document.querySelector("#world-dropdown-button"),
   worldSuggestions: document.querySelector("#world-suggestions"),
@@ -977,7 +1005,8 @@ const els = {
   panels: {
     "item-prices": document.querySelector("#panel-item-prices"),
     tools: document.querySelector("#panel-tools"),
-    npcs: document.querySelector("#panel-npcs")
+    npcs: document.querySelector("#panel-npcs"),
+    "mini-world-changes": document.querySelector("#panel-mini-world-changes")
   },
   itemSummaryEmpty: document.querySelector("#item-summary-empty"),
   itemSummaryContent: document.querySelector("#item-summary-content"),
@@ -1020,7 +1049,14 @@ const els = {
 boot();
 
 async function boot() {
+  const bootStartedAt = performance.now();
+  const markBootStage = (stage) => {
+    console.info(`[startup] ${stage} +${Math.round(performance.now() - bootStartedAt)}ms`);
+  };
+
+  markBootStage("renderer-boot-start");
   await applyDesktopMode();
+  markBootStage("desktop-mode-ready");
   initializeSupporterState();
   state.localeController = await bootstrapRendererLocale({
     root: document.body,
@@ -1031,12 +1067,15 @@ async function boot() {
       void refreshLocaleSensitiveContent(locale);
     }
   });
+  markBootStage("renderer-locale-ready");
   await setDataLocale(state.localeController.getLocale()).catch(() => {});
   state.phraseTranslationMap = await loadPhraseTranslationMap(state.localeController.getLocale()).catch(() => ({}));
+  markBootStage("phrase-map-ready");
   renderLocaleSwitcher();
   renderSupporterToolbar();
   normalizeStaticLabels();
   normalizeStaticLabelsDeep();
+  markBootStage("static-ui-ready");
   positionItemViewLayout();
   bindEvents();
   void initializeDesktopUpdateUi();
@@ -1045,12 +1084,15 @@ async function boot() {
   syncManualTokenState();
   syncCurrencyButtons(els.imbuementTierButtons, state.currentImbuementTier, "tier");
   renderImbuementLoading();
+  markBootStage("critical-bindings-ready");
 
   showInitialSplash(0);
   try {
     updateInitialSplashProgress(4);
     const bootstrap = await runInitialSplashTask(4, 30, () => fetchBootstrap());
+    markBootStage("bootstrap-data-ready");
     state.worlds = bootstrap.worlds || [];
+    registerProtectedPhrases(state.worlds);
     state.quickPicks = bootstrap.quickPicks || [];
     state.supportersDataUrls = normalizeSupportersDataUrls(
       bootstrap.supportersDataUrls,
@@ -1072,10 +1114,9 @@ async function boot() {
       renderQuickPicks();
       renderRecentItems();
     });
-    await prewarmStartupCaches((progress) => {
-      updateInitialSplashProgress(mapProgress(progress, 56, 74));
-    });
+    updateInitialSplashProgress(74);
     await runInitialSplashTask(74, 82, () => renderCurrencyIcons());
+    markBootStage("currency-icons-ready");
     els.connectionStatus.textContent = bootstrap.initialItem?.selectedWorld?.name || bootstrap.defaultWorld || "-";
 
     if (bootstrap.initialItem) {
@@ -1108,12 +1149,14 @@ async function boot() {
     await runInitialSplashTask(92, 97, () => loadSupportersData({
       supportersDataUrls: state.supportersDataUrls
     }));
+    markBootStage("supporters-ready");
     await runInitialSplashTask(97, 98, () => saveLastWorldSlug(state.currentWorldSlug));
     runInitialSplashTask(98, 99, () => {
       scheduleWarmItemCache();
       void refreshImbuementWorldData();
     });
     updateInitialSplashProgress(100);
+    markBootStage("renderer-boot-complete");
   } catch (error) {
     setFeedback(
       error instanceof Error ? error.message : "Não foi possível carregar o app.",
@@ -2004,6 +2047,7 @@ async function refreshLocaleSensitiveContent(locale) {
 
   if (requestId === state.localeRefreshRequestId) {
     renderSupporterToolbar();
+    renderMiniWorldChanges();
   }
 }
 
@@ -2070,8 +2114,11 @@ function bindEvents() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && isLocaleMenuOpen()) {
-      setLocaleMenuOpen(false);
+    if (event.key === "Escape") {
+      if (isLocaleMenuOpen()) {
+        setLocaleMenuOpen(false);
+      }
+      closeMiniWorldChangeImageViewer();
     }
   });
 
@@ -2544,6 +2591,50 @@ function bindEvents() {
   els.mapModalHeader?.addEventListener("pointerdown", startMapDrag);
   window.addEventListener("pointermove", moveMapDrag);
   window.addEventListener("pointerup", stopMapDrag);
+
+  els.miniWorldChangesOverview?.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-mini-world-change-id]");
+    if (trigger) {
+      openMiniWorldChangeDetail(trigger.dataset.miniWorldChangeId || "");
+    }
+  });
+
+  els.miniWorldChangeBack?.addEventListener("click", () => {
+    closeMiniWorldChangeDetail();
+  });
+
+  els.miniWorldChangeOpenWiki?.addEventListener("click", () => {
+    const entry = findMiniWorldChangeById(state.currentMiniWorldChangeId);
+    if (entry?.wikiUrl) {
+      void openDesktopExternalLink(entry.wikiUrl);
+    }
+  });
+
+  els.miniWorldChangeDetailContent?.addEventListener("click", (event) => {
+    const mapButton = event.target.closest("[data-mini-world-change-map]");
+    if (mapButton) {
+      renderMiniWorldChangeInlineMap(mapButton);
+      return;
+    }
+
+    const galleryButton = event.target.closest("[data-mini-world-change-image]");
+    if (galleryButton) {
+      openMiniWorldChangeImageViewer(galleryButton);
+      return;
+    }
+
+    const entityButton = event.target.closest("[data-mini-world-change-entity]");
+    if (entityButton) {
+      void openMiniWorldChangeEntity(entityButton);
+    }
+  });
+
+  els.miniWorldChangeImageViewerClose?.addEventListener("click", closeMiniWorldChangeImageViewer);
+  els.miniWorldChangeImageViewer?.addEventListener("click", (event) => {
+    if (!event.target.closest?.(".mini-world-change-image-viewer-card")) {
+      closeMiniWorldChangeImageViewer();
+    }
+  });
 
   els.itemInput.addEventListener("input", () => {
     state.selectedItemSuggestion = null;
@@ -4343,6 +4434,10 @@ function switchSection(section, options = {}) {
     void ensureActiveEntityCatalogLoaded();
   }
 
+  if (nextSection === "mini-world-changes") {
+    void ensureMiniWorldChangesLoaded();
+  }
+
   if (sectionChanged || !state.currentNavigationEntry) {
     setCurrentNavigationEntry(getCurrentSectionNavigationEntry());
   }
@@ -4369,6 +4464,16 @@ function normalizeNavigationEntry(entry) {
 }
 
 function getCurrentSectionNavigationEntry() {
+  if (state.selectedSection === "mini-world-changes" && state.currentMiniWorldChangeId) {
+    const current = findMiniWorldChangeById(state.currentMiniWorldChangeId);
+    return {
+      type: "mini-world-change",
+      section: "mini-world-changes",
+      name: current?.name || "",
+      slug: state.currentMiniWorldChangeId
+    };
+  }
+
   const entry = {
     type: "section",
     section: state.selectedSection
@@ -4480,6 +4585,13 @@ async function restoreNavigationEntry(entry) {
       els.itemInput.value = state.selectedItemSuggestion.name;
       switchSection("item-prices");
       await handleItemSearch(true);
+      return;
+    }
+
+    if (entry.type === "mini-world-change") {
+      switchSection("mini-world-changes", { skipHistory: true });
+      await ensureMiniWorldChangesLoaded();
+      openMiniWorldChangeDetail(entry.slug, { skipHistory: true });
       return;
     }
 
@@ -7985,7 +8097,43 @@ function hideInitialSplash() {
     state.globalLoadingCount = 1;
     hideGlobalLoading();
     void notifyDesktopReadyToShow().catch(() => {});
+    schedulePostBootWork();
   }, remaining);
+}
+
+let postBootWorkScheduled = false;
+
+function schedulePostBootWork() {
+  if (postBootWorkScheduled) {
+    return;
+  }
+
+  postBootWorkScheduled = true;
+  const run = async () => {
+    await import("./desktop/screen-vision/screen-vision.js").catch((error) => {
+      console.warn("[startup] screen-vision-module-failed", error);
+    });
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    await import("./desktop/tutorial-tour.js").catch((error) => {
+      console.warn("[startup] tutorial-module-failed", error);
+    });
+
+    const warmCaches = () => {
+      void prewarmStartupCaches().catch((error) => {
+        console.warn("[startup] background-cache-warm-failed", error);
+      });
+    };
+
+    window.setTimeout(() => {
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(warmCaches, { timeout: 2500 });
+      } else {
+        warmCaches();
+      }
+    }, 2000);
+  };
+
+  window.setTimeout(() => void run(), 120);
 }
 
 function runInitialSplashTask(startProgress, endProgress, task) {
@@ -12815,6 +12963,577 @@ async function openLootItem(name) {
   await handleItemSearch(true);
 }
 
+async function ensureMiniWorldChangesLoaded() {
+  if (state.miniWorldChangesLoaded || state.miniWorldChangesLoading) {
+    renderMiniWorldChanges();
+    return;
+  }
+
+  await loadMiniWorldChanges();
+}
+
+async function loadMiniWorldChanges(options = {}) {
+  if (state.miniWorldChangesLoading && !options.force) {
+    return;
+  }
+
+  const selectedWorld = getSelectedWorld();
+  const requestId = ++state.miniWorldChangesRequestId;
+  state.miniWorldChangesLoading = true;
+  renderMiniWorldChanges();
+
+  try {
+    const payload = await fetchMiniWorldChanges({ worldName: selectedWorld?.name || "" });
+    if (requestId !== state.miniWorldChangesRequestId) {
+      return;
+    }
+
+    state.miniWorldChangesCatalog = groupMiniWorldChangesCatalog(
+      Array.isArray(payload?.catalog) ? payload.catalog : []
+    );
+    registerProtectedPhrases(state.miniWorldChangesCatalog.flatMap((entry) => [
+      entry.name,
+      ...(Array.isArray(entry.sourceAliases) ? entry.sourceAliases : [])
+    ]));
+    state.miniWorldChangesActiveWorld = payload?.activeWorld || null;
+    state.miniWorldChangesActiveError = String(payload?.activeError || "");
+    state.miniWorldChangesLoaded = true;
+  } catch (error) {
+    if (requestId === state.miniWorldChangesRequestId) {
+      state.miniWorldChangesActiveError = error instanceof Error ? error.message : String(error || "");
+    }
+  } finally {
+    if (requestId === state.miniWorldChangesRequestId) {
+      state.miniWorldChangesLoading = false;
+      renderMiniWorldChanges();
+    }
+  }
+}
+
+function renderMiniWorldChanges() {
+  if (!els.miniWorldChangesActive || !els.miniWorldChangesCatalog) {
+    return;
+  }
+
+  const selectedWorld = getSelectedWorld();
+  const catalog = state.miniWorldChangesCatalog;
+  const activeEntries = getActiveMiniWorldChangeEntries();
+
+  if (els.miniWorldChangesWorldName) {
+    els.miniWorldChangesWorldName.textContent = selectedWorld?.name || t("common.world");
+  }
+  if (els.miniWorldChangesCount) {
+    els.miniWorldChangesCount.textContent = String(catalog.length);
+  }
+  if (state.miniWorldChangesLoading && catalog.length === 0) {
+    els.miniWorldChangesActive.innerHTML = renderMiniWorldChangesMessage(
+      t("miniWorldChanges.loading"),
+      "loading"
+    );
+  } else if (activeEntries.length > 0) {
+    els.miniWorldChangesActive.innerHTML = activeEntries
+      .map((entry) => renderMiniWorldChangeActiveCard(entry))
+      .join("");
+  } else {
+    const key = state.miniWorldChangesActiveError
+      ? "miniWorldChanges.activeUnavailable"
+      : "miniWorldChanges.noActive";
+    els.miniWorldChangesActive.innerHTML = renderMiniWorldChangesMessage(t(key));
+  }
+
+  els.miniWorldChangesCatalog.innerHTML = catalog.length > 0
+    ? catalog.map((entry) => renderMiniWorldChangeCatalogRow(entry)).join("")
+    : renderMiniWorldChangesMessage(t("miniWorldChanges.catalogUnavailable"));
+
+  if (state.currentMiniWorldChangeId) {
+    const current = findMiniWorldChangeById(state.currentMiniWorldChangeId);
+    if (current) {
+      renderMiniWorldChangeDetail(current);
+    }
+  }
+}
+
+function groupMiniWorldChangesCatalog(catalog) {
+  const entries = Array.isArray(catalog) ? catalog.filter(Boolean) : [];
+  const dworcCamp = entries.find((entry) => entry.name === "Dworc Camp");
+  const hunterCamp = entries.find((entry) => entry.name === "Hunter Camp");
+
+  if (!dworcCamp || !hunterCamp) {
+    return entries;
+  }
+
+  const text = {
+    type: "localized-text",
+    translations: {
+      "pt-BR": "A Jungle Camp pode aparecer em duas versões: Dworc Camp ou Hunter Camp. Confira abaixo os detalhes de cada possibilidade.",
+      en: "Jungle Camp can appear in two versions: Dworc Camp or Hunter Camp. See the details of each possibility below.",
+      de: "Jungle Camp kann in zwei Varianten erscheinen: Dworc Camp oder Hunter Camp. Unten findest du die Details zu beiden Möglichkeiten."
+    }
+  };
+  const heading = (value) => ({
+    type: "heading",
+    level: 3,
+    content: [{ type: "text", text: value, marks: [] }]
+  });
+  const distinct = (values) => [...new Set(values.map((value) => String(value || "").trim()).filter((value) => value && value !== "-"))];
+  const grouped = {
+    id: "jungle-camp",
+    name: "Jungle Camp",
+    location: distinct([dworcCamp.location, hunterCamp.location]).join(" / "),
+    achievement: distinct([dworcCamp.achievement, hunterCamp.achievement]).join(" / "),
+    reward: distinct([dworcCamp.reward, hunterCamp.reward]).join(" / "),
+    sourceAliases: distinct([
+      "Jungle Camp",
+      "Dworc Camp",
+      "Hunter Camp",
+      ...(dworcCamp.sourceAliases || []),
+      ...(hunterCamp.sourceAliases || [])
+    ]),
+    representative: dworcCamp.representative,
+    representatives: [dworcCamp.representative, hunterCamp.representative].filter(Boolean),
+    wikiUrl: "https://www.tibiawiki.com.br/wiki/Mini_World_Changes#Dworc_Camp",
+    blocks: [
+      { type: "callout", tone: "note", content: [text] },
+      heading("Dworc Camp"),
+      ...(dworcCamp.blocks || []),
+      heading("Hunter Camp"),
+      ...(hunterCamp.blocks || [])
+    ]
+  };
+
+  return entries
+    .filter((entry) => entry !== dworcCamp && entry !== hunterCamp)
+    .concat(grouped)
+    .sort((left, right) => left.name.localeCompare(right.name, "en", { sensitivity: "base" }));
+}
+
+function renderMiniWorldChangesMessage(message, kind = "empty") {
+  const loading = kind === "loading"
+    ? '<span class="global-loading-spinner mini-world-changes-spinner" aria-hidden="true"></span>'
+    : '<img src="assets/ui/world-board.gif" alt="">';
+  return `
+    <div class="mini-world-changes-empty">
+      ${loading}
+      <span>${escapeHtml(message)}</span>
+    </div>
+  `;
+}
+
+function getActiveMiniWorldChangeEntries() {
+  const active = Array.isArray(state.miniWorldChangesActiveWorld?.activeMiniWorldChanges)
+    ? state.miniWorldChangesActiveWorld.activeMiniWorldChanges
+    : [];
+  const matches = [];
+
+  for (const activeEntry of active) {
+    const names = [activeEntry?.name, activeEntry?.displayName]
+      .map((value) => normalizeMiniWorldChangeName(value))
+      .filter(Boolean);
+
+    for (const entry of state.miniWorldChangesCatalog) {
+      const aliases = [entry.name, ...(Array.isArray(entry.sourceAliases) ? entry.sourceAliases : [])]
+        .map((value) => normalizeMiniWorldChangeName(value));
+      if (names.some((name) => aliases.includes(name)) && !matches.some((item) => item.id === entry.id)) {
+        matches.push(entry);
+      }
+    }
+  }
+
+  return matches;
+}
+
+function normalizeMiniWorldChangeName(value) {
+  return String(value || "").trim().toLocaleLowerCase("en");
+}
+
+function isMiniWorldChangeActive(entry) {
+  return getActiveMiniWorldChangeEntries().some((activeEntry) => activeEntry.id === entry?.id);
+}
+
+function renderMiniWorldChangeActiveCard(entry) {
+  return `
+    <button type="button" class="mini-world-change-active-card" data-mini-world-change-id="${escapeHtml(entry.id)}">
+      <strong data-i18n-preserve>${escapeHtml(entry.name)}</strong>
+      ${renderMiniWorldChangeRepresentatives(entry, "mini-world-change-active-image")}
+      <small>${escapeHtml(t("miniWorldChanges.viewMore"))}</small>
+    </button>
+  `;
+}
+
+function renderMiniWorldChangeCatalogRow(entry) {
+  const achievement = String(entry.achievement || "").trim();
+  return `
+    <button type="button" class="mini-world-change-catalog-row" data-mini-world-change-id="${escapeHtml(entry.id)}">
+      ${renderMiniWorldChangeRepresentatives(entry, "mini-world-change-catalog-image")}
+      <span class="mini-world-change-catalog-copy">
+        <strong data-i18n-preserve>${escapeHtml(entry.name)}</strong>
+        <small>${escapeHtml(t("miniWorldChanges.location"))}: ${escapeHtml(entry.location || t("common.noData"))}</small>
+      </span>
+      <span class="mini-world-change-achievement">
+        <small>${escapeHtml(t("miniWorldChanges.achievement"))}</small>
+        <strong>${escapeHtml(achievement && achievement !== "-" ? achievement : t("miniWorldChanges.noAchievement"))}</strong>
+      </span>
+    </button>
+  `;
+}
+
+function findMiniWorldChangeById(id) {
+  return state.miniWorldChangesCatalog.find((entry) => entry.id === id) || null;
+}
+
+function openMiniWorldChangeDetail(id, options = {}) {
+  const entry = findMiniWorldChangeById(id);
+  if (!entry) {
+    return;
+  }
+
+  if (!options.skipHistory) {
+    pushCurrentNavigationEntry();
+  }
+
+  state.currentMiniWorldChangeId = entry.id;
+  renderMiniWorldChangeDetail(entry);
+  els.miniWorldChangesOverview?.classList.add("hidden");
+  els.miniWorldChangeDetail?.classList.remove("hidden");
+  els.mainContent?.scrollTo({ top: 0, behavior: "auto" });
+  setCurrentNavigationEntry({
+    type: "mini-world-change",
+    section: "mini-world-changes",
+    name: entry.name,
+    slug: entry.id
+  });
+}
+
+function closeMiniWorldChangeDetail() {
+  closeMiniWorldChangeImageViewer();
+  stopTibiaInlineMaps(els.miniWorldChangeDetailContent);
+  state.currentMiniWorldChangeId = "";
+  els.miniWorldChangeDetail?.classList.add("hidden");
+  els.miniWorldChangesOverview?.classList.remove("hidden");
+  const previous = state.navigationBackStack[state.navigationBackStack.length - 1];
+  if (previous?.type === "section" && previous.section === "mini-world-changes") {
+    state.navigationBackStack.pop();
+  }
+  setCurrentNavigationEntry(getCurrentSectionNavigationEntry());
+  els.mainContent?.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function renderMiniWorldChangeDetail(entry) {
+  if (!els.miniWorldChangeDetailContent) {
+    return;
+  }
+
+  els.miniWorldChangeDetailTitle.textContent = entry.name;
+  els.miniWorldChangeActiveBadge?.classList.toggle("hidden", !isMiniWorldChangeActive(entry));
+  els.miniWorldChangeDetailContent.innerHTML = `
+    <section class="mini-world-change-detail-summary">
+      ${renderMiniWorldChangeRepresentatives(entry, "mini-world-change-detail-representatives")}
+      <div>
+        <p><strong>${escapeHtml(t("miniWorldChanges.location"))}:</strong> ${escapeHtml(entry.location || t("common.noData"))}</p>
+        <p><strong>${escapeHtml(t("miniWorldChanges.achievement"))}:</strong> ${escapeHtml(entry.achievement || t("miniWorldChanges.noAchievement"))}</p>
+        ${entry.reward ? `<p><strong>${escapeHtml(t("miniWorldChanges.reward"))}:</strong> ${escapeHtml(entry.reward)}</p>` : ""}
+      </div>
+    </section>
+    <div class="mini-world-change-blocks">
+      ${(Array.isArray(entry.blocks) ? entry.blocks : []).map(renderMiniWorldChangeBlock).join("")}
+    </div>
+  `;
+}
+
+function renderMiniWorldChangeRepresentatives(entry, className) {
+  const representatives = Array.isArray(entry?.representatives) && entry.representatives.length
+    ? entry.representatives
+    : [entry?.representative].filter(Boolean);
+  const values = representatives.length
+    ? representatives
+    : [{ localPath: "assets/ui/world-board.gif", label: entry?.name || "Mini World Change" }];
+
+  return `
+    <span class="${escapeHtml(className)}">
+      ${values.map((representative) => `
+        <img src="${escapeHtml(representative.localPath || "assets/ui/world-board.gif")}" alt="${escapeHtml(representative.label || entry?.name || "")}">
+      `).join("")}
+    </span>
+  `;
+}
+
+function renderMiniWorldChangeBlock(block) {
+  if (!block?.type) {
+    return "";
+  }
+
+  const content = renderMiniWorldChangeBlockContent(block);
+  if (!content) {
+    return "";
+  }
+
+  return `
+    <div class="mini-world-change-content-block">
+      ${content}
+      ${miniWorldChangeBlockHasMap(block) ? '<div class="boss-inline-map hidden" data-mini-world-change-inline-map></div>' : ""}
+    </div>
+  `;
+}
+
+function renderMiniWorldChangeBlockContent(block) {
+
+  if (block.type === "announcement" || block.type === "transcript") {
+    return `
+      <section class="mini-world-change-announcement ${escapeHtml(block.kind || "")}" data-i18n-preserve>
+        ${renderMiniWorldChangeImage(block.image, "mini-world-change-speaker")}
+        <div>${renderMiniWorldChangeSegments(block.content, { preserveText: true })}</div>
+      </section>
+    `;
+  }
+
+  if (block.type === "heading") {
+    const level = Math.min(4, Math.max(3, Number(block.level) || 3));
+    return `<h${level} class="mini-world-change-heading">${renderMiniWorldChangeSegments(block.content)}</h${level}>`;
+  }
+
+  if (block.type === "paragraph") {
+    return `<p class="mini-world-change-paragraph tone-${escapeHtml(block.tone || "default")}">${renderMiniWorldChangeSegments(block.content)}</p>`;
+  }
+
+  if (block.type === "callout") {
+    return `<aside class="mini-world-change-callout tone-${escapeHtml(block.tone || "default")}">${renderMiniWorldChangeSegments(block.content)}</aside>`;
+  }
+
+  if (block.type === "list") {
+    const tag = block.ordered ? "ol" : "ul";
+    return `<${tag} class="mini-world-change-list">${(block.items || [])
+      .map((item) => `<li>${renderMiniWorldChangeSegments(item)}</li>`)
+      .join("")}</${tag}>`;
+  }
+
+  if (block.type === "gallery") {
+    return `<div class="mini-world-change-gallery">${(block.items || [])
+      .map((item) => `
+        <figure>
+          <button type="button" class="mini-world-change-gallery-button" data-mini-world-change-image="${escapeHtml(item.image?.src || "")}" data-mini-world-change-image-caption="${escapeHtml(getMiniWorldChangePlainText(item.caption))}">
+            ${renderMiniWorldChangeImage(item.image)}
+          </button>
+          ${item.caption?.length ? `<figcaption>${renderMiniWorldChangeSegments(item.caption)}</figcaption>` : ""}
+        </figure>
+      `)
+      .join("")}</div>`;
+  }
+
+  if (block.type === "table") {
+    return `
+      <div class="mini-world-change-table-scroll">
+        <table class="mini-world-change-table">
+          ${(block.rows || []).map((row, rowIndex) => `
+            <tr>${(row || []).map((cell) => {
+              const tag = rowIndex === 0 ? "th" : "td";
+              return `<${tag}>${renderMiniWorldChangeSegments(cell)}</${tag}>`;
+            }).join("")}</tr>
+          `).join("")}
+        </table>
+      </div>
+    `;
+  }
+
+  return "";
+}
+
+function miniWorldChangeBlockHasMap(value) {
+  if (!value) return false;
+  if (Array.isArray(value)) return value.some(miniWorldChangeBlockHasMap);
+  if (typeof value !== "object") return false;
+  if (value.type === "map") return true;
+  return Object.values(value).some(miniWorldChangeBlockHasMap);
+}
+
+function getMiniWorldChangePlainText(segments) {
+  return (Array.isArray(segments) ? segments : [])
+    .map((segment) => {
+      if (segment?.type === "text") return getMiniWorldChangeSegmentText(segment);
+      if (segment?.type === "localized-text") return getMiniWorldChangeLocalizedText(segment);
+      if (segment?.type === "entity") return segment.label || segment.name || "";
+      return "";
+    })
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function renderMiniWorldChangeSegments(segments, options = {}) {
+  return (Array.isArray(segments) ? segments : [])
+    .map((segment) => renderMiniWorldChangeSegment(segment, options))
+    .join("");
+}
+
+function renderMiniWorldChangeSegment(segment, options = {}) {
+  if (!segment?.type) {
+    return "";
+  }
+
+  if (segment.type === "break") {
+    return "<br>";
+  }
+
+  if (segment.type === "image") {
+    return renderMiniWorldChangeImage(segment.image, "mini-world-change-inline-image");
+  }
+
+  if (segment.type === "map") {
+    const coords = `${segment.x}, ${segment.y}, ${segment.z}`;
+    return `
+      <button type="button" class="entity-link-chip boss-map-toggle mini-world-change-map-button" data-mini-world-change-map="${escapeHtml(segment.url || "")}" data-mini-world-change-map-title="${escapeHtml(`${t("common.map")} - ${coords}`)}">
+        ${escapeHtml(t("common.showOnMap"))}
+      </button>
+    `;
+  }
+
+  if (segment.type === "entity") {
+    return `
+      <button type="button" class="mini-world-change-entity-link" data-mini-world-change-entity="${escapeHtml(segment.kind || "")}" data-entity-name="${escapeHtml(segment.name || segment.label || "")}" data-entity-slug="${escapeHtml(segment.slug || "")}" data-entity-category="${escapeHtml(segment.category || "")}">
+        ${renderMiniWorldChangeMarkedText(segment.label || segment.name || "", segment.marks)}
+      </button>
+    `;
+  }
+
+  if (segment.type === "text") {
+    const value = options.preserveText
+      ? decodeMojibakeText(segment.text || "")
+      : getMiniWorldChangeSegmentText(segment);
+    return renderMiniWorldChangeMarkedText(value, segment.marks);
+  }
+
+  if (segment.type === "localized-text") {
+    return renderMiniWorldChangeMarkedText(getMiniWorldChangeLocalizedText(segment), segment.marks);
+  }
+
+  return "";
+}
+
+function getMiniWorldChangeSegmentText(segment) {
+  if (!segment?.translations) {
+    return normalizeUiText(segment?.text || "");
+  }
+  const locale = state.localeController?.getLocale?.() || "pt-BR";
+  return normalizeUiText(
+    segment.translations[locale] ||
+    segment.translations[locale.split("-")[0]] ||
+    segment.translations["pt-BR"] ||
+    segment.text ||
+    ""
+  );
+}
+
+function getMiniWorldChangeLocalizedText(segment) {
+  const locale = state.localeController?.getLocale?.() || "pt-BR";
+  return normalizeUiText(
+    segment?.translations?.[locale] ||
+    segment?.translations?.[locale.split("-")[0]] ||
+    segment?.translations?.["pt-BR"] ||
+    segment?.text ||
+    ""
+  );
+}
+
+function renderMiniWorldChangeMarkedText(value, marks = []) {
+  let html = escapeHtml(value);
+  if (marks.includes("strong")) html = `<strong>${html}</strong>`;
+  if (marks.includes("emphasis")) html = `<em>${html}</em>`;
+  return html;
+}
+
+function renderMiniWorldChangeImage(image, className = "") {
+  if (!image?.src) {
+    return "";
+  }
+
+  return `<img class="${escapeHtml(className)}" src="${escapeHtml(image.src)}" alt="${escapeHtml(decodeMojibakeText(image.alt || ""))}" loading="lazy">`;
+}
+
+function renderMiniWorldChangeInlineMap(button) {
+  const block = button.closest(".mini-world-change-content-block");
+  const panel = block?.querySelector("[data-mini-world-change-inline-map]");
+  const url = button.dataset.miniWorldChangeMap || "";
+
+  if (!block || !panel || !url) {
+    return;
+  }
+
+  const isSameOpen = !panel.classList.contains("hidden") && panel.dataset.mapUrl === url;
+  block.querySelectorAll("[data-mini-world-change-map]").forEach((entry) => {
+    entry.classList.remove("active");
+  });
+  stopTibiaInlineMaps(panel);
+
+  if (isSameOpen) {
+    panel.classList.add("hidden");
+    panel.dataset.mapUrl = "";
+    panel.innerHTML = "";
+    return;
+  }
+
+  button.classList.add("active");
+  panel.dataset.mapUrl = url;
+  panel.innerHTML = renderBossLocationMapPreview(
+    url,
+    button.dataset.miniWorldChangeMapTitle || t("common.map")
+  );
+  panel.classList.remove("hidden");
+  panel.querySelectorAll("[data-tibia-inline-map]").forEach(initializeTibiaInlineMap);
+}
+
+function openMiniWorldChangeImageViewer(button) {
+  const src = String(button?.dataset?.miniWorldChangeImage || "").trim();
+  const caption = normalizeUiText(button?.dataset?.miniWorldChangeImageCaption || "");
+  if (!src || !els.miniWorldChangeImageViewer || !els.miniWorldChangeImageViewerImage) {
+    return;
+  }
+
+  els.miniWorldChangeImageViewerImage.src = src;
+  els.miniWorldChangeImageViewerImage.alt = caption;
+  if (els.miniWorldChangeImageViewerTitle) {
+    els.miniWorldChangeImageViewerTitle.textContent = caption || t("miniWorldChanges.image");
+  }
+  if (els.miniWorldChangeImageViewerCaption) {
+    els.miniWorldChangeImageViewerCaption.textContent = caption;
+    els.miniWorldChangeImageViewerCaption.classList.toggle("hidden", !caption);
+  }
+  els.miniWorldChangeImageViewer.classList.remove("hidden");
+  els.miniWorldChangeImageViewer.setAttribute("aria-hidden", "false");
+}
+
+function closeMiniWorldChangeImageViewer() {
+  els.miniWorldChangeImageViewer?.classList.add("hidden");
+  els.miniWorldChangeImageViewer?.setAttribute("aria-hidden", "true");
+  if (els.miniWorldChangeImageViewerImage) {
+    els.miniWorldChangeImageViewerImage.removeAttribute("src");
+    els.miniWorldChangeImageViewerImage.alt = "";
+  }
+}
+
+async function openMiniWorldChangeEntity(button) {
+  const kind = button.dataset.miniWorldChangeEntity || "";
+  const name = button.dataset.entityName || "";
+  if (!name) {
+    return;
+  }
+
+  if (kind === "item") {
+    await openLootItem(name);
+    return;
+  }
+
+  if (kind === "npc") {
+    pushCurrentNavigationEntry();
+    switchSection("npcs", { skipHistory: true });
+    await setEntityViewMode("npcs", { skipHistory: true });
+    await openNpcDetail(name, { skipHistory: true });
+    return;
+  }
+
+  if (kind === "creature") {
+    await openLootMonster(name);
+  }
+}
+
 function showFloatingTooltip(trigger) {
   const message = trigger?.dataset?.tooltip;
 
@@ -13671,6 +14390,9 @@ async function selectWorldSuggestion(field, world) {
   }
 
   refreshOpenBossTrackerForCurrentWorld();
+  if (state.miniWorldChangesLoaded || state.selectedSection === "mini-world-changes") {
+    void loadMiniWorldChanges({ force: true });
+  }
   scheduleWarmItemCache();
 }
 

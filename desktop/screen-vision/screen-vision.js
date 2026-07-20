@@ -478,6 +478,9 @@ const state = {
   tutorialTooltipSuppressed: false,
   profileSelectionPath: "",
   deferredRefreshPending: false,
+  lastRenderedRegionsSignature: "",
+  regionGridPointerActive: false,
+  regionGridInteractionUntil: 0,
   dockedPanel: {
     open: false,
     panelKey: "",
@@ -955,6 +958,23 @@ function bindEvents() {
       void unsnapRegion(regionId);
     }
   });
+
+  els.regionGrid?.addEventListener("pointerdown", () => {
+    state.regionGridPointerActive = true;
+    state.regionGridInteractionUntil = Number.POSITIVE_INFINITY;
+  });
+
+  const releaseRegionGridPointer = () => {
+    if (!state.regionGridPointerActive) {
+      return;
+    }
+
+    state.regionGridPointerActive = false;
+    state.regionGridInteractionUntil = Date.now() + 350;
+  };
+
+  window.addEventListener("pointerup", releaseRegionGridPointer);
+  window.addEventListener("pointercancel", releaseRegionGridPointer);
 
   els.regionGrid?.addEventListener("input", (event) => {
     const opacityInput = event.target.closest("[data-opacity-region-id]");
@@ -8349,6 +8369,13 @@ async function refreshRegions() {
     return;
   }
 
+  if (buildRegionsRenderSignature(state.regions) === state.lastRenderedRegionsSignature) {
+    renderToolbar();
+    renderNotice();
+    renderEmptyState();
+    return;
+  }
+
   render();
 }
 
@@ -8494,6 +8521,10 @@ function shouldPreserveInteractiveSurface() {
   );
 
   if (blockedTooltipActive) {
+    return true;
+  }
+
+  if (state.regionGridPointerActive || state.regionGridInteractionUntil > Date.now()) {
     return true;
   }
 
@@ -8658,6 +8689,25 @@ async function toggleAllRegionsLock() {
 }
 
 async function deleteRegion(regionId) {
+  if (!regionId) {
+    return;
+  }
+
+  // The native/store cleanup can take a moment. Remove the card immediately
+  // and reconcile with the persisted response when the operation finishes.
+  state.regions = state.regions.filter((region) => region.id !== regionId);
+  state.regionNamePatchTimers.delete(regionId);
+
+  if (state.openRegionNameEditorId === regionId) {
+    state.openRegionNameEditorId = "";
+  }
+
+  if (state.openCountdownRegionId === regionId) {
+    state.openCountdownRegionId = "";
+  }
+
+  render();
+
   const result = await window.screenVisionApi.regions.delete(regionId).catch(() => null);
   applyRegionsResponse(result);
 }
@@ -8935,6 +8985,7 @@ function render() {
 
   if (!state.regions.length) {
     els.regionGrid.innerHTML = "";
+    state.lastRenderedRegionsSignature = buildRegionsRenderSignature(state.regions);
     bindDynamicTooltips(els.regionGrid);
     if (!shouldPreserveCountdownModalRender()) {
       renderModal();
@@ -8943,10 +8994,15 @@ function render() {
   }
 
   els.regionGrid.innerHTML = state.regions.map((region) => renderRegionCard(region)).join("");
+  state.lastRenderedRegionsSignature = buildRegionsRenderSignature(state.regions);
   bindDynamicTooltips(els.regionGrid);
   if (!shouldPreserveCountdownModalRender()) {
     renderModal();
   }
+}
+
+function buildRegionsRenderSignature(regions) {
+  return JSON.stringify(Array.isArray(regions) ? regions : []);
 }
 
 function renderToolbar() {

@@ -117,7 +117,7 @@ const screenVisionSpellSoundMap = new Map(
 const screenVisionProfilesDir = path.join(app.getPath("userData"), "ScreenVision", "Profiles");
 const screenVisionLastProfilePath = path.join(app.getPath("userData"), "ScreenVision", "last-profile.txt");
 const assetCacheRoot = path.join(app.getPath("userData"), "assets-cache");
-const debugLogPath = path.join(projectRoot, "desktop-debug.log");
+const debugLogPath = path.join(app.getPath("userData"), "desktop-debug.log");
 const defaultOverlayOpacity = 1;
 const overlayBoundsSaveDelayMs = 250;
 const bootstrapAssetsRoot = path.join(projectRoot, "desktop", "build", "bootstrap");
@@ -158,7 +158,7 @@ async function migrateLegacyDocumentsDirectory() {
   }
 }
 const nativeHostDllPath = nativeHostDebugDllPath;
-const nativeHostDotnetPath = String(process.env.DOTNET_HOST_PATH || "dotnet").trim() || "dotnet";
+const nativeHostDotnetPath = path.join(projectRoot, "third_party", "dotnet", "sdk", "dotnet.exe");
 const nativeHostPipeId = runtimeIdentity.nativeHostPipeId;
 const nativeHostPipeName = `\\\\.\\pipe\\${nativeHostPipeId}`;
 const tibiaWindowPollIntervalMs = 220;
@@ -185,9 +185,9 @@ let applicationShutdownComplete = false;
 let nativeHostShutdownRequested = false;
 let closeChoiceDialogOpen = false;
 let activeClosePreference = null;
+let tutorialPopoverWindow = null;
 let wheelInformationWindow = null;
 let wheelInformationAnchor = null;
-let tutorialPopoverWindow = null;
 let tutorialExpandedWindowBounds = null;
 const screenVisionWindows = new Map();
 const countdownEditorWindows = new Map();
@@ -225,9 +225,14 @@ let nativeHostEventPollTimer = null;
 let tibiaWindowStateRequest = null;
 let lastTibiaWindowState = null;
 let lastGridOverlayTibiaSignature = "";
+let lastNativeMirrorsVisible = null;
+let lastNativeVisualOverlayVisible = null;
+let lastObsFocusLogSignature = "";
+let lastTibiaStateLogSignature = "";
 let selectionInProgress = false;
 let nativeHostProcess = null;
 let nativeHostStartPromise = null;
+let deferredNativeRuntimeStartupPromise = null;
 let nativeMirrorRegionCount = 0;
 let nativeMirrorsAlwaysOnTop = true;
 let nativeHostEventSyncInFlight = false;
@@ -281,15 +286,15 @@ const dockedToolPanelDefinitions = {
     description: "",
     width: 418
   },
-  "buy-me-a-coffee-panel": {
-    titleKey: "screenVision.coffee.title",
-    description: "",
-    width: 418
-  },
   "wheel-perks-panel": {
     titleKey: "wheel.summary.title",
     description: "",
     width: 390
+  },
+  "buy-me-a-coffee-panel": {
+    titleKey: "screenVision.coffee.title",
+    description: "",
+    width: 418
   }
 };
 
@@ -387,13 +392,6 @@ if (!hasSingleInstanceLock) {
     });
 
     await writeDebugLog("app.whenReady");
-    await ensureNativeHostStarted().catch(async (error) => {
-      await writeDebugLog(`native-host-start-failed ${error?.message || String(error)}`);
-    });
-    await writeDebugLog("bootstrap-screen-vision-profiles:start");
-    await bootstrapScreenVisionProfiles();
-    await writeDebugLog("bootstrap-screen-vision-profiles:finish");
-    await resetMirrorVisibilityForNewProcess();
     registerIpcHandlers();
     await writeDebugLog("create-overlay-window:start");
     mainWindow = await createOverlayWindow();
@@ -436,9 +434,6 @@ if (!hasSingleInstanceLock) {
     } else {
       await writeDebugLog(`app-updater-skipped channel=${runtimeChannel}`);
     }
-    await syncRegionMirrorWindows();
-    await syncAlertTimerHotkeys();
-
     app.on("activate", async () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         mainWindow = await createOverlayWindow();
@@ -736,35 +731,37 @@ function restoreMapWindowTopmost() {
   }
 }
 
-function getWheelInformationBounds(owner, rect, width, height) {
-  const ownerBounds = owner.getBounds();
-  const target = {
-    x: ownerBounds.x + Math.round(Number(rect?.x) || 0),
-    y: ownerBounds.y + Math.round(Number(rect?.y) || 0),
-    width: Math.max(1, Math.round(Number(rect?.width) || 1)),
-    height: Math.max(1, Math.round(Number(rect?.height) || 1))
-  };
-  const area = screen.getDisplayMatching(target).workArea;
-  const gap = 12;
-  const right = { x: target.x + target.width + gap, y: target.y + 8 };
-  const left = { x: target.x - width - gap, y: target.y + 8 };
-  const candidate = right.x + width <= area.x + area.width ? right : left;
-  return {
-    x: Math.max(area.x, Math.min(candidate.x, area.x + area.width - width)),
-    y: Math.max(area.y, Math.min(candidate.y, area.y + area.height - height)),
-    width,
-    height
-  };
-}
-
 function registerIpcHandlers() {
+  const getWheelInformationBounds = (owner, rect, width, height) => {
+    const ownerBounds = owner.getBounds();
+    const target = {
+      x: ownerBounds.x + Math.round(Number(rect?.x) || 0),
+      y: ownerBounds.y + Math.round(Number(rect?.y) || 0),
+      width: Math.max(1, Math.round(Number(rect?.width) || 1)),
+      height: Math.max(1, Math.round(Number(rect?.height) || 1))
+    };
+    const area = screen.getDisplayMatching(target).workArea;
+    const gap = 12;
+    const right = { x: target.x + target.width + gap, y: target.y + 8 };
+    const left = { x: target.x - width - gap, y: target.y + 8 };
+    const candidate = right.x + width <= area.x + area.width ? right : left;
+    return {
+      x: Math.max(area.x, Math.min(candidate.x, area.x + area.width - width)),
+      y: Math.max(area.y, Math.min(candidate.y, area.y + area.height - height)),
+      width,
+      height
+    };
+  };
+
   ipcMain.handle("wheel-information:show", async (event, payload = {}) => {
     const owner = BrowserWindow.fromWebContents(event.sender) || mainWindow;
     if (!owner || owner.isDestroyed()) return false;
+
     const width = 350;
     const height = 260;
     wheelInformationAnchor = { owner, rect: payload.rect || {} };
     const bounds = getWheelInformationBounds(owner, wheelInformationAnchor.rect, width, height);
+
     if (!wheelInformationWindow || wheelInformationWindow.isDestroyed()) {
       wheelInformationWindow = new BrowserWindow({
         ...bounds,
@@ -796,6 +793,7 @@ function registerIpcHandlers() {
       wheelInformationWindow.setParentWindow(owner);
       wheelInformationWindow.setBounds(bounds, false);
     }
+
     wheelInformationWindow.webContents.send("wheel-information:render", payload);
     wheelInformationWindow.showInactive();
     wheelInformationWindow.moveTop();
@@ -1110,6 +1108,7 @@ function registerIpcHandlers() {
       restoreMainWindowTopmost(window);
       window.focus();
       await writeDebugLog(`renderer-ready-show visible=${window.isVisible()} minimized=${window.isMinimized()}`);
+      scheduleDeferredNativeRuntimeStartup();
     }
 
     return true;
@@ -2004,11 +2003,16 @@ function registerIpcHandlers() {
     const shouldShowOverlays = await shouldShowScreenVisionOverlays(tibiaState).catch(() => false);
     // OBS is an allowed companion surface for the Mirror UI. Keep this separate
     // from the actual overlay visibility rule, which must still stay below OBS.
-    const obsStudioFocused = !shouldShowOverlays && await isObsStudioFocused();
+    const foregroundContext = !shouldShowOverlays && nativeMirrorRegionCount > 0
+      ? await getNativeForegroundContext()
+      : null;
+    const obsStudioFocused = Boolean(foregroundContext?.obsStudioFocused);
+    const mirrorInteractionActive = Boolean(foregroundContext?.mirrorInteractionActive);
+    const toolkitFocused = Boolean(foregroundContext?.toolkitFocused);
     const shouldShowMirrorUi = Boolean(
       shouldShowOverlays
       || (
-        obsStudioFocused
+        (obsStudioFocused || mirrorInteractionActive || toolkitFocused)
         && nativeMirrorRegionCount > 0
         && canUseTibiaWindowForScreenVision(tibiaState)
       )
@@ -2023,7 +2027,11 @@ function registerIpcHandlers() {
           shouldShowOverlays: false,
           shouldShowMirrorUi: false
         };
-    await writeDebugLog(`screen-vision-tibia-state ${JSON.stringify(payload)}`);
+    const payloadSignature = JSON.stringify(payload);
+    if (payloadSignature !== lastTibiaStateLogSignature) {
+      lastTibiaStateLogSignature = payloadSignature;
+      await writeDebugLog(`screen-vision-tibia-state ${payloadSignature}`);
+    }
     return payload;
   });
 
@@ -2034,6 +2042,36 @@ function registerIpcHandlers() {
   ipcMain.handle("screen-vision:capture:get-window-sources", async () => {
     return listDesktopSources("window");
   });
+}
+
+function scheduleDeferredNativeRuntimeStartup() {
+  if (deferredNativeRuntimeStartupPromise || nativeHostShutdownRequested || appIsQuitting) {
+    return deferredNativeRuntimeStartupPromise;
+  }
+
+  deferredNativeRuntimeStartupPromise = new Promise((resolve) => {
+    setTimeout(resolve, 1000);
+  })
+    .then(async () => {
+      if (nativeHostShutdownRequested || appIsQuitting) {
+        return;
+      }
+
+      await writeDebugLog("deferred-native-runtime:start");
+      await ensureNativeHostStarted();
+      await writeDebugLog("bootstrap-screen-vision-profiles:start");
+      await bootstrapScreenVisionProfiles();
+      await writeDebugLog("bootstrap-screen-vision-profiles:finish");
+      await resetMirrorVisibilityForNewProcess();
+      await syncRegionMirrorWindows();
+      await syncAlertTimerHotkeys();
+      await writeDebugLog("deferred-native-runtime:finish");
+    })
+    .catch(async (error) => {
+      await writeDebugLog(`deferred-native-runtime-failed ${error?.message || String(error)}`);
+    });
+
+  return deferredNativeRuntimeStartupPromise;
 }
 
 function normalizeAppUpdateInfo(info = {}) {
@@ -4135,6 +4173,12 @@ async function bootstrapRuntimeContent(runtimeConfig) {
       }
       const progress = Math.max(2, Math.min(62, Math.round((received / total) * 60)));
       void updateSplashProgress(progress);
+    },
+    onDiagnostic({ phase, code, sourceUrl, archiveUrl, attempt, error } = {}) {
+      const detail = error instanceof Error ? `${error.message}\n${error.stack || ""}` : String(error || "");
+      void writeDebugLog(
+        `content-pack-diagnostic phase=${phase || "unknown"} code=${code || "unknown"} attempt=${attempt || 0} source=${sourceUrl || ""} archive=${archiveUrl || ""} error=${detail}`
+      );
     }
   });
   runtimeAssetsRoot = result.assetsRoot;
@@ -4147,11 +4191,14 @@ async function bootstrapRuntimeContentWithRetry(runtimeConfig) {
       await bootstrapRuntimeContent(runtimeConfig);
       return;
     } catch (error) {
+      await writeDebugLog(
+        `content-pack-attempt-failed phase=${error?.phase || "unknown"} code=${error?.code || "unknown"} error=${error?.stack || error?.message || String(error)}`
+      );
       const choice = await dialog.showMessageBox(splashWindow || undefined, {
         type: "error",
         title: "Tibia Toolkit",
         message: tr("contentPack.failedTitle"),
-        detail: tr("contentPack.failedDetail"),
+        detail: getContentPackFailureDetail(error),
         buttons: [tr("contentPack.retry"), tr("contentPack.exit")],
         defaultId: 0,
         cancelId: 1,
@@ -4163,6 +4210,19 @@ async function bootstrapRuntimeContentWithRetry(runtimeConfig) {
       }
     }
   }
+}
+
+function getContentPackFailureDetail(error) {
+  if (error?.code === "CONTENT_DISK_SPACE") {
+    return tr("contentPack.failedDiskSpace");
+  }
+  if (error?.code === "CONTENT_CHECKSUM" || error?.code === "CONTENT_SIZE") {
+    return tr("contentPack.failedIntegrity");
+  }
+  if (error?.phase === "extract" || error?.phase === "activate") {
+    return tr("contentPack.failedPrepare");
+  }
+  return tr("contentPack.failedDetail");
 }
 
 async function loadRuntimeConfig() {
@@ -5084,16 +5144,17 @@ async function syncTibiaMirrorVisibility(forceFresh = false) {
 
   const tibiaState = await getTibiaWindowState({ forceFresh });
   const shouldShowOverlays = await shouldShowScreenVisionOverlays(tibiaState);
-  const obsCaptureFocused = Boolean(
-    !shouldShowOverlays
-    && nativeMirrorRegionCount > 0
-    && await isObsStudioFocused()
-  );
+  const foregroundContext = !shouldShowOverlays && nativeMirrorRegionCount > 0
+    ? await getNativeForegroundContext()
+    : null;
+  const obsCaptureFocused = Boolean(foregroundContext?.obsStudioFocused);
+  const mirrorInteractionActive = Boolean(foregroundContext?.mirrorInteractionActive);
+  const toolkitFocused = Boolean(foregroundContext?.toolkitFocused);
   // OBS needs active native mirror windows to remain rendered while its
   // preview is focused. They stay non-topmost above Tibia, behind OBS.
   const shouldShowMirrorOverlays = Boolean(
     shouldShowOverlays
-    || (obsCaptureFocused && canUseTibiaWindowForScreenVision(tibiaState))
+    || ((obsCaptureFocused || mirrorInteractionActive || toolkitFocused) && canUseTibiaWindowForScreenVision(tibiaState))
   );
   const mirrorsShouldBeTopmost = Boolean(
     tibiaState
@@ -5103,11 +5164,16 @@ async function syncTibiaMirrorVisibility(forceFresh = false) {
   await syncAlertTimerTibiaVisibilityGate(shouldShowOverlays);
   await setNativeMirrorsTopmost(mirrorsShouldBeTopmost);
   await setNativeMirrorsVisible(shouldShowMirrorOverlays);
-  await syncNativeAuxiliaryOverlays(null, { tibiaState, visible: shouldShowOverlays }).catch(async (error) => {
-    await writeDebugLog(`native-aux-visibility-sync-error ${error?.message || String(error)}`);
-  });
 
-  const nextGridSignature = buildGridOverlayTibiaSignature(tibiaState);
+  if (lastNativeVisualOverlayVisible !== shouldShowOverlays) {
+    lastNativeVisualOverlayVisible = shouldShowOverlays;
+    await syncNativeVisualCustomization(null, { tibiaState, visible: shouldShowOverlays }).catch(async (error) => {
+      lastNativeVisualOverlayVisible = null;
+      await writeDebugLog(`native-visual-visibility-sync-error ${error?.message || String(error)}`);
+    });
+  }
+
+  const nextGridSignature = buildGridOverlayTibiaSignature(tibiaState, shouldShowOverlays);
 
   if (nextGridSignature !== lastGridOverlayTibiaSignature) {
     lastGridOverlayTibiaSignature = nextGridSignature;
@@ -5118,16 +5184,27 @@ async function syncTibiaMirrorVisibility(forceFresh = false) {
 }
 
 async function isObsStudioFocused() {
+  const context = await getNativeForegroundContext();
+  return context.obsStudioFocused;
+}
+
+async function getNativeForegroundContext() {
   try {
     await ensureNativeHostStarted();
     const response = await callNativeHost({ command: "getForegroundProcess" });
     const processName = String(response?.data?.processName || "").trim().toLowerCase();
-    const focused = processName === "obs64" || processName === "obs" || processName === "obs64.exe" || processName === "obs.exe";
-    await writeDebugLog(`obs-studio-focus-probe process=${processName || "none"} focused=${focused}`);
-    return focused;
+    const obsStudioFocused = processName === "obs64" || processName === "obs" || processName === "obs64.exe" || processName === "obs.exe";
+    const mirrorInteractionActive = Boolean(response?.data?.mirrorInteractionActive);
+    const toolkitFocused = processName === "tibia toolkit" || processName === "tibia toolkit.exe" || processName === "electron" || processName === "electron.exe";
+    const logSignature = `${processName || "none"}:${obsStudioFocused}:${mirrorInteractionActive}:${toolkitFocused}`;
+    if (logSignature !== lastObsFocusLogSignature) {
+      lastObsFocusLogSignature = logSignature;
+      await writeDebugLog(`native-focus-probe process=${processName || "none"} obs=${obsStudioFocused} mirrorInteraction=${mirrorInteractionActive}`);
+    }
+    return { processName, obsStudioFocused, mirrorInteractionActive, toolkitFocused };
   } catch (error) {
     await writeDebugLog(`obs-mirror-focus-probe-failed ${error?.message || String(error)}`);
-    return false;
+    return { processName: "", obsStudioFocused: false, mirrorInteractionActive: false, toolkitFocused: false };
   }
 }
 
@@ -5231,11 +5308,17 @@ async function ensureNativeHostStarted() {
     });
 
     nativeHostProcess = child;
+    lastNativeMirrorsVisible = null;
+    lastNativeVisualOverlayVisible = null;
+    nativeMirrorsAlwaysOnTop = null;
 
     child.on("exit", (code, signal) => {
       void writeDebugLog(`native-host-exit code=${code ?? "null"} signal=${signal ?? "null"}`);
       if (nativeHostProcess === child) {
         nativeHostProcess = null;
+        lastNativeMirrorsVisible = null;
+        lastNativeVisualOverlayVisible = null;
+        nativeMirrorsAlwaysOnTop = null;
       }
     });
 
@@ -5265,9 +5348,7 @@ async function buildNativeHostIfNeeded() {
     return;
   }
 
-  if (path.isAbsolute(nativeHostDotnetPath) || nativeHostDotnetPath.includes("/") || nativeHostDotnetPath.includes("\\")) {
-    await fs.access(nativeHostDotnetPath);
-  }
+  await fs.access(nativeHostDotnetPath);
 
   let shouldBuild = false;
 
@@ -5288,7 +5369,7 @@ async function buildNativeHostIfNeeded() {
   }
 
   await writeDebugLog("native-host-build-start");
-  const nativeHostBuildArgs = ["build", nativeHostProjectPath, "-r", "win-x64", "--self-contained", "true"];
+  const nativeHostBuildArgs = ["build", nativeHostProjectPath];
 
   await execFileAsync(nativeHostDotnetPath, nativeHostBuildArgs, {
     cwd: projectRoot,
@@ -5577,16 +5658,23 @@ async function stopNativeRegionCountdown(regionId) {
 }
 
 async function setNativeMirrorsVisible(visible) {
+  const next = Boolean(visible);
+
+  if (lastNativeMirrorsVisible === next) {
+    return { ok: true, skipped: true, visible: next };
+  }
+
   await ensureNativeHostStarted();
   const response = await callNativeHost({
     command: "setMirrorsVisible",
-    visible
+    visible: next
   });
 
   if (!response?.ok) {
     throw new Error(response?.error || "native-set-mirrors-visible-failed");
   }
 
+  lastNativeMirrorsVisible = next;
   return response;
 }
 
@@ -6350,24 +6438,29 @@ function stopAllAlertTimerRuntimes(options = {}) {
 function resolveAlertTimerSoundFile(timer) {
   const soundKey = typeof timer?.soundKey === "string" ? timer.soundKey.trim() : "";
   const bundled = {
-    "utura-gran": resolveRuntimeFilePath("assets/screen-vision/reference/sounds/utura gran.ogg"),
-    "exura-gran-ico": resolveRuntimeFilePath("assets/screen-vision/reference/sounds/exura gran ico.ogg"),
-    "utito-tempo": resolveRuntimeFilePath("assets/screen-vision/reference/sounds/utito tempo.ogg")
+    "utura-gran": resolveRuntimeFilePath("assets/screen-vision/reference/sounds/spells/utura gran.ogg"),
+    "exura-gran-ico": resolveRuntimeFilePath("assets/screen-vision/reference/sounds/spells/exura gran ico.ogg"),
+    "utito-tempo": resolveRuntimeFilePath("assets/screen-vision/reference/sounds/spells/utito tempo.ogg")
   };
 
   if (typeof timer?.customSoundPath === "string" && timer.customSoundPath.trim()) {
     try {
-      return path.resolve(timer.customSoundPath.trim());
+      const customSoundPath = path.resolve(timer.customSoundPath.trim());
+      if (fsSync.existsSync(customSoundPath)) {
+        return customSoundPath;
+      }
     } catch {
-      return "";
     }
   }
 
   if (screenVisionSpellSoundMap.has(soundKey)) {
-    return screenVisionSpellSoundMap.get(soundKey) || "";
+    const mappedSoundPath = screenVisionSpellSoundMap.get(soundKey) || "";
+    if (mappedSoundPath && fsSync.existsSync(mappedSoundPath)) {
+      return mappedSoundPath;
+    }
   }
 
-  if (bundled[soundKey]) {
+  if (bundled[soundKey] && fsSync.existsSync(bundled[soundKey])) {
     return bundled[soundKey];
   }
 
@@ -8790,6 +8883,9 @@ function areBoundsEqual(left, right) {
 function stopNativeHostProcess() {
   if (!nativeHostProcess || nativeHostProcess.killed || nativeHostProcess.exitCode !== null) {
     nativeHostProcess = null;
+    lastNativeMirrorsVisible = null;
+    lastNativeVisualOverlayVisible = null;
+    nativeMirrorsAlwaysOnTop = null;
     return;
   }
 
@@ -8799,6 +8895,9 @@ function stopNativeHostProcess() {
   }
 
   nativeHostProcess = null;
+  lastNativeMirrorsVisible = null;
+  lastNativeVisualOverlayVisible = null;
+  nativeMirrorsAlwaysOnTop = null;
 }
 
 function delay(ms) {
@@ -8857,12 +8956,13 @@ function canUseTibiaWindowForScreenVision(tibiaState) {
   );
 }
 
-function buildGridOverlayTibiaSignature(tibiaState) {
+function buildGridOverlayTibiaSignature(tibiaState, visible = false) {
   const clientBounds = tibiaState?.clientBounds || {};
   const bounds = tibiaState?.bounds || {};
 
   return JSON.stringify({
     hwnd: Number(tibiaState?.hwnd || 0),
+    visible: Boolean(visible),
     title: String(tibiaState?.title || ""),
     isVisible: Boolean(tibiaState?.isVisible),
     isMaximized: Boolean(tibiaState?.isMaximized),
