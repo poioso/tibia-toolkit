@@ -206,6 +206,10 @@
               <img src="assets/ui/nav-npcs-criaturas.png" alt="">
               <span data-i18n="panel.npcs.title">NPCs/Criaturas</span>
             </button>
+            <button class="nav-button" data-section="mini-world-changes" data-tooltip="Mini World Changes" aria-label="Mini World Changes" data-i18n-tooltip="panel.miniWorldChanges.title" data-i18n-aria-label="panel.miniWorldChanges.title">
+              <img src="assets/ui/world-board.gif" alt="">
+              <span data-i18n="panel.miniWorldChanges.title">Mini World Changes</span>
+            </button>
           </nav>
           <button type="button" class="nav-scroll-button nav-scroll-right" data-nav-scroll="right" aria-label="Rolar abas para direita" data-i18n-aria-label="toolbar.scrollTabsRight">&rsaquo;</button>
         </div>
@@ -1236,6 +1240,51 @@
             </article>
           </div>
         </section>
+
+        <section class="panel mini-world-changes-panel" id="panel-mini-world-changes">
+          <div id="mini-world-changes-overview" class="mini-world-changes-overview">
+            <section class="mini-world-changes-section" aria-labelledby="mini-world-changes-active-title">
+              <div class="mini-world-changes-heading-row">
+                <div>
+                  <p class="section-kicker" data-i18n="miniWorldChanges.today">Hoje neste mundo</p>
+                  <h2 id="mini-world-changes-active-title" data-i18n="miniWorldChanges.activeTitle">Mini World Changes ativas</h2>
+                </div>
+                <span class="status-badge" id="mini-world-changes-world-name"></span>
+              </div>
+              <div id="mini-world-changes-active" class="mini-world-changes-active-grid"></div>
+            </section>
+
+            <section class="mini-world-changes-section" aria-labelledby="mini-world-changes-catalog-title">
+              <div class="mini-world-changes-heading-row">
+                <div>
+                  <p class="section-kicker" data-i18n="miniWorldChanges.reference">Consulta manual</p>
+                  <h2 id="mini-world-changes-catalog-title" data-i18n="miniWorldChanges.catalogTitle">Todas as Mini World Changes</h2>
+                </div>
+                <span class="status-badge" id="mini-world-changes-count"></span>
+              </div>
+              <div id="mini-world-changes-catalog" class="mini-world-changes-catalog-list"></div>
+            </section>
+          </div>
+
+          <article id="mini-world-change-detail" class="mini-world-change-detail hidden">
+            <header class="mini-world-change-detail-header">
+              <button type="button" id="mini-world-change-back" class="image-action-button mini-world-change-back" data-tooltip="Voltar" aria-label="Voltar" data-i18n-tooltip="common.back" data-i18n-aria-label="common.back">
+                <img src="assets/ui/desktop-history/voltar-on.png" alt="">
+              </button>
+              <div>
+                <p class="section-kicker" data-i18n="panel.miniWorldChanges.title">Mini World Changes</p>
+                <h2 id="mini-world-change-detail-title" data-i18n-preserve></h2>
+              </div>
+              <span id="mini-world-change-active-badge" class="status-badge hidden" data-i18n="miniWorldChanges.active">Ativa hoje</span>
+            </header>
+            <div id="mini-world-change-detail-content" class="mini-world-change-detail-content"></div>
+            <footer class="mini-world-change-detail-footer">
+              <button type="button" id="mini-world-change-open-wiki" class="entity-link-chip">
+                <span data-i18n="common.openWiki">Abrir wiki</span>
+              </button>
+            </footer>
+          </article>
+        </section>
       </main>
 
       <aside class="desktop-docked-panel hidden" id="desktop-docked-panel" aria-hidden="true">
@@ -1272,6 +1321,21 @@
       </div>
     </div>
 
+    <div id="mini-world-change-image-viewer" class="map-modal mini-world-change-image-viewer hidden" aria-hidden="true">
+      <div class="map-modal-card mini-world-change-image-viewer-card">
+        <div class="map-modal-header">
+          <strong id="mini-world-change-image-viewer-title">Imagem</strong>
+          <button type="button" id="mini-world-change-image-viewer-close" class="mini-world-change-image-viewer-close" aria-label="Fechar" data-i18n-aria-label="common.close">
+            <img src="assets/ui/Cross.png" alt="" aria-hidden="true">
+          </button>
+        </div>
+        <div class="mini-world-change-image-viewer-body">
+          <img id="mini-world-change-image-viewer-image" alt="">
+          <p id="mini-world-change-image-viewer-caption" class="hidden"></p>
+        </div>
+      </div>
+    </div>
+
     <span id="app-version-micro" class="app-version-micro" data-tooltip="" aria-label=""></span>
 
     <div id="global-loading-overlay" class="global-loading-overlay splash-mode" aria-live="polite" aria-hidden="false">
@@ -1293,7 +1357,5 @@
 
     <script src="node_modules/leaflet/dist/leaflet.js"></script>
     <script type="module" src="app.js"></script>
-    <script type="module" src="desktop/tutorial-tour.js"></script>
-    <script type="module" src="desktop/screen-vision/screen-vision.js"></script>
   </body>
 </html>

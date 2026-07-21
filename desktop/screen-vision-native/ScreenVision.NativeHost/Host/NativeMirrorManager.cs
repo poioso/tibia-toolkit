@@ -12,6 +12,7 @@ internal sealed class NativeMirrorManager : IDisposable
     private readonly GlobalHotkeyListener _hotkeyListener;
     private bool _mirrorsVisible = true;
     private bool _mirrorsAlwaysOnTop = true;
+    private string _snapTopologySignature = "";
 
     internal NativeMirrorManager(NativeHostEventQueue eventQueue)
     {
@@ -27,9 +28,14 @@ internal sealed class NativeMirrorManager : IDisposable
         {
             var tibiaInfo = Interop.WindowProbe.GetTibiaWindowInfo();
             var visibleIds = new HashSet<string>(mirrors.Select((entry) => entry.Id), StringComparer.OrdinalIgnoreCase);
+            var existingIds = _windows.Keys.OrderBy((entry) => entry, StringComparer.OrdinalIgnoreCase).ToArray();
+            var incomingIds = visibleIds.OrderBy((entry) => entry, StringComparer.OrdinalIgnoreCase).ToArray();
+            Console.Error.WriteLine(
+                $"mirror-sync begin incoming={mirrors.Count} existing={_windows.Count} incomingIds=[{string.Join(',', incomingIds)}] existingIds=[{string.Join(',', existingIds)}]");
 
             foreach (var staleId in _windows.Keys.Where((key) => !visibleIds.Contains(key)).ToList())
             {
+                Console.Error.WriteLine($"mirror-sync action=remove id={staleId}");
                 CloseWindow(staleId);
             }
 
@@ -37,11 +43,16 @@ internal sealed class NativeMirrorManager : IDisposable
             {
                 if (!_windows.TryGetValue(mirror.Id, out var window))
                 {
+                    Console.Error.WriteLine($"mirror-sync action=create id={mirror.Id}");
                     window = new RegionMirrorWindow(mirror, () => _windows.Values);
                     window.BoundsChanged += OnWindowBoundsChanged;
                     window.ActionRequested += OnWindowActionRequested;
                     window.ClosedByUser += OnWindowClosedByUser;
                     _windows[mirror.Id] = window;
+                }
+                else
+                {
+                    Console.Error.WriteLine($"mirror-sync action=reuse id={mirror.Id}");
                 }
 
                 window.ApplySpec(mirror, tibiaInfo);
@@ -49,8 +60,16 @@ internal sealed class NativeMirrorManager : IDisposable
                 window.SetMirrorsVisible(_mirrorsVisible, tibiaInfo);
             }
 
-            RestoreSnapGroups();
+            var nextSnapTopologySignature = BuildSnapTopologySignature();
+            var hasActiveInteraction = _windows.Values.Any((window) => window.IsInteractionActive);
+            if (!hasActiveInteraction
+                && !string.Equals(_snapTopologySignature, nextSnapTopologySignature, StringComparison.Ordinal))
+            {
+                RestoreSnapGroups();
+                _snapTopologySignature = nextSnapTopologySignature;
+            }
             RebuildHotkeyMap(mirrors);
+            Console.Error.WriteLine($"mirror-sync end windows={_windows.Count}");
 
         });
     }
@@ -81,6 +100,12 @@ internal sealed class NativeMirrorManager : IDisposable
                 window.SetAlwaysOnTop(enabled);
             }
         });
+    }
+
+    internal async Task<bool> HasActiveInteractionAsync()
+    {
+        return await Application.Current.Dispatcher.InvokeAsync(() =>
+            _windows.Values.Any((window) => window.IsInteractionActive));
     }
 
     internal async Task PreviewOpacityAsync(string regionId, int opacity)
@@ -304,6 +329,26 @@ internal sealed class NativeMirrorManager : IDisposable
 
             snapGroup.UpdateBorderDisplay();
         }
+    }
+
+    private string BuildSnapTopologySignature()
+    {
+        return string.Join(
+            ";",
+            _windows
+                .OrderBy((entry) => entry.Key, StringComparer.OrdinalIgnoreCase)
+                .Select((entry) =>
+                {
+                    var bounds = entry.Value.GetMirrorBounds();
+                    return string.Join(
+                        ":",
+                        entry.Key,
+                        entry.Value.AllowSnapping ? "1" : "0",
+                        Math.Round(bounds.Left),
+                        Math.Round(bounds.Top),
+                        Math.Round(bounds.Width),
+                        Math.Round(bounds.Height));
+                }));
     }
 
     private void ClearSnapGroups()

@@ -127,7 +127,7 @@ internal sealed class PipeServer : IDisposable
             {
                 "ping" => JsonSerializer.Serialize(new { ok = true, command, data = new { status = "alive" } }),
                 "getTibiaWindow" => JsonSerializer.Serialize(new { ok = true, command, data = WindowProbe.GetTibiaWindowInfo() }),
-                "getForegroundProcess" => JsonSerializer.Serialize(new { ok = true, command, data = new { processName = WindowProbe.GetForegroundProcessName() } }),
+                "getForegroundProcess" => await GetForegroundContextAsync(command).ConfigureAwait(false),
                 "isAnyControllerFocused" => JsonSerializer.Serialize(new { ok = true, command, data = new { focused = IsAnyControllerFocused(root) } }),
                 "isTibiaBehindControllers" => JsonSerializer.Serialize(new { ok = true, command, data = new { visible = IsTibiaBehindControllers(root) } }),
                 "syncMirrors" => await SyncMirrorsAsync(root, command).ConfigureAwait(false),
@@ -150,6 +150,21 @@ internal sealed class PipeServer : IDisposable
         {
             return JsonSerializer.Serialize(new { ok = false, error = "invalid-request", message = ex.Message });
         }
+    }
+
+    private async Task<string> GetForegroundContextAsync(string command)
+    {
+        var mirrorInteractionActive = await _mirrorManager.HasActiveInteractionAsync().ConfigureAwait(false);
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            command,
+            data = new
+            {
+                processName = WindowProbe.GetForegroundProcessName(),
+                mirrorInteractionActive
+            }
+        });
     }
 
     private static bool IsTibiaBehindControllers(JsonElement root)

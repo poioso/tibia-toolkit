@@ -6,6 +6,7 @@ internal static class WindowStyleInterop
 {
     private const int GwlExStyle = -20;
     private const int WsExToolWindow = 0x80;
+    private const int WsExTopmost = 0x08;
     private const int WsExTransparent = 0x20;
     private const int WsExLayered = 0x80000;
     private const int WsExNoActivate = 0x8000000;
@@ -25,7 +26,7 @@ internal static class WindowStyleInterop
     [DllImport("user32.dll")]
     private static extern int SetWindowLong(IntPtr hwnd, int index, int newLong);
 
-    [DllImport("user32.dll")]
+    [DllImport("user32.dll", SetLastError = true)]
     private static extern bool SetWindowPos(
         IntPtr hwnd,
         IntPtr hwndInsertAfter,
@@ -48,6 +49,11 @@ internal static class WindowStyleInterop
         return GetWindowLong(hwnd, GwlExStyle);
     }
 
+    internal static bool IsWindowAlwaysOnTop(IntPtr hwnd)
+    {
+        return hwnd != IntPtr.Zero && (GetWindowExtendedStyle(hwnd) & WsExTopmost) != 0;
+    }
+
     internal static void SetWindowExtendedStyle(IntPtr hwnd, int style)
     {
         if (hwnd == IntPtr.Zero)
@@ -58,14 +64,14 @@ internal static class WindowStyleInterop
         SetWindowLong(hwnd, GwlExStyle, style);
     }
 
-    internal static void SetWindowAlwaysOnTop(IntPtr hwnd, bool enabled)
+    internal static bool SetWindowAlwaysOnTop(IntPtr hwnd, bool enabled)
     {
         if (hwnd == IntPtr.Zero)
         {
-            return;
+            return false;
         }
 
-        SetWindowPos(
+        return SetWindowPos(
             hwnd,
             enabled ? HwndTopmost : HwndNotTopmost,
             0,
@@ -73,6 +79,27 @@ internal static class WindowStyleInterop
             0,
             0,
             SwpNoMove | SwpNoSize | SwpNoActivate);
+    }
+
+    internal static bool ForceWindowAlwaysOnTop(IntPtr hwnd, out int error)
+    {
+        error = 0;
+        if (hwnd == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        // A WPF ContextMenu can leave its owner in the normal z-order band
+        // while the managed Topmost property still reports true. Crossing the
+        // boundary explicitly makes Windows rebuild the native z-order state.
+        SetWindowAlwaysOnTop(hwnd, false);
+        var success = SetWindowAlwaysOnTop(hwnd, true);
+        if (!success)
+        {
+            error = Marshal.GetLastWin32Error();
+        }
+
+        return success && IsWindowAlwaysOnTop(hwnd);
     }
 
     internal static void PlaceWindowAbove(IntPtr hwnd, IntPtr referenceHwnd)
@@ -93,6 +120,23 @@ internal static class WindowStyleInterop
         SetWindowPos(
             hwnd,
             insertAfter,
+            0,
+            0,
+            0,
+            0,
+            SwpNoMove | SwpNoSize | SwpNoActivate);
+    }
+
+    internal static void BringWindowToFrontNoActivate(IntPtr hwnd, bool topmost)
+    {
+        if (hwnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        SetWindowPos(
+            hwnd,
+            topmost ? HwndTopmost : HwndTop,
             0,
             0,
             0,

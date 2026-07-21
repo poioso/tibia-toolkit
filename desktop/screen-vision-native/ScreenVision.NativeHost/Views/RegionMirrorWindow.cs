@@ -1,4 +1,5 @@
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,6 +18,8 @@ namespace ScreenVision.NativeHost.Views;
 
 internal sealed class RegionMirrorWindow : Window
 {
+    private static RegionMirrorWindow? _activeContextMenuOwner;
+    private static readonly GlobalMouseClickListener ContextMenuMouseClickListener = CreateContextMenuMouseClickListener();
     private const double MirrorFramePadding = 12;
     private static readonly SolidColorBrush MirrorAccentBrush = new(Color.FromRgb(88, 196, 112));
     private readonly Border _selectionBorder;
@@ -30,6 +33,10 @@ internal sealed class RegionMirrorWindow : Window
     private readonly TextBlock _resizeInfoText;
     private readonly DispatcherTimer _boundsChangedTimer;
     private readonly DispatcherTimer _countdownTimer;
+    private readonly DispatcherTimer _contextMenuTopmostRepairTimer = new()
+    {
+        Interval = TimeSpan.FromMilliseconds(450)
+    };
     private MirrorWindowSpec _spec;
     private IntPtr _sourceHwnd;
     private IntPtr _thumbnail;
@@ -58,18 +65,49 @@ internal sealed class RegionMirrorWindow : Window
     private DateTime _countdownEndTime;
     private double _currentScale;
     private bool _isDraggingGlowIntensity;
-    private Point _lastContextMenuScreenPoint;
-    private DispatcherTimer? _contextMenuPromoteTimer;
+    private bool? _appliedLockState;
+    private bool? _appliedAlwaysOnTop;
+    private IntPtr _appliedZOrderSourceHwnd;
+    private DateTime _preserveLocalBoundsUntilUtc = DateTime.MinValue;
+    private DateTime _preserveInteractionUntilUtc = DateTime.MinValue;
+    private DateTime _suppressContextMenuOpenUntilUtc = DateTime.MinValue;
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out NativePoint point);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        internal int X;
+        internal int Y;
+    }
 
     internal string RegionId => _spec.Id;
     internal bool IsLocked => _spec.IsLocked;
     internal bool AllowSnapping => _spec.AllowSnapping;
     internal bool IsOverlayVisible => _globalVisible && _spec.IsVisible && _sourceHwnd != IntPtr.Zero;
     internal bool IsAlwaysOnTop => _alwaysOnTop;
+    internal bool IsInteractionActive => _isDragging
+        || _isResizing
+        || _currentSnapGroup?.IsDragging == true
+        || !_spec.IsLocked
+        || ContextMenu?.IsOpen == true
+        || DateTime.UtcNow < _preserveInteractionUntilUtc;
+    private double MirrorVisualOpacity => Math.Clamp(_spec.Opacity / 100.0, 0.15, 1.0);
     internal IntPtr SourceHwnd => _sourceHwnd;
     internal event EventHandler<RectInfo>? BoundsChanged;
 
     internal event EventHandler<RegionMirrorActionEventArgs>? ActionRequested;
+
+    internal void PromoteForInteraction()
+    {
+        WindowStyleInterop.BringWindowToFrontNoActivate(_windowHandle, _alwaysOnTop);
+    }
+
+    internal void FlushInteractionBounds()
+    {
+        FlushBoundsChanged();
+    }
 
     internal event EventHandler<string>? ClosedByUser;
 
@@ -191,16 +229,27 @@ internal sealed class RegionMirrorWindow : Window
 
         grid.Children.Add(_flashBorder);
         Content = grid;
-        ContextMenu = new ContextMenu();
+        ContextMenu = new ContextMenu { StaysOpen = false };
         MirrorContextMenuTheme.Apply(ContextMenu);
         ContextMenu.Opened += (_, _) =>
         {
-            UpdateContextMenuItems();
+            CloseActiveContextMenu();
+            _activeContextMenuOwner = this;
+            Console.Error.WriteLine($"mirror-context-menu id={_spec.Id} state=opened");
             StartContextMenuPromotion();
+            ContextMenuMouseClickListener.Start();
         };
         ContextMenu.Closed += (_, _) =>
         {
-            StopContextMenuPromotion();
+            _preserveInteractionUntilUtc = DateTime.UtcNow.AddMilliseconds(900);
+            if (ReferenceEquals(_activeContextMenuOwner, this))
+            {
+                _activeContextMenuOwner = null;
+                ContextMenuMouseClickListener.Stop();
+            }
+            Console.Error.WriteLine($"mirror-context-menu id={_spec.Id} state=closed");
+            _contextMenuTopmostRepairTimer.Stop();
+            _contextMenuTopmostRepairTimer.Start();
         };
         UpdateContextMenuItems();
 
@@ -214,7 +263,27 @@ internal sealed class RegionMirrorWindow : Window
             Interval = TimeSpan.FromMilliseconds(16)
         };
         _countdownTimer.Tick += OnCountdownTimerTick;
+        _contextMenuTopmostRepairTimer.Tick += (_, _) =>
+        {
+            _contextMenuTopmostRepairTimer.Stop();
+            if (!IsLoaded || !IsOverlayVisible)
+            {
+                return;
+            }
 
+            var tibiaInfo = WindowProbe.GetTibiaWindowInfo();
+            var shouldBeTopmost = tibiaInfo?.IsForeground == true;
+            var nativeTopmostBefore = WindowStyleInterop.IsWindowAlwaysOnTop(_windowHandle);
+            var repairSucceeded = true;
+            var repairError = 0;
+            if (shouldBeTopmost)
+            {
+                (repairSucceeded, repairError) = RepairAlwaysOnTopAfterContextMenu();
+            }
+
+            Console.Error.WriteLine(
+                $"mirror-context-menu id={_spec.Id} state=topmost-checked should={shouldBeTopmost} before={nativeTopmostBefore} after={WindowStyleInterop.IsWindowAlwaysOnTop(_windowHandle)} repaired={repairSucceeded} error={repairError} thumbnail={_thumbnail}");
+        };
         SourceInitialized += OnSourceInitialized;
         Closed += OnClosed;
         SizeChanged += OnWindowSizeChanged;
@@ -247,21 +316,37 @@ internal sealed class RegionMirrorWindow : Window
 
     internal void ApplySpec(MirrorWindowSpec spec, TibiaWindowInfo? tibiaInfo)
     {
+        var previousSpec = _spec;
+        var sourceBoundsChanged = !AreBoundsEqual(previousSpec.CaptureBounds, spec.CaptureBounds)
+            || !AreBoundsEqual(previousSpec.RelativeBounds, spec.RelativeBounds);
         _spec = spec;
-        _suspendBoundsEvents = true;
         Title = BuildObsWindowTitle(spec.Id);
-        Left = spec.MirrorBounds.X;
-        Top = spec.MirrorBounds.Y;
-        Width = Math.Max(24, spec.MirrorBounds.Width);
-        Height = Math.Max(24, spec.MirrorBounds.Height);
-        _lastReportedBounds = spec.MirrorBounds;
-        _suspendBoundsEvents = false;
+        var preserveLocalBounds = IsInteractionActive || DateTime.UtcNow < _preserveLocalBoundsUntilUtc;
+        if (!preserveLocalBounds)
+        {
+            var currentBounds = GetCurrentMirrorBounds();
+            if (!AreBoundsEqual(currentBounds, spec.MirrorBounds))
+            {
+                _suspendBoundsEvents = true;
+                Left = spec.MirrorBounds.X;
+                Top = spec.MirrorBounds.Y;
+                Width = Math.Max(24, spec.MirrorBounds.Width);
+                Height = Math.Max(24, spec.MirrorBounds.Height);
+                _suspendBoundsEvents = false;
+            }
+
+            _lastReportedBounds = spec.MirrorBounds;
+        }
         _currentScale = ResolveCurrentScale();
         ApplyOpacity();
         ApplyLockState();
         ApplyGlowState();
         ApplyCountdownSpec();
         UpdateSourceHandle(tibiaInfo);
+        if (sourceBoundsChanged && _thumbnail != IntPtr.Zero)
+        {
+            UpdateThumbnail();
+        }
         ApplyVisibilityState();
 
         if (ContextMenu?.IsOpen != true)
@@ -309,6 +394,19 @@ internal sealed class RegionMirrorWindow : Window
 
     internal void SetMirrorsVisible(bool visible, TibiaWindowInfo? tibiaInfo)
     {
+        if (!visible && ReferenceEquals(_activeContextMenuOwner, this))
+        {
+            CloseActiveContextMenu();
+        }
+
+        var nextSourceHandle = tibiaInfo is null ? IntPtr.Zero : new IntPtr(tibiaInfo.Hwnd);
+        if (_globalVisible == visible
+            && nextSourceHandle == _sourceHwnd
+            && (_sourceHwnd == IntPtr.Zero || _thumbnail != IntPtr.Zero))
+        {
+            return;
+        }
+
         _globalVisible = visible;
         UpdateSourceHandle(tibiaInfo);
         ApplyVisibilityState();
@@ -316,6 +414,14 @@ internal sealed class RegionMirrorWindow : Window
 
     internal void SetAlwaysOnTop(bool enabled)
     {
+        if (_appliedAlwaysOnTop == enabled
+            && _appliedZOrderSourceHwnd == _sourceHwnd
+            && Topmost == enabled
+            && (_windowHandle == IntPtr.Zero || WindowStyleInterop.IsWindowAlwaysOnTop(_windowHandle) == enabled))
+        {
+            return;
+        }
+
         _alwaysOnTop = enabled;
         Topmost = enabled;
 
@@ -344,11 +450,29 @@ internal sealed class RegionMirrorWindow : Window
             }
         }
         _currentSnapGroup?.SyncTopmostFromWindows();
+        _appliedAlwaysOnTop = enabled;
+        _appliedZOrderSourceHwnd = _sourceHwnd;
+    }
 
-        if (ContextMenu?.IsOpen == true)
+    private (bool Success, int Error) RepairAlwaysOnTopAfterContextMenu()
+    {
+        if (_windowHandle == IntPtr.Zero)
         {
-            Dispatcher.BeginInvoke(PromoteContextMenuPopup, DispatcherPriority.ContextIdle);
+            return (false, 0);
         }
+
+        _alwaysOnTop = true;
+
+        // Toggle the managed flag as well. ContextMenu teardown can leave WPF's
+        // cached value at true even though Windows removed WS_EX_TOPMOST.
+        Topmost = false;
+        Topmost = true;
+
+        var success = WindowStyleInterop.ForceWindowAlwaysOnTop(_windowHandle, out var error);
+        _appliedAlwaysOnTop = true;
+        _appliedZOrderSourceHwnd = _sourceHwnd;
+        _currentSnapGroup?.SyncTopmostFromWindows();
+        return (success, error);
     }
 
     private void OnSourceInitialized(object? sender, EventArgs e)
@@ -357,6 +481,7 @@ internal sealed class RegionMirrorWindow : Window
         WindowStyleInterop.EnableToolWindow(_windowHandle);
         WindowStyleInterop.SetWindowAlwaysOnTop(_windowHandle, _alwaysOnTop);
         ApplyWindowBehavior();
+        _appliedLockState = _spec.IsLocked;
         UpdateSourceHandle(WindowProbe.GetTibiaWindowInfo());
         ApplyVisibilityState();
     }
@@ -365,6 +490,12 @@ internal sealed class RegionMirrorWindow : Window
     {
         _boundsChangedTimer.Stop();
         _countdownTimer.Stop();
+        _contextMenuTopmostRepairTimer.Stop();
+        if (ReferenceEquals(_activeContextMenuOwner, this))
+        {
+            _activeContextMenuOwner = null;
+            ContextMenuMouseClickListener.Stop();
+        }
         _flashTimer?.Stop();
         _currentSnapGroup?.RemoveWindow(this);
         HideCountdownBar();
@@ -399,6 +530,9 @@ internal sealed class RegionMirrorWindow : Window
 
         try
         {
+            CloseActiveContextMenu();
+            Console.Error.WriteLine($"mirror-interaction id={_spec.Id} action=left-down opacity={_spec.Opacity}");
+            BringInteractionLayerToFront();
             _isDragging = true;
             _skipSnapForCurrentDrag = _skipSnapOnNextDragStart;
             _skipSnapOnNextDragStart = false;
@@ -538,12 +672,32 @@ internal sealed class RegionMirrorWindow : Window
             return;
         }
 
-        _lastContextMenuScreenPoint = PointToScreen(e.GetPosition(this));
+        if (DateTime.UtcNow < _suppressContextMenuOpenUntilUtc)
+        {
+            Console.Error.WriteLine($"mirror-context-menu id={_spec.Id} state=reopen-suppressed");
+            e.Handled = true;
+            return;
+        }
+
+        Console.Error.WriteLine($"mirror-interaction id={_spec.Id} action=right-up opacity={_spec.Opacity}");
+        CloseActiveContextMenu();
+        BringInteractionLayerToFront();
         UpdateContextMenuItems();
         ContextMenu.PlacementTarget = _interactionSurface;
         ContextMenu.Placement = PlacementMode.MousePoint;
         ContextMenu.IsOpen = true;
         e.Handled = true;
+    }
+
+    private void BringInteractionLayerToFront()
+    {
+        if (_currentSnapGroup is not null && _currentSnapGroup.Windows.Count > 1)
+        {
+            _currentSnapGroup.BringToFront(this);
+            return;
+        }
+
+        PromoteForInteraction();
     }
 
     private void OnWindowLocationChanged(object? sender, EventArgs e)
@@ -585,6 +739,7 @@ internal sealed class RegionMirrorWindow : Window
         }
 
         _lastReportedBounds = currentBounds;
+        _preserveLocalBoundsUntilUtc = DateTime.UtcNow.AddSeconds(1);
         BoundsChanged?.Invoke(this, currentBounds);
     }
 
@@ -619,10 +774,6 @@ internal sealed class RegionMirrorWindow : Window
             if (_thumbnail == IntPtr.Zero)
             {
                 RefreshThumbnail();
-            }
-            else
-            {
-                UpdateThumbnail();
             }
 
             return;
@@ -762,20 +913,35 @@ internal sealed class RegionMirrorWindow : Window
 
     private void ApplyOpacity()
     {
-        Opacity = Math.Clamp(_spec.Opacity / 100.0, 0.15, 1.0);
+        // The DWM thumbnail already applies the requested visual opacity. If the
+        // layered WPF window is faded too, its 1-alpha hit surface can round to
+        // fully transparent and let pointer input pass through to Tibia.
+        Opacity = 1.0;
 
         if (_countdownBarWindow is not null)
         {
-            _countdownBarWindow.Opacity = Opacity;
+            _countdownBarWindow.Opacity = MirrorVisualOpacity;
         }
     }
 
     private void ApplyLockState()
     {
+        if (_spec.IsLocked && ReferenceEquals(_activeContextMenuOwner, this))
+        {
+            CloseActiveContextMenu();
+        }
+
         UpdateSnapGroupBorders();
         _resizeHandle.Visibility = _spec.IsLocked ? Visibility.Collapsed : Visibility.Visible;
         _resizeInfoBadge.Visibility = Visibility.Collapsed;
-        ApplyWindowBehavior();
+        if (_appliedLockState != _spec.IsLocked)
+        {
+            ApplyWindowBehavior();
+            if (_windowHandle != IntPtr.Zero)
+            {
+                _appliedLockState = _spec.IsLocked;
+            }
+        }
         _currentSnapGroup?.UpdateBorderDisplay();
     }
 
@@ -2253,7 +2419,7 @@ internal sealed class RegionMirrorWindow : Window
                 _spec.Countdown.BorderColor);
             _countdownBarWindow.SetColor(_spec.Countdown.Color);
             ApplyCountdownBarGeometry();
-            _countdownBarWindow.Opacity = Opacity;
+            _countdownBarWindow.Opacity = MirrorVisualOpacity;
 
             if (_isCountdownRunning)
             {
@@ -2285,7 +2451,7 @@ internal sealed class RegionMirrorWindow : Window
             _spec.Countdown.BorderColor);
         _countdownBarWindow.SetColor(_spec.Countdown.Color);
         ApplyCountdownBarGeometry();
-        _countdownBarWindow.Opacity = Opacity;
+        _countdownBarWindow.Opacity = MirrorVisualOpacity;
         _countdownBarWindow.UpdateProgress(1.0);
 
         if (!_countdownBarWindow.IsVisible)
@@ -2314,7 +2480,7 @@ internal sealed class RegionMirrorWindow : Window
             _spec.Countdown.BorderColor);
         _countdownBarWindow.SetColor(_spec.Countdown.Color);
         ApplyCountdownBarGeometry();
-        _countdownBarWindow.Opacity = Opacity;
+        _countdownBarWindow.Opacity = MirrorVisualOpacity;
 
         if (!_countdownBarWindow.IsVisible)
         {
@@ -2335,7 +2501,7 @@ internal sealed class RegionMirrorWindow : Window
         }
 
         _countdownBarWindow.UpdateProgress(progress);
-        _countdownBarWindow.Opacity = Opacity;
+        _countdownBarWindow.Opacity = MirrorVisualOpacity;
     }
 
     private void RepositionCountdownBar()
@@ -2676,28 +2842,18 @@ internal sealed class RegionMirrorWindow : Window
             return;
         }
 
-        var popupHandle = IntPtr.Zero;
-
-        if (PresentationSource.FromVisual(ContextMenu) is HwndSource source)
-        {
-            popupHandle = source.Handle;
-        }
-
-        var probeHandle = WindowProbe.GetTopLevelWindowFromScreenPoint(
-            (int)Math.Round(_lastContextMenuScreenPoint.X + 28),
-            (int)Math.Round(_lastContextMenuScreenPoint.Y + 28));
-
-        if (probeHandle != IntPtr.Zero && probeHandle != _windowHandle)
-        {
-            popupHandle = probeHandle;
-        }
+        var popupHandle = PresentationSource.FromVisual(ContextMenu) is HwndSource source
+            ? source.Handle
+            : IntPtr.Zero;
 
         if (popupHandle == IntPtr.Zero)
         {
             return;
         }
 
-        WindowStyleInterop.SetWindowAlwaysOnTop(popupHandle, true);
+        // Never probe the desktop for the popup HWND: the sampled point can
+        // belong to Tibia or another app and would incorrectly make it topmost.
+        WindowStyleInterop.SetWindowAlwaysOnTop(popupHandle, _alwaysOnTop);
 
         if (_windowHandle != IntPtr.Zero)
         {
@@ -2710,30 +2866,76 @@ internal sealed class RegionMirrorWindow : Window
         PromoteContextMenuPopup();
         Dispatcher.BeginInvoke(PromoteContextMenuPopup, DispatcherPriority.ApplicationIdle);
         Dispatcher.BeginInvoke(PromoteContextMenuPopup, DispatcherPriority.ContextIdle);
-
-        _contextMenuPromoteTimer ??= new DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(120)
-        };
-        _contextMenuPromoteTimer.Tick -= OnContextMenuPromoteTimerTick;
-        _contextMenuPromoteTimer.Tick += OnContextMenuPromoteTimerTick;
-        _contextMenuPromoteTimer.Start();
     }
 
-    private void StopContextMenuPromotion()
+    private static GlobalMouseClickListener CreateContextMenuMouseClickListener()
     {
-        _contextMenuPromoteTimer?.Stop();
+        var listener = new GlobalMouseClickListener();
+        listener.MousePressed += OnGlobalContextMenuMousePressed;
+        return listener;
     }
 
-    private void OnContextMenuPromoteTimerTick(object? sender, EventArgs e)
+    private static void OnGlobalContextMenuMousePressed(int screenX, int screenY)
     {
-        if (ContextMenu?.IsOpen != true)
+        var owner = _activeContextMenuOwner;
+        if (owner?.ContextMenu?.IsOpen != true)
         {
-            StopContextMenuPromotion();
             return;
         }
 
-        PromoteContextMenuPopup();
+        var isInside = owner.IsPointerInsideContextMenu(screenX, screenY);
+        Console.Error.WriteLine(
+            $"mirror-context-menu id={owner._spec.Id} state=global-click inside={isInside} x={screenX} y={screenY}");
+        if (!isInside)
+        {
+            Console.Error.WriteLine($"mirror-context-menu id={owner._spec.Id} state=dismissed-outside");
+            owner._suppressContextMenuOpenUntilUtc = DateTime.UtcNow.AddMilliseconds(500);
+            owner.ContextMenu.IsOpen = false;
+        }
+    }
+
+    private bool IsPointerInsideContextMenu(int? screenX = null, int? screenY = null)
+    {
+        if (ContextMenu is null)
+        {
+            return false;
+        }
+
+        NativePoint cursor;
+        if (screenX.HasValue && screenY.HasValue)
+        {
+            cursor = new NativePoint { X = screenX.Value, Y = screenY.Value };
+        }
+        else if (!GetCursorPos(out cursor))
+        {
+            return false;
+        }
+
+        try
+        {
+            var topLeft = ContextMenu.PointToScreen(new Point(0, 0));
+            var insideRoot = cursor.X >= topLeft.X
+                && cursor.X <= topLeft.X + ContextMenu.ActualWidth
+                && cursor.Y >= topLeft.Y
+                && cursor.Y <= topLeft.Y + ContextMenu.ActualHeight;
+            return insideRoot;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void CloseActiveContextMenu(RegionMirrorWindow? except = null)
+    {
+        var owner = _activeContextMenuOwner;
+        if (owner is null || ReferenceEquals(owner, except) || owner.ContextMenu?.IsOpen != true)
+        {
+            return;
+        }
+
+        _activeContextMenuOwner = null;
+        owner.ContextMenu.IsOpen = false;
     }
 
     private static bool AreBoundsEqual(RectInfo? left, RectInfo right)
@@ -2747,6 +2949,17 @@ internal sealed class RegionMirrorWindow : Window
             && left.Y == right.Y
             && left.Width == right.Width
             && left.Height == right.Height;
+    }
+
+    private RectInfo GetCurrentMirrorBounds()
+    {
+        return new RectInfo
+        {
+            X = (int)Math.Round(Left),
+            Y = (int)Math.Round(Top),
+            Width = (int)Math.Round(Width),
+            Height = (int)Math.Round(Height)
+        };
     }
 
     private void LogThumbnailDiagnostic(string message)
