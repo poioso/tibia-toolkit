@@ -15,6 +15,7 @@ const ALLOWED_ASSET_EXTENSIONS = new Set([
   ".gif",
   ".gitkeep",
   ".html",
+  ".jpeg",
   ".jpg",
   ".js",
   ".json",
