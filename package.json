@@ -17,7 +17,7 @@
     "build:release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1"
   },
   "devDependencies": {
-    "cheerio": "^1.1.2",
+    "cheerio": "^1.2.0",
     "electron": "^43.1.1",
     "electron-builder": "^26.15.3",
     "google-translate-api-x": "^10.7.3",
