@@ -28,7 +28,7 @@
     "adm-zip": "^0.6.0",
     "driver.js": "^1.6.0",
     "electron-updater": "^6.8.9",
-    "jquery": "^3.7.1",
+    "jquery": "^4.0.0",
     "leaflet": "^1.9.4",
     "obs-websocket-js": "^5.0.8",
     "playwright": "^1.61.1"
