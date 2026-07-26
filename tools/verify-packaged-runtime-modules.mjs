@@ -1,0 +1,29 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const packageRoot = path.resolve(
+  projectRoot,
+  process.argv[2] || "dist/tibia-toolkit-release/win-unpacked/resources/app"
+);
+
+const requiredModules = [
+  "services/game-data-hub/server.mjs",
+  "services/game-data-hub/mini-world-changes.mjs",
+  "services/game-data-hub/mini-world-change-visuals.mjs"
+];
+
+for (const relativeModulePath of requiredModules) {
+  const absoluteModulePath = path.join(packageRoot, relativeModulePath);
+  try {
+    const metadata = await fs.stat(absoluteModulePath);
+    if (!metadata.isFile() || metadata.size === 0) {
+      throw new Error("not a non-empty file");
+    }
+  } catch (error) {
+    throw new Error(`Packaged runtime module is missing: ${relativeModulePath} (${error.message})`);
+  }
+}
+
+console.log(`Packaged runtime module audit passed: ${requiredModules.length} required modules found.`);

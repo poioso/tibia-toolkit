@@ -36,6 +36,17 @@ export function startAppUpdater({
   let downloadFinished = false;
   let downloadInFlight = false;
   let updateInfo = null;
+  let initialCheckResolved = false;
+  let resolveInitialCheck = null;
+  const initialCheck = new Promise((resolve) => {
+    resolveInitialCheck = resolve;
+  });
+
+  const completeInitialCheck = (result) => {
+    if (initialCheckResolved) return;
+    initialCheckResolved = true;
+    resolveInitialCheck?.(result);
+  };
 
   const tryNextSource = async (previousError = null) => {
     if (sourceSwitchInFlight || downloadFinished || downloadInFlight) {
@@ -48,6 +59,7 @@ export function startAppUpdater({
     try {
       if (activeSourceIndex >= updateUrls.length) {
         onError(previousError || new Error("Nenhum servidor de atualizacao respondeu."));
+        completeInitialCheck({ available: false, error: previousError || null });
         return;
       }
 
@@ -67,8 +79,12 @@ export function startAppUpdater({
 
   autoUpdater.on("update-available", (info) => {
     updateInfo = info;
+    completeInitialCheck({ available: true, info });
     onStatus(`Nova versao ${info.version} encontrada.`);
     onAvailable(info);
+  });
+  autoUpdater.on("update-not-available", () => {
+    completeInitialCheck({ available: false, error: null });
   });
   autoUpdater.on("download-progress", (progress) => {
     onStatus(`Baixando atualizacao: ${Math.round(progress.percent || 0)}%.`);
@@ -87,6 +103,7 @@ export function startAppUpdater({
       return;
     }
     onError(error);
+    completeInitialCheck({ available: false, error });
   });
 
   void tryNextSource();
@@ -100,6 +117,7 @@ export function startAppUpdater({
   }, 30 * 60 * 1000);
 
   return {
+    initialCheck,
     getInfo() {
       return updateInfo;
     },

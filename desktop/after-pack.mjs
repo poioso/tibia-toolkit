@@ -1,8 +1,21 @@
 import path from "node:path";
+import { access } from "node:fs/promises";
 import { rcedit } from "rcedit";
 
 export default async function patchWindowsExecutableIcon(context) {
   if (context.electronPlatformName !== "win32") return;
+
+  // Keep runtime-only Hub imports inside every desktop package.
+  for (const relativeModulePath of [
+    "services/game-data-hub/mini-world-changes.mjs",
+    "services/game-data-hub/mini-world-change-visuals.mjs"
+  ]) {
+    try {
+      await access(path.join(context.appOutDir, "resources", "app", relativeModulePath));
+    } catch {
+      throw new Error(`Required runtime module is missing from the packaged app: ${relativeModulePath}`);
+    }
+  }
 
   const executableName = `${context.packager.appInfo.productFilename}.exe`;
   const executablePath = path.join(context.appOutDir, executableName);
