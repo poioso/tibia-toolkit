@@ -291,6 +291,7 @@ let appUpdateState = { phase: "idle", info: null };
 let configureDataService = null;
 let handleDataServiceMessage = null;
 const APP_UPDATE_DOWNLOAD_DIALOG_ROLE = "app-update-download";
+let startupUpdateInstallRequested = false;
 const STABLE_INSTALLER_URL = "https://github.com/poioso/tibia-toolkit/releases/latest/download/Tibia-Toolkit-Setup.exe";
 let storeWriteQueue = Promise.resolve();
 let cacheStoreWriteQueue = Promise.resolve();
@@ -392,20 +393,31 @@ async function loadDataServiceRuntime() {
 
 async function promptStartupUpdate(info = {}) {
   const normalizedInfo = normalizeAppUpdateInfo(info);
-  const response = await dialog.showMessageBox({
-    type: "info",
-    title: tr("updater.availableTitle"),
-    message: tr("updater.availableMessage", {
+  const message = [
+    tr("updater.availableMessage", {
       version: normalizedInfo.version || tr("updater.newVersion")
     }),
-    detail: normalizedInfo.releaseNotes,
-    buttons: [tr("updater.downloadLater"), tr("updater.downloadNow")],
-    defaultId: 1,
-    cancelId: 0,
-    noLink: true
+    normalizedInfo.releaseNotes
+  ].filter(Boolean).join("\n\n");
+  const response = await showScreenVisionConfirmDialog(null, {
+    title: tr("updater.availableTitle"),
+    message,
+    confirmLabel: tr("updater.downloadNow"),
+    cancelLabel: tr("updater.downloadLater"),
+    confirmTooltip: tr("updater.downloadNow"),
+    cancelTooltip: tr("updater.downloadLater"),
+    tone: "success",
+    flat: true,
+    mediaPath: path.join("assets", "ui", "tutorial", "update.gif"),
+    mediaWidth: 300,
+    width: 520,
+    height: 760,
+    autoHeight: true,
+    external: true,
+    centerOnDisplay: true
   });
 
-  return response.response === 1;
+  return response.confirmed;
 }
 
 async function waitForInitialUpdateCheck(controller, timeoutMs = 8_000) {
@@ -502,6 +514,9 @@ if (!hasSingleInstanceLock) {
           closeScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE);
           appUpdateState = { phase: "downloaded", info: normalizeAppUpdateInfo(info) };
           broadcastAppUpdateState();
+          if (startupUpdateInstallRequested) {
+            return;
+          }
           if (mainWindow && !mainWindow.isDestroyed()) {
             void showAppUpdateDownloadedDialog(info);
           }
@@ -510,13 +525,18 @@ if (!hasSingleInstanceLock) {
 
       const initialUpdate = await waitForInitialUpdateCheck(appUpdaterController);
       if (initialUpdate?.available && await promptStartupUpdate(initialUpdate.info)) {
+        startupUpdateInstallRequested = true;
+        showAppUpdateDownloadProgressDialog(initialUpdate.info);
         try {
           await appUpdaterController.download();
           if (appUpdaterController.install()) {
             appIsQuitting = true;
             return;
           }
+          startupUpdateInstallRequested = false;
         } catch (error) {
+          closeScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE);
+          startupUpdateInstallRequested = false;
           await writeDebugLog(`startup-update-download-failed ${error?.message || String(error)}`);
         }
       }
