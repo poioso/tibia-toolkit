@@ -10,7 +10,7 @@ website, and Discord is in [RELEASE_ANNOUNCEMENTS.md](RELEASE_ANNOUNCEMENTS.md).
 ## Before creating a tag
 
 1. Update `package.json`, `RELEASE_NOTES.md`, and `RELEASE_NOTES.i18n.json` with the same SemVer release version.
-2. Run `npm ci`, `npm run check`, the secret scan, dependency audit, a clean Windows build, and `npm run verify:packaged-runtime` against the generated `win-unpacked` directory.
+2. Run `npm ci`, `npm run check`, `npm run verify:content-contract`, the secret scan, dependency audit, a clean Windows build, and `npm run verify:packaged-runtime` against the generated `win-unpacked` directory. Complete [CONTENT_PACK_RELEASE_CHECKLIST.md](CONTENT_PACK_RELEASE_CHECKLIST.md) whenever runtime assets or local catalogs changed.
 3. Generate and review an SPDX SBOM for Node dependencies. Complete the separate NuGet/transitive-license review.
 4. Confirm that all official runtime endpoints use reviewed HTTPS domains, and that content rights and attribution are documented. For Tibia-related media, complete `docs/CIPSOFT_ASSET_COMPLIANCE.md` and include the acknowledgement in `CREDITS.md`.
 5. Confirm that repository URLs, owner usernames, privacy contact, and SignPath settings are real rather than placeholders.

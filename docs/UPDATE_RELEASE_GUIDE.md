@@ -72,3 +72,12 @@ This command is mandatory after `npm run build:installer`, both locally and in
 CI. Do not publish an installer when it has not passed. This protects against
 file-pattern exclusions that let source validation pass while an installed app
 fails at launch.
+
+## Mandatory content-pack gate
+
+Read and complete [CONTENT_PACK_RELEASE_CHECKLIST.md](CONTENT_PACK_RELEASE_CHECKLIST.md)
+before every release that adds or changes any runtime asset, local catalog,
+image, sound, tutorial media, or data file under `assets/`. The content pack
+must be promoted and verified on both origins before the installer is public.
+`npm run verify:content-contract` blocks undeclared static asset references;
+the actual ZIP must also pass `tools/audit-content-pack.mjs`.

@@ -54,6 +54,7 @@ jobs:
         run: |
           npm ci
           npm run check
+          npm run verify:content-contract
           npm audit --omit=dev --audit-level=high
 
       - name: Build unsigned installer

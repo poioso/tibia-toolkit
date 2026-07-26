@@ -1,7 +1,7 @@
-Tibia Toolkit 0.6.1
+Tibia Toolkit 0.6.2
 
-- Fixed a startup failure affecting Mini World Changes after installing version 0.6.0.
-- Added a packaging validation that stops a release when required Hub modules are missing from the desktop app.
-- The updater now checks before resource loading and can send a damaged installation to the stable repair installer.
+- Restored the Biblioteca icons and the complete local books catalog through the content pack.
+- Added a release gate that validates every static runtime asset plus all book appearance images before content promotion.
+- Added a content-pack contract check to the CI and documented the mandatory content release procedure.
 
 [Code signing policy](https://github.com/poioso/tibia-toolkit/blob/main/docs/CODE_SIGNING_POLICY.md)
