@@ -9,6 +9,7 @@ import {
 import {
   closeDesktopOverlay,
   fetchBossTracker,
+  fetchBoosted,
   fetchMiniWorldChanges,
   fetchBootstrap,
   fetchCreatureDetail,
@@ -26,6 +27,7 @@ import {
   fetchNpcDetail,
   fetchNpcIndex,
   fetchStashItems,
+  fetchBooksDocuments,
   fetchStashMarketValues,
   isDesktopOverlayApp,
   localStorageGet,
@@ -227,7 +229,14 @@ const SUPPORTER_SHOWCASE_LIMITS = {
   transitionMaxMs: 4000
 };
 const SUPPORTERS_STORAGE_CACHE_KEY = "supporters-data-cache";
+const SUPPORTERS_RANKING_RATES_CACHE_KEY = "supporters-ranking-rates-cache";
 const SUPPORTERS_FETCH_TIMEOUT_MS = 12000;
+const SUPPORTERS_RANKING_RATES_CACHE_MS = 30 * 60 * 1000;
+const DEFAULT_SUPPORTER_RANKING_RATES = Object.freeze({
+  usdToBrl: 5,
+  tibiaCoinBrl: 0.21,
+  expiresAt: 0
+});
 const SUPPORTER_MOCK_SEEDS = [
   {
     characterName: "Poioso",
@@ -531,6 +540,7 @@ const state = {
   supporterShowcaseTimerIds: [],
   supportersDataUrl: "",
   supportersDataUrls: [],
+  supporterRankingRates: { ...DEFAULT_SUPPORTER_RANKING_RATES },
   coffeeConfig: createDefaultSupporterCoffeeConfig(),
   requestedDockedPanelKey: "",
   dockedToolPanelState: {
@@ -598,6 +608,20 @@ const state = {
   itemCacheWarmupTimer: null,
   itemCacheWarmupRequestId: 0,
   itemViewMode: "list",
+  booksDocuments: {
+    query: "",
+    location: "",
+    library: "",
+    author: "",
+    sort: "name-asc",
+    page: 1,
+    pageSize: 60,
+    listing: null,
+    detail: null,
+    loading: false,
+    requestId: 0,
+    searchTimer: null
+  },
   overlayTools: createDefaultOverlayToolsState(),
   stashItems: [],
   stashCategories: [],
@@ -670,6 +694,14 @@ const state = {
   miniWorldChangesLoaded: false,
   miniWorldChangesLoading: false,
   miniWorldChangesRequestId: 0,
+  miniWorldChangesRefreshCooldownUntil: 0,
+  miniWorldChangesRefreshTimer: null,
+  boostedStatus: {
+    creature: null,
+    boss: null,
+    loading: false,
+    requestId: 0
+  },
   currentMiniWorldChangeId: "",
   currentNavigationEntry: null,
   navigationBackStack: [],
@@ -807,9 +839,27 @@ const els = {
   globalWorldInput: document.querySelector("#global-world-input"),
   globalWorldDropdownButton: document.querySelector("#global-world-dropdown-button"),
   globalWorldSuggestions: document.querySelector("#global-world-suggestions"),
+  desktopWorldStatus: document.querySelector("#desktop-world-status"),
+  desktopBoostedCreature: document.querySelector("#desktop-boosted-creature"),
+  desktopBoostedCreatureImage: document.querySelector("#desktop-boosted-creature-image"),
+  desktopBoostedBoss: document.querySelector("#desktop-boosted-boss"),
+  desktopBoostedBossImage: document.querySelector("#desktop-boosted-boss-image"),
+  desktopYasirPodium: document.querySelector("#desktop-yasir-podium"),
+  desktopYasirImage: document.querySelector("#desktop-yasir-image"),
   itemViewTabs: document.querySelectorAll(".item-view-tab"),
   itemListView: document.querySelector("#item-list-view"),
   itemStashView: document.querySelector("#item-stash-view"),
+  itemBooksView: document.querySelector("#item-books-view"),
+  booksSearchInput: document.querySelector("#books-search-input"),
+  booksClearSearch: document.querySelector("#books-clear-search"),
+  booksSortFilter: document.querySelector("#books-sort-filter"),
+  booksLocationFilter: document.querySelector("#books-location-filter"),
+  booksLibraryFilter: document.querySelector("#books-library-filter"),
+  booksAuthorFilter: document.querySelector("#books-author-filter"),
+  booksGrid: document.querySelector("#books-grid"),
+  booksStatus: document.querySelector("#books-status"),
+  booksPagination: document.querySelector("#books-pagination"),
+  booksDetail: document.querySelector("#books-detail"),
   stashSearchInput: document.querySelector("#stash-search-input"),
   stashClearSearch: document.querySelector("#stash-clear-search"),
   stashCategoryFilter: document.querySelector("#stash-category-filter"),
@@ -850,7 +900,9 @@ const els = {
   mapModalFrame: document.querySelector("#map-modal-frame"),
   mapModalClose: document.querySelector("#map-modal-close"),
   miniWorldChangesOverview: document.querySelector("#mini-world-changes-overview"),
-  miniWorldChangesWorldName: document.querySelector("#mini-world-changes-world-name"),
+  miniWorldChangesToday: document.querySelector("#mini-world-changes-today"),
+  miniWorldChangesRefreshButton: document.querySelector("#mini-world-changes-refresh-button"),
+  miniWorldChangesRefreshCountdown: document.querySelector("#mini-world-changes-refresh-countdown"),
   miniWorldChangesActive: document.querySelector("#mini-world-changes-active"),
   miniWorldChangesCount: document.querySelector("#mini-world-changes-count"),
   miniWorldChangesCatalog: document.querySelector("#mini-world-changes-catalog"),
@@ -859,6 +911,7 @@ const els = {
   miniWorldChangeDetailContent: document.querySelector("#mini-world-change-detail-content"),
   miniWorldChangeActiveBadge: document.querySelector("#mini-world-change-active-badge"),
   miniWorldChangeBack: document.querySelector("#mini-world-change-back"),
+  miniWorldChangeOpenNpc: document.querySelector("#mini-world-change-open-npc"),
   miniWorldChangeOpenWiki: document.querySelector("#mini-world-change-open-wiki"),
   miniWorldChangeImageViewer: document.querySelector("#mini-world-change-image-viewer"),
   miniWorldChangeImageViewerTitle: document.querySelector("#mini-world-change-image-viewer-title"),
@@ -1154,6 +1207,8 @@ async function boot() {
     runInitialSplashTask(98, 99, () => {
       scheduleWarmItemCache();
       void refreshImbuementWorldData();
+      void loadMiniWorldChanges({ force: true });
+      void loadToolbarWorldStatus();
     });
     updateInitialSplashProgress(100);
     markBootStage("renderer-boot-complete");
@@ -1871,6 +1926,76 @@ function exposeTutorialApi() {
     scrollToSelector(selector, block = "center") {
       document.querySelector(selector)?.scrollIntoView({ block, inline: "nearest", behavior: "smooth" });
     },
+    async prepareMiniWorldChangesTutorial(options = {}) {
+      switchSection("mini-world-changes", { skipHistory: true });
+      if (state.currentMiniWorldChangeId) {
+        closeMiniWorldChangeDetail();
+      }
+      await ensureMiniWorldChangesLoaded();
+      renderMiniWorldChanges();
+
+      if (options.showExample && !els.miniWorldChangesActive?.querySelector(".mini-world-change-active-card")) {
+        const example = state.miniWorldChangesCatalog[0] || {
+          id: "tutorial-example",
+          name: "Bank Robbery",
+          representative: {
+            localPath: "assets/ui/world-board.gif",
+            label: "Bank Robbery"
+          }
+        };
+        els.miniWorldChangesActive.insertAdjacentHTML(
+          "beforeend",
+          renderMiniWorldChangeActiveCard(example).replace(
+            "mini-world-change-active-card\"",
+            "mini-world-change-active-card tt-mini-world-changes-tutorial-example\" data-tutorial-example=\"true\""
+          )
+        );
+      }
+    },
+    clearMiniWorldChangesTutorialExample() {
+      els.miniWorldChangesActive
+        ?.querySelectorAll(".tt-mini-world-changes-tutorial-example")
+        .forEach((element) => element.remove());
+    },
+    async prepareBooksTutorial(options = {}) {
+      switchSection("item-prices", { skipHistory: true });
+      await setItemViewMode("books", { skipHistory: true });
+
+      const query = String(options.query || "").trim();
+      state.booksDocuments.query = query;
+      state.booksDocuments.page = 1;
+      if (els.booksSearchInput) {
+        els.booksSearchInput.value = query;
+      }
+      await loadBooksDocuments();
+
+      if (options.openBook) {
+        await selectBookDocument(options.openBook);
+      }
+
+      if (options.openMap) {
+        const mapIndex = Number(options.mapIndex) || 0;
+        const appearance = state.booksDocuments.detail?.appearances?.[mapIndex];
+        const mapButton = els.booksDetail?.querySelector(`[data-book-map-index="${mapIndex}"]`);
+        if (mapButton && appearance?.coordinates) {
+          // Invoke the embedded map directly so the guided step never depends
+          // on a synthetic click being accepted by the tutorial overlay.
+          renderBookInlineMap(mapButton, appearance, state.booksDocuments.detail?.name || "");
+        }
+      }
+    },
+    closeBooksTutorialMap() {
+      const panel = els.booksDetail?.querySelector("[data-books-inline-map-panel]");
+      if (!panel || panel.classList.contains("hidden")) {
+        return;
+      }
+
+      stopTibiaInlineMaps(panel);
+      panel.classList.add("hidden");
+      panel.dataset.bookMapIndex = "";
+      panel.innerHTML = "";
+      els.booksDetail?.querySelectorAll("[data-book-map-index]").forEach((button) => button.classList.remove("active"));
+    },
     getStateSnapshot() {
       return {
         selectedSection: state.selectedSection,
@@ -1998,6 +2123,11 @@ async function refreshLocaleSensitiveContent(locale) {
   renderStashValueButtons();
   if (state.itemViewMode === "stash") {
     renderStashGrid();
+  }
+  if (state.booksDocuments.listing) {
+    renderBooksFilters();
+    renderBooksGrid();
+    renderBookDetail();
   }
 
   if (getActiveLootAnalyzerText().trim()) {
@@ -2430,6 +2560,43 @@ function bindEvents() {
     });
   });
 
+  const refreshBooks = () => {
+    state.booksDocuments.page = 1;
+    void loadBooksDocuments();
+  };
+
+  els.booksSearchInput?.addEventListener("input", () => {
+    state.booksDocuments.query = els.booksSearchInput.value.trim();
+    window.clearTimeout(state.booksDocuments.searchTimer);
+    state.booksDocuments.searchTimer = window.setTimeout(refreshBooks, 180);
+  });
+
+  els.booksClearSearch?.addEventListener("click", () => {
+    state.booksDocuments.query = "";
+    if (els.booksSearchInput) els.booksSearchInput.value = "";
+    refreshBooks();
+  });
+
+  els.booksSortFilter?.addEventListener("change", () => {
+    state.booksDocuments.sort = els.booksSortFilter.value;
+    refreshBooks();
+  });
+
+  els.booksLocationFilter?.addEventListener("change", () => {
+    state.booksDocuments.location = els.booksLocationFilter.value;
+    refreshBooks();
+  });
+
+  els.booksLibraryFilter?.addEventListener("change", () => {
+    state.booksDocuments.library = els.booksLibraryFilter.value;
+    refreshBooks();
+  });
+
+  els.booksAuthorFilter?.addEventListener("change", () => {
+    state.booksDocuments.author = els.booksAuthorFilter.value;
+    refreshBooks();
+  });
+
   els.stashSearchInput?.addEventListener("input", () => {
     state.stashQuery = els.stashSearchInput.value.trim();
     renderStashGrid();
@@ -2599,6 +2766,20 @@ function bindEvents() {
     }
   });
 
+  els.miniWorldChangesRefreshButton?.addEventListener("click", () => {
+    const cooldownRemaining = getMiniWorldChangesRefreshCooldownSeconds();
+    if (cooldownRemaining > 0 || state.miniWorldChangesLoading) {
+      renderMiniWorldChangesRefreshControl();
+      return;
+    }
+
+    // This only rereads the VPS snapshot exposed by the site. It never starts
+    // a new upstream Mini World Changes collection from the desktop app.
+    state.miniWorldChangesRefreshCooldownUntil = Date.now() + MINI_WORLD_CHANGES_REFRESH_COOLDOWN_MS;
+    renderMiniWorldChangesRefreshControl();
+    void loadMiniWorldChanges({ force: true });
+  });
+
   els.miniWorldChangeBack?.addEventListener("click", () => {
     closeMiniWorldChangeDetail();
   });
@@ -2608,6 +2789,10 @@ function bindEvents() {
     if (entry?.wikiUrl) {
       void openDesktopExternalLink(entry.wikiUrl);
     }
+  });
+
+  els.miniWorldChangeOpenNpc?.addEventListener("click", () => {
+    void openYasirNpcDetail();
   });
 
   els.miniWorldChangeDetailContent?.addEventListener("click", (event) => {
@@ -2737,6 +2922,18 @@ function bindEvents() {
         els.globalWorldInput?.select?.();
       });
     }
+  });
+
+  els.desktopBoostedCreature?.addEventListener("click", () => {
+    void openBoostedEntity(state.boostedStatus.creature?.name, "monsters");
+  });
+
+  els.desktopBoostedBoss?.addEventListener("click", () => {
+    void openBoostedEntity(state.boostedStatus.boss?.name, "bosses");
+  });
+
+  els.desktopYasirPodium?.addEventListener("click", () => {
+    void openOrientalTraderWorldChange();
   });
 
   els.globalWorldInput?.addEventListener("keydown", async (event) => {
@@ -3120,12 +3317,17 @@ async function loadSupportersData(options = {}) {
   state.supportersDataUrls = supportersDataUrls;
   state.supportersDataUrl = supportersDataUrls[0] || "";
   const cachedDocument = await loadCachedSupportersDocument().catch(() => null);
+  const cachedRankingRates = await loadCachedSupporterRankingRates().catch(() => null);
+  const initialRankingRates = cachedRankingRates || { ...DEFAULT_SUPPORTER_RANKING_RATES };
+  const rankingRatesPromise = cachedRankingRates?.expiresAt > Date.now()
+    ? Promise.resolve(cachedRankingRates)
+    : refreshSupporterRankingRates(cachedRankingRates);
 
   if (supportersDataUrls.length <= 0) {
     applySupportersPayload({
       supporters: [],
       coffee: createDefaultSupporterCoffeeConfig()
-    });
+    }, initialRankingRates);
     return;
   }
 
@@ -3137,7 +3339,8 @@ async function loadSupportersData(options = {}) {
       supporters: payload.supporters,
       coffee: payload.coffee
     }).catch(() => {});
-    applySupportersPayload(payload);
+    applySupportersPayload(payload, initialRankingRates);
+    void refreshSupporterRankingAfterLoad(payload, rankingRatesPromise, initialRankingRates);
 
     if (payload.supporters.length > 0) {
       void hydrateSupporterProfiles();
@@ -3145,7 +3348,8 @@ async function loadSupportersData(options = {}) {
     return;
   } catch (_error) {
     if (cachedDocument) {
-      applySupportersPayload(cachedDocument);
+      applySupportersPayload(cachedDocument, initialRankingRates);
+      void refreshSupporterRankingAfterLoad(cachedDocument, rankingRatesPromise, initialRankingRates);
       if (cachedDocument.supporters?.length) {
         void hydrateSupporterProfiles();
       }
@@ -3156,12 +3360,13 @@ async function loadSupportersData(options = {}) {
   applySupportersPayload({
     supporters: [],
     coffee: createDefaultSupporterCoffeeConfig()
-  });
+  }, initialRankingRates);
 }
 
-function applySupportersPayload(payload = {}) {
+function applySupportersPayload(payload = {}, rankingRates = DEFAULT_SUPPORTER_RANKING_RATES) {
   const normalizedPayload = normalizeSupportersPayload(payload);
-  state.supporters = buildSupporterEntries(normalizedPayload.supporters);
+  state.supporterRankingRates = normalizeSupporterRankingRates(rankingRates);
+  state.supporters = buildSupporterEntries(normalizedPayload.supporters, state.supporterRankingRates);
   state.coffeeConfig = normalizedPayload.coffee;
   state.supporterToolbarIndex = 0;
   state.supporterNarrowMedalIndex = 0;
@@ -3237,6 +3442,68 @@ async function fetchSupportersDocument(urls) {
   }
 
   throw lastError || new Error("Nenhuma fonte de apoiadores esta disponivel.");
+}
+
+async function refreshSupporterRankingRates(cachedRates = null) {
+  try {
+    const remoteRates = await fetchSupporterRankingRates();
+    const normalizedRates = normalizeSupporterRankingRates(remoteRates);
+    await saveCachedSupporterRankingRates(normalizedRates).catch(() => {});
+    return normalizedRates;
+  } catch (_error) {
+    return cachedRates || { ...DEFAULT_SUPPORTER_RANKING_RATES };
+  }
+}
+
+async function refreshSupporterRankingAfterLoad(payload, rankingRatesPromise, initialRankingRates) {
+  const refreshedRates = await rankingRatesPromise;
+  const initial = normalizeSupporterRankingRates(initialRankingRates);
+  const refreshed = normalizeSupporterRankingRates(refreshedRates);
+  if (
+    Math.abs(initial.usdToBrl - refreshed.usdToBrl) < 0.0001
+    && Math.abs(initial.tibiaCoinBrl - refreshed.tibiaCoinBrl) < 0.0001
+  ) {
+    return;
+  }
+
+  applySupportersPayload(payload, refreshed);
+  if (state.supporters.length > 0) {
+    void hydrateSupporterProfiles();
+  }
+}
+
+async function fetchSupporterRankingRates() {
+  if (window.desktopApi?.supporters?.fetchRankingRates) {
+    return window.desktopApi.supporters.fetchRankingRates();
+  }
+
+  throw new Error("As cotacoes de ranking exigem o processo principal do aplicativo.");
+}
+
+function normalizeSupporterRankingRates(source = {}) {
+  const usdToBrl = Number(source?.usdToBrl);
+  const tibiaCoinBrl = Number(source?.tibiaCoinBrl);
+  const expiresAt = Number(source?.expiresAt);
+
+  return {
+    usdToBrl: Number.isFinite(usdToBrl) && usdToBrl > 0 ? usdToBrl : DEFAULT_SUPPORTER_RANKING_RATES.usdToBrl,
+    tibiaCoinBrl: Number.isFinite(tibiaCoinBrl) && tibiaCoinBrl > 0 ? tibiaCoinBrl : DEFAULT_SUPPORTER_RANKING_RATES.tibiaCoinBrl,
+    expiresAt: Number.isFinite(expiresAt) && expiresAt > 0
+      ? expiresAt
+      : Date.now() + SUPPORTERS_RANKING_RATES_CACHE_MS
+  };
+}
+
+async function loadCachedSupporterRankingRates() {
+  const stored = await localStorageGet(SUPPORTERS_RANKING_RATES_CACHE_KEY).catch(() => ({}));
+  const entry = stored?.[SUPPORTERS_RANKING_RATES_CACHE_KEY];
+  return entry && typeof entry === "object" ? normalizeSupporterRankingRates(entry) : null;
+}
+
+async function saveCachedSupporterRankingRates(rates) {
+  await localStorageSet({
+    [SUPPORTERS_RANKING_RATES_CACHE_KEY]: normalizeSupporterRankingRates(rates)
+  });
 }
 
 function normalizeSupportersDocument(document) {
@@ -3360,7 +3627,8 @@ function shouldShowDesktopCoffeeButton(config = state.coffeeConfig) {
   return Boolean(config?.buttonVisible && hasVisibleSupporterCoffeeSections(config));
 }
 
-function buildSupporterEntries(seeds = []) {
+function buildSupporterEntries(seeds = [], rankingRates = DEFAULT_SUPPORTER_RANKING_RATES) {
+  const normalizedRates = normalizeSupporterRankingRates(rankingRates);
   return [...seeds]
     .map((seed) => {
       const totalAmountCents = resolveSupporterAmountCents(seed);
@@ -3377,11 +3645,12 @@ function buildSupporterEntries(seeds = []) {
         showcase: resolveSupporterShowcaseConfig(seed),
         currency,
         totalAmountCents,
+        rankingValueCents: resolveSupporterRankingValueCents(totalAmountCents, currency, normalizedRates),
         amountLabel: formatSupporterAmount(totalAmountCents, currency)
       };
     })
     .filter((entry) => Boolean(entry.name))
-    .sort((left, right) => right.totalAmountCents - left.totalAmountCents || left.name.localeCompare(right.name))
+    .sort((left, right) => right.rankingValueCents - left.rankingValueCents || left.name.localeCompare(right.name))
     .map((entry, index) => {
       const tier = getSupporterTierForIndex(index);
       return {
@@ -3591,7 +3860,50 @@ function resolveSupporterCurrency(seed = {}) {
     }
   }
 
+  const amountCurrency = [seed.totalAmount, seed.amount]
+    .map((value) => String(value || "").match(/^\s*(R\$|US\$|U\$|\$|USD|TC|Tibia\s*Coins?|BRL|Reais?)/i)?.[1])
+    .find(Boolean);
+
+  if (amountCurrency) {
+    return amountCurrency;
+  }
+
   return "R$";
+}
+
+function resolveSupporterCurrencyKind(currency = "") {
+  const normalized = String(currency || "R$")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+
+  if (normalized.includes("TIBIA") || normalized === "TC") {
+    return "tc";
+  }
+
+  if (normalized === "R$" || normalized.includes("BRL") || normalized.includes("REAL")) {
+    return "brl";
+  }
+
+  if (normalized === "$" || normalized === "U$" || normalized === "US$" || normalized.includes("USD") || normalized.includes("DOLAR") || normalized.includes("DOLLAR")) {
+    return "usd";
+  }
+
+  return "brl";
+}
+
+function resolveSupporterRankingValueCents(totalAmountCents, currency, rankingRates = DEFAULT_SUPPORTER_RANKING_RATES) {
+  const amountUnits = Math.max(0, Number(totalAmountCents) || 0) / 100;
+  const rates = normalizeSupporterRankingRates(rankingRates);
+  const kind = resolveSupporterCurrencyKind(currency);
+  const multiplier = kind === "tc"
+    ? rates.tibiaCoinBrl
+    : kind === "usd"
+      ? rates.usdToBrl
+      : 1;
+  return Math.max(0, Math.round(amountUnits * multiplier * 100));
 }
 
 function getSupporterTierForIndex(index) {
@@ -4435,7 +4747,9 @@ function switchSection(section, options = {}) {
   }
 
   if (nextSection === "mini-world-changes") {
-    void ensureMiniWorldChangesLoaded();
+    // The VPS owns the global cache. Recheck it on every visit without polling
+    // in the background, so an open app never causes upstream request noise.
+    void loadMiniWorldChanges({ force: true });
   }
 
   if (sectionChanged || !state.currentNavigationEntry) {
@@ -4629,7 +4943,7 @@ function syncNavigationButtons() {
 }
 
 async function setItemViewMode(mode, options = {}) {
-  const nextMode = mode === "stash" ? "stash" : "list";
+  const nextMode = ["list", "stash", "books"].includes(mode) ? mode : "list";
 
   if (nextMode !== state.itemViewMode && !options.skipHistory && !state.navigationRestoring) {
     pushCurrentNavigationEntry();
@@ -4639,10 +4953,11 @@ async function setItemViewMode(mode, options = {}) {
   els.itemViewTabs.forEach((button) =>
     button.classList.toggle("active", button.dataset.itemView === state.itemViewMode)
   );
-  els.itemListView?.classList.remove("hidden");
-  els.controlsCard?.classList.toggle("hidden", state.itemViewMode === "stash");
-  els.shortcutsCard?.classList.toggle("hidden", state.itemViewMode === "stash");
+  els.itemListView?.classList.toggle("hidden", state.itemViewMode !== "list");
+  els.controlsCard?.classList.toggle("hidden", state.itemViewMode !== "list");
+  els.shortcutsCard?.classList.toggle("hidden", state.itemViewMode !== "list");
   els.itemStashView?.classList.toggle("hidden", state.itemViewMode !== "stash");
+  els.itemBooksView?.classList.toggle("hidden", state.itemViewMode !== "books");
 
   if (state.itemViewMode === "stash") {
     try {
@@ -4653,6 +4968,10 @@ async function setItemViewMode(mode, options = {}) {
     } catch (error) {
       setStashStatus(error instanceof Error ? error.message : "Falha ao carregar stash.");
     }
+  }
+
+  if (state.itemViewMode === "books") {
+    await loadBooksDocuments();
   }
 
   if (!options.skipCurrentEntry) {
@@ -4734,6 +5053,7 @@ async function ensureMonsterCatalogLoaded() {
     state.monsterClasses = Array.isArray(data?.classes) ? data.classes : [];
     state.monsterTypes = Array.isArray(data?.types) ? data.types : [];
     state.monstersLoaded = true;
+    renderToolbarWorldStatus();
     renderMonsterFilters();
     renderMonsterCatalog();
     setNpcsStatus(t("npcs.countCreatures", { count: formatCompactNumber(state.monsterIndex.length) }));
@@ -5451,14 +5771,16 @@ function renderBossLocationMapActions(detail = {}) {
 function renderNpcNotes(detail = {}) {
   const spoilers = normalizeNpcSpoilers(detail);
   const regularNote = normalizeUiText(stripSpoilerPrefixFromNotes(detail.notes || ""));
+  const isYasir = normalizeSearchText(detail.name) === "yasir";
 
-  if (!regularNote && spoilers.length === 0) {
+  if (!regularNote && spoilers.length === 0 && !isYasir) {
     return "";
   }
 
   return `
     <section>
       <h4>${escapeHtml(t("common.notes"))}</h4>
+      ${isYasir ? `<p class="npc-mini-world-change-note"><button type="button" class="inline-entity-link" data-open-mini-world-change="oriental-trader">${escapeHtml(t("npc.yasirMiniWorldChange"))}</button></p>` : ""}
       ${regularNote ? `<p>${escapeHtml(regularNote)}</p>` : ""}
       ${spoilers.map((spoiler, index) => renderNpcSpoiler(spoiler, index)).join("")}
     </section>
@@ -8246,6 +8568,12 @@ function bindEntityDetailActions(root = els.entityDetailContent) {
     });
   });
 
+  root?.querySelectorAll("[data-open-mini-world-change]").forEach((button) => {
+    button.addEventListener("click", () => {
+      void openOrientalTraderWorldChange();
+    });
+  });
+
   root?.querySelectorAll("[data-map-url]").forEach((button) => {
     button.addEventListener("click", () => {
       void openMapModal(button.dataset.mapUrl, button.dataset.mapTitle || "Mapa");
@@ -8547,12 +8875,13 @@ function setNpcsStatus(message) {
 function positionItemViewLayout() {
   const tabs = document.querySelector(".item-view-tabs");
 
-  if (!els.panelItemHeader || !tabs || !els.itemStashView) {
+  if (!els.panelItemHeader || !tabs || !els.itemStashView || !els.itemBooksView) {
     return;
   }
 
   els.panelItemHeader.insertAdjacentElement("afterend", tabs);
   tabs.insertAdjacentElement("afterend", els.itemStashView);
+  els.itemStashView.insertAdjacentElement("afterend", els.itemBooksView);
 }
 
 async function ensureStashLoaded() {
@@ -8568,6 +8897,213 @@ async function ensureStashLoaded() {
   state.stashLoaded = true;
   renderStashFilters();
   setStashStatus(t("stash.localItemsCount", { count: formatCompactNumber(state.stashItems.length) }));
+}
+
+function setBooksStatus(message) {
+  if (els.booksStatus) {
+    els.booksStatus.textContent = normalizeUiText(message || "");
+  }
+}
+
+function fillBooksSelect(select, placeholder, values, selectedValue) {
+  if (!select) return;
+  select.innerHTML = [
+    `<option value="">${escapeHtml(placeholder)}</option>`,
+    ...values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`)
+  ].join("");
+  select.value = values.includes(selectedValue) ? selectedValue : "";
+}
+
+function renderBooksFilters() {
+  const listing = state.booksDocuments.listing;
+  if (!listing?.facets) return;
+
+  fillBooksSelect(els.booksLocationFilter, t("books.allLocations"), listing.facets.locations || [], state.booksDocuments.location);
+  fillBooksSelect(els.booksLibraryFilter, t("books.allLibraries"), listing.facets.libraries || [], state.booksDocuments.library);
+  fillBooksSelect(els.booksAuthorFilter, t("books.allAuthors"), listing.facets.authors || [], state.booksDocuments.author);
+  if (els.booksSortFilter) {
+    els.booksSortFilter.value = state.booksDocuments.sort;
+  }
+}
+
+function renderBooksGrid() {
+  const listing = state.booksDocuments.listing;
+  if (!els.booksGrid || !els.booksPagination) return;
+
+  if (!listing) {
+    els.booksGrid.innerHTML = "";
+    els.booksPagination.innerHTML = "";
+    return;
+  }
+
+  const results = Array.isArray(listing.results) ? listing.results : [];
+  if (!results.length) {
+    els.booksGrid.innerHTML = `<p class="empty-inline books-empty">${escapeHtml(t("books.empty"))}</p>`;
+    els.booksPagination.innerHTML = "";
+    setBooksStatus(t("books.noResults"));
+    return;
+  }
+
+  els.booksGrid.innerHTML = results.map((book) => {
+    const subtitle = book.author || book.locations?.[0] || book.libraries?.[0] || t("books.noMetadata");
+    const location = book.locations?.[0] || book.libraries?.[0] || "";
+    return `
+      <button type="button" class="book-card" data-book-slug="${escapeHtml(book.slug)}">
+        <span class="book-card-art">${book.image ? `<img src="${escapeHtml(book.image)}" alt="">` : ""}</span>
+        <span class="book-card-copy">
+          <strong>${escapeHtml(book.name)}</strong>
+          <span>${escapeHtml(subtitle)}</span>
+          ${location && location !== subtitle ? `<small>${escapeHtml(location)}</small>` : ""}
+        </span>
+      </button>`;
+  }).join("");
+  els.booksGrid.querySelectorAll("[data-book-slug]").forEach((button) => {
+    button.addEventListener("click", () => void selectBookDocument(button.dataset.bookSlug));
+  });
+
+  const totalPages = Math.max(1, Math.ceil(Number(listing.total || 0) / Number(listing.pageSize || 1)));
+  els.booksPagination.innerHTML = `
+    <button type="button" class="entity-link-chip" data-books-page="${Math.max(1, listing.page - 1)}" ${listing.page <= 1 ? "disabled" : ""}>${escapeHtml(t("books.previous"))}</button>
+    <span>${escapeHtml(t("books.page", { current: listing.page, total: totalPages }))}</span>
+    <button type="button" class="entity-link-chip" data-books-page="${Math.min(totalPages, listing.page + 1)}" ${listing.page >= totalPages ? "disabled" : ""}>${escapeHtml(t("books.next"))}</button>`;
+  els.booksPagination.querySelectorAll("[data-books-page]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const page = Number(button.dataset.booksPage);
+      if (!button.disabled && page !== state.booksDocuments.page) {
+        state.booksDocuments.page = page;
+        void loadBooksDocuments();
+      }
+    });
+  });
+  setBooksStatus(t("books.results", { count: formatCompactNumber(listing.total || 0) }));
+}
+
+function renderBookDetail() {
+  const book = state.booksDocuments.detail;
+  if (!els.booksDetail) return;
+  if (!book) {
+    els.booksDetail.classList.add("hidden");
+    els.booksDetail.innerHTML = "";
+    return;
+  }
+
+  const locale = state.localeController?.getLocale?.() || "pt-BR";
+  const readableText = locale === "pt-BR" && book.translatedText ? book.translatedText : book.englishText;
+  const textLabel = locale === "pt-BR" && book.translatedText ? t("books.translation") : t("books.originalText");
+  const metadata = [
+    [t("books.author"), book.author],
+    [t("books.genre"), book.genre],
+    [t("books.version"), book.version],
+    [t("books.description"), book.shortDescription]
+  ].filter(([, value]) => Boolean(value));
+  const appearances = Array.isArray(book.appearances) ? book.appearances : [];
+
+  els.booksDetail.innerHTML = `
+    <div class="books-detail-header">
+      <div class="books-detail-hero">${book.image ? `<img src="${escapeHtml(book.image)}" alt="">` : ""}<div><h3>${escapeHtml(book.name)}</h3>${book.tibn ? `<p>${escapeHtml(book.tibn)}</p>` : ""}</div></div>
+      <button type="button" class="entity-link-chip" data-books-close>${escapeHtml(t("books.closeDetails"))}</button>
+    </div>
+    ${metadata.length ? `<div class="books-metadata">${metadata.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>` : ""}
+    <section class="books-detail-section"><h4>${escapeHtml(t("books.appearances"))}</h4><div class="books-appearances">${appearances.map((appearance, index) => `
+      <article class="book-appearance-card">
+        <div class="book-appearance-content">${appearance.image ? `<img src="${escapeHtml(appearance.image)}" alt="">` : ""}
+          <div><strong>${escapeHtml(appearance.name || t("books.appearance"))}</strong><span>${escapeHtml([appearance.location, appearance.locationDetail].filter(Boolean).join(" "))}</span></div>
+        </div>
+        ${appearance.coordinates ? `<button type="button" class="entity-link-chip boss-map-toggle" data-book-map-index="${index}">${escapeHtml(t("books.showMap"))}</button>` : ""}
+      </article>`).join("") || `<p class="empty-inline">${escapeHtml(t("common.noData"))}</p>`}</div><div class="boss-inline-map hidden" data-books-inline-map-panel></div></section>
+    ${readableText ? `<section class="books-detail-section"><h4>${escapeHtml(textLabel)}</h4><pre class="book-text">${escapeHtml(readableText)}</pre></section>` : ""}
+    ${book.notes ? `<section class="books-detail-section"><h4>${escapeHtml(t("common.notes"))}</h4><p>${escapeHtml(book.notes)}</p></section>` : ""}
+    <div class="books-detail-actions">${book.source ? `<button type="button" class="entity-link-chip" data-book-open-wiki>${escapeHtml(t("common.openWiki"))}</button>` : ""}</div>`;
+  els.booksDetail.classList.remove("hidden");
+  els.booksDetail.querySelector("[data-books-close]")?.addEventListener("click", () => {
+    state.booksDocuments.detail = null;
+    renderBookDetail();
+  });
+  els.booksDetail.querySelectorAll("[data-book-map-index]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const appearance = appearances[Number(button.dataset.bookMapIndex)];
+      if (!appearance?.coordinates) return;
+      renderBookInlineMap(button, appearance, book.name);
+    });
+  });
+  els.booksDetail.querySelector("[data-book-open-wiki]")?.addEventListener("click", () => {
+    if (book.source) void openDesktopExternalLink(book.source);
+  });
+}
+
+function renderBookInlineMap(button, appearance, bookName) {
+  const section = button.closest(".books-detail-section");
+  const panel = section?.querySelector("[data-books-inline-map-panel]");
+  if (!panel || !appearance?.coordinates) {
+    return;
+  }
+
+  const { x, y, floor, zoom } = appearance.coordinates;
+  const mapUrl = `https://tibiamaps.io/map#${x},${y},${floor}:${zoom || 2}`;
+  const mapTitle = [bookName, appearance.location, appearance.locationDetail]
+    .filter(Boolean)
+    .join(" - ");
+  const isSameOpen = !panel.classList.contains("hidden")
+    && panel.dataset.bookMapIndex === String(button.dataset.bookMapIndex || "");
+
+  section.querySelectorAll("[data-book-map-index]").forEach((entry) => entry.classList.remove("active"));
+  stopTibiaInlineMaps(panel);
+
+  if (isSameOpen) {
+    panel.classList.add("hidden");
+    panel.dataset.bookMapIndex = "";
+    panel.innerHTML = "";
+    return;
+  }
+
+  button.classList.add("active");
+  panel.dataset.bookMapIndex = String(button.dataset.bookMapIndex || "");
+  panel.innerHTML = renderBossLocationMapPreview(mapUrl, mapTitle || t("common.map"));
+  panel.classList.remove("hidden");
+  panel.querySelectorAll("[data-tibia-inline-map]").forEach(initializeTibiaInlineMap);
+  panel.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+}
+
+async function selectBookDocument(slug) {
+  const requestId = ++state.booksDocuments.requestId;
+  try {
+    const payload = await fetchBooksDocuments({ slug });
+    if (requestId !== state.booksDocuments.requestId) return;
+    state.booksDocuments.detail = payload?.detail || null;
+    renderBookDetail();
+    els.booksDetail?.scrollIntoView({ block: "start", behavior: "smooth" });
+  } catch (_error) {
+    setBooksStatus(t("books.failed"));
+  }
+}
+
+async function loadBooksDocuments() {
+  const books = state.booksDocuments;
+  const requestId = ++books.requestId;
+  books.loading = true;
+  setBooksStatus(t("books.loading"));
+  try {
+    const payload = await fetchBooksDocuments({
+      query: books.query,
+      location: books.location,
+      library: books.library,
+      author: books.author,
+      sort: books.sort,
+      page: books.page,
+      pageSize: books.pageSize
+    });
+    if (requestId !== books.requestId) return;
+    books.listing = payload || null;
+    renderBooksFilters();
+    renderBooksGrid();
+  } catch (_error) {
+    if (requestId !== books.requestId) return;
+    books.listing = null;
+    renderBooksGrid();
+    setBooksStatus(t("books.failed"));
+  } finally {
+    if (requestId === books.requestId) books.loading = false;
+  }
 }
 
 async function prewarmStartupCaches(onProgress = null) {
@@ -8595,6 +9131,7 @@ async function prewarmStartupCaches(onProgress = null) {
     state.monsterClasses = Array.isArray(creatureData?.classes) ? creatureData.classes : [];
     state.monsterTypes = Array.isArray(creatureData?.types) ? creatureData.types : [];
     state.monstersLoaded = state.monsterIndex.length > 0;
+    renderToolbarWorldStatus();
   } catch (_error) {
     // O analyzer ainda pode seguir com fallback de nomes mesmo sem o preload local.
   }
@@ -12998,6 +13535,7 @@ async function loadMiniWorldChanges(options = {}) {
     state.miniWorldChangesActiveWorld = payload?.activeWorld || null;
     state.miniWorldChangesActiveError = String(payload?.activeError || "");
     state.miniWorldChangesLoaded = true;
+    renderToolbarWorldStatus();
   } catch (error) {
     if (requestId === state.miniWorldChangesRequestId) {
       state.miniWorldChangesActiveError = error instanceof Error ? error.message : String(error || "");
@@ -13006,11 +13544,117 @@ async function loadMiniWorldChanges(options = {}) {
     if (requestId === state.miniWorldChangesRequestId) {
       state.miniWorldChangesLoading = false;
       renderMiniWorldChanges();
+      renderToolbarWorldStatus();
     }
   }
 }
 
+async function loadToolbarWorldStatus() {
+  if (!els.desktopWorldStatus || state.boostedStatus.loading) {
+    return;
+  }
+
+  const requestId = ++state.boostedStatus.requestId;
+  state.boostedStatus.loading = true;
+  renderToolbarWorldStatus();
+
+  try {
+    const payload = await fetchBoosted();
+    if (requestId !== state.boostedStatus.requestId) {
+      return;
+    }
+    state.boostedStatus.creature = payload?.creature || null;
+    state.boostedStatus.boss = payload?.boss || null;
+  } catch (_error) {
+    // The status keeps its last verified values if the shared cache is briefly unavailable.
+  } finally {
+    if (requestId === state.boostedStatus.requestId) {
+      state.boostedStatus.loading = false;
+      renderToolbarWorldStatus();
+    }
+  }
+}
+
+function renderToolbarWorldStatus() {
+  if (!els.desktopWorldStatus) {
+    return;
+  }
+
+  const renderBoostedCard = (button, image, entry, labelKey) => {
+    if (!button || !image) return;
+    const label = t(labelKey);
+    const name = String(entry?.name || "").trim();
+    const source = getBoostedAnimatedSprite(name) || String(entry?.animatedImage || entry?.image || "").trim();
+    const tooltip = name ? `${label}: ${name}` : t("toolbar.loadingBoosted");
+    button.disabled = !name;
+    button.dataset.tooltip = tooltip;
+    button.setAttribute("aria-label", tooltip);
+    if (source) {
+      image.src = source;
+    } else {
+      image.removeAttribute("src");
+    }
+    image.hidden = !source;
+    image.alt = "";
+  };
+
+  renderBoostedCard(
+    els.desktopBoostedCreature,
+    els.desktopBoostedCreatureImage,
+    state.boostedStatus.creature,
+    "toolbar.boostedCreature"
+  );
+  renderBoostedCard(
+    els.desktopBoostedBoss,
+    els.desktopBoostedBossImage,
+    state.boostedStatus.boss,
+    "toolbar.boostedBoss"
+  );
+
+  const active = getActiveMiniWorldChangeEntries().some((entry) =>
+    normalizeMiniWorldChangeName(entry.name) === "oriental trader" ||
+    (entry.sourceAliases || []).some((alias) => normalizeMiniWorldChangeName(alias) === "oriental trader")
+  );
+  const worldName = getSelectedWorld()?.name || t("common.world");
+  const yasirStatus = t(active ? "toolbar.yasirSeenInWorld" : "toolbar.yasirNotSeenInWorld", { world: worldName });
+  els.desktopYasirPodium?.classList.toggle("is-active", active);
+  els.desktopYasirPodium?.classList.toggle("is-inactive", !active);
+  if (els.desktopYasirPodium) {
+    els.desktopYasirPodium.dataset.tooltip = yasirStatus;
+    els.desktopYasirPodium.setAttribute("aria-label", yasirStatus);
+  }
+  if (els.desktopYasirImage) {
+    els.desktopYasirImage.src = active
+      ? "assets/ui/world-status/yasir-active.gif"
+      : "assets/ui/world-status/yasir-still.gif";
+  }
+  bindSkillDynamicTooltips(els.desktopWorldStatus);
+}
+
+function getBoostedAnimatedSprite(name) {
+  const normalizedName = normalizeSearchText(name);
+  if (!normalizedName || !Array.isArray(state.monsterIndex)) {
+    return "";
+  }
+
+  const entry = state.monsterIndex.find((candidate) => (
+    normalizeSearchText(candidate?.name) === normalizedName &&
+    /\.gif(?:$|[?#])/i.test(String(candidate?.imageSrc || ""))
+  ));
+
+  return String(entry?.imageSrc || "").trim();
+}
+
+async function openBoostedEntity(name, entityViewMode) {
+  if (!name) return;
+  switchSection("npcs");
+  await setEntityViewMode(entityViewMode, { skipHistory: true });
+  await openMonsterDetail(name);
+}
+
 function renderMiniWorldChanges() {
+  renderMiniWorldChangesRefreshControl();
+
   if (!els.miniWorldChangesActive || !els.miniWorldChangesCatalog) {
     return;
   }
@@ -13019,8 +13663,10 @@ function renderMiniWorldChanges() {
   const catalog = state.miniWorldChangesCatalog;
   const activeEntries = getActiveMiniWorldChangeEntries();
 
-  if (els.miniWorldChangesWorldName) {
-    els.miniWorldChangesWorldName.textContent = selectedWorld?.name || t("common.world");
+  if (els.miniWorldChangesToday) {
+    els.miniWorldChangesToday.textContent = t("miniWorldChanges.todayInWorld", {
+      world: selectedWorld?.name || t("common.world")
+    });
   }
   if (els.miniWorldChangesCount) {
     els.miniWorldChangesCount.textContent = String(catalog.length);
@@ -13051,6 +13697,60 @@ function renderMiniWorldChanges() {
       renderMiniWorldChangeDetail(current);
     }
   }
+}
+
+const MINI_WORLD_CHANGES_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
+
+function getMiniWorldChangesRefreshCooldownSeconds() {
+  return Math.max(0, Math.ceil((state.miniWorldChangesRefreshCooldownUntil - Date.now()) / 1000));
+}
+
+function formatMiniWorldChangesRefreshCountdown(totalSeconds) {
+  const seconds = Math.max(0, Number(totalSeconds) || 0);
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+}
+
+function renderMiniWorldChangesRefreshControl() {
+  const button = els.miniWorldChangesRefreshButton;
+  const countdown = els.miniWorldChangesRefreshCountdown;
+  if (!button) {
+    return;
+  }
+
+  const remainingSeconds = getMiniWorldChangesRefreshCooldownSeconds();
+  const isCoolingDown = remainingSeconds > 0;
+  const isLoading = state.miniWorldChangesLoading && !isCoolingDown;
+  const countdownText = formatMiniWorldChangesRefreshCountdown(remainingSeconds);
+  const tooltip = isCoolingDown
+    ? `${t("miniWorldChanges.refreshWait")} ${countdownText}`
+    : isLoading
+      ? t("miniWorldChanges.refreshing")
+      : t("miniWorldChanges.refresh");
+
+  button.classList.toggle("is-cooldown", isCoolingDown);
+  button.classList.toggle("is-loading", isLoading);
+  button.setAttribute("aria-disabled", isCoolingDown || isLoading ? "true" : "false");
+  button.dataset.tooltip = tooltip;
+  button.dataset.tooltipTone = isCoolingDown ? "danger" : "";
+  button.setAttribute("aria-label", tooltip);
+
+  if (countdown) {
+    countdown.hidden = !isCoolingDown;
+    countdown.textContent = isCoolingDown ? countdownText : "";
+  }
+
+  if (isCoolingDown && !state.miniWorldChangesRefreshTimer) {
+    state.miniWorldChangesRefreshTimer = window.setInterval(() => {
+      renderMiniWorldChangesRefreshControl();
+    }, 1000);
+  } else if (!isCoolingDown && state.miniWorldChangesRefreshTimer) {
+    window.clearInterval(state.miniWorldChangesRefreshTimer);
+    state.miniWorldChangesRefreshTimer = null;
+  }
+
+  setLiveTooltip(button, tooltip);
 }
 
 function groupMiniWorldChangesCatalog(catalog) {
@@ -13204,6 +13904,24 @@ function openMiniWorldChangeDetail(id, options = {}) {
   });
 }
 
+async function openOrientalTraderWorldChange() {
+  switchSection("mini-world-changes");
+  await ensureMiniWorldChangesLoaded();
+  const entry = state.miniWorldChangesCatalog.find((candidate) =>
+    normalizeMiniWorldChangeName(candidate.name) === "oriental trader" ||
+    (candidate.sourceAliases || []).some((alias) => normalizeMiniWorldChangeName(alias) === "oriental trader")
+  );
+  if (entry) {
+    openMiniWorldChangeDetail(entry.id);
+  }
+}
+
+async function openYasirNpcDetail() {
+  switchSection("npcs");
+  await setEntityViewMode("npcs", { skipHistory: true });
+  await openNpcDetail("Yasir");
+}
+
 function closeMiniWorldChangeDetail() {
   closeMiniWorldChangeImageViewer();
   stopTibiaInlineMaps(els.miniWorldChangeDetailContent);
@@ -13225,6 +13943,9 @@ function renderMiniWorldChangeDetail(entry) {
 
   els.miniWorldChangeDetailTitle.textContent = entry.name;
   els.miniWorldChangeActiveBadge?.classList.toggle("hidden", !isMiniWorldChangeActive(entry));
+  const isOrientalTrader = normalizeMiniWorldChangeName(entry.name) === "oriental trader" ||
+    (entry.sourceAliases || []).some((alias) => normalizeMiniWorldChangeName(alias) === "oriental trader");
+  els.miniWorldChangeOpenNpc?.classList.toggle("hidden", !isOrientalTrader);
   els.miniWorldChangeDetailContent.innerHTML = `
     <section class="mini-world-change-detail-summary">
       ${renderMiniWorldChangeRepresentatives(entry, "mini-world-change-detail-representatives")}
@@ -13560,6 +14281,7 @@ function showFloatingTooltip(trigger) {
   }
 
   tooltip.textContent = normalizeUiText(message);
+  tooltip.classList.toggle("danger", trigger?.dataset?.tooltipTone === "danger");
   tooltip.setAttribute("aria-hidden", "false");
   tooltip.classList.add("visible");
 
@@ -14390,9 +15112,7 @@ async function selectWorldSuggestion(field, world) {
   }
 
   refreshOpenBossTrackerForCurrentWorld();
-  if (state.miniWorldChangesLoaded || state.selectedSection === "mini-world-changes") {
-    void loadMiniWorldChanges({ force: true });
-  }
+  void loadMiniWorldChanges({ force: true });
   scheduleWarmItemCache();
 }
 

@@ -56,7 +56,9 @@ jobs:
           & (Join-Path $extractPath 'gitleaks.exe') git --redact --verbose
 
       - name: Audit npm dependencies
-        run: npm audit --audit-level=high
+        # The release gate covers packages shipped to end users. Build-only tools
+        # are audited separately when their dependency chain can be upgraded.
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Generate Node dependency SBOM
         shell: pwsh

@@ -124,12 +124,88 @@ const bootstrapAssetsRoot = path.join(projectRoot, "desktop", "build", "bootstra
 const appIconPath = path.join(bootstrapAssetsRoot, "loading-emblem.png");
 const splashIconPath = path.join(bootstrapAssetsRoot, "loading-emblem.png");
 const runtimeConfigPath = path.join(projectRoot, "desktop", "app-config.json");
+const supportersRankingRatesCacheMs = 30 * 60 * 1000;
+const defaultSupportersUsdToBrl = 5;
+const defaultSupportersTibiaCoinBrl = 0.21;
 const closePreferenceStorageKey = "appClosePreference";
 const tibiaWindowProbeScriptPath = path.join(projectRoot, "desktop", "screen-vision", "tibia-window-probe.ps1");
 const nativeHostProjectPath = path.join(projectRoot, "desktop", "screen-vision-native", "ScreenVision.NativeHost", "ScreenVision.NativeHost.csproj");
 const nativeHostPublishedDllPath = path.join(projectRoot, "desktop", "screen-vision-native", "publish", "win-x64", "ScreenVision.NativeHost.dll");
 const nativeHostPublishedExePath = path.join(projectRoot, "desktop", "screen-vision-native", "publish", "win-x64", "ScreenVision.NativeHost.exe");
 const nativeHostDebugDllPath = path.join(projectRoot, "desktop", "screen-vision-native", "ScreenVision.NativeHost", "bin", "Debug", "net10.0-windows", "win-x64", "ScreenVision.NativeHost.dll");
+let supportersRankingRatesCache = null;
+
+function parseSupporterRankingDecimal(value) {
+  const compact = String(value ?? "").trim().replace(/\s+/g, "").replace(/[^\d,.-]/g, "");
+  if (!compact || !/\d/.test(compact)) return 0;
+
+  const decimalIndex = Math.max(compact.lastIndexOf(","), compact.lastIndexOf("."));
+  const hasDecimals = decimalIndex >= 0 && /^\d{1,2}$/.test(compact.slice(decimalIndex + 1).replace(/[^\d]/g, ""));
+  const whole = (hasDecimals ? compact.slice(0, decimalIndex) : compact).replace(/[^\d]/g, "");
+  const fraction = hasDecimals ? compact.slice(decimalIndex + 1).replace(/[^\d]/g, "") : "";
+  return Number(`${whole || "0"}.${(fraction || "0").slice(0, 2)}`) || 0;
+}
+
+async function fetchSupportersRankingText(url, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await electronNet.fetch(url, {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.text();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function getSupportersUsdToBrl() {
+  for (let daysAgo = 0; daysAgo < 8; daysAgo += 1) {
+    const date = new Date(Date.now() - daysAgo * 86_400_000);
+    const dateText = `${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}-${date.getUTCFullYear()}`;
+    const url = `https://olinda.bcb.gov.br/olinda/servico/PTAX/versao/v1/odata/CotacaoDolarDia(dataCotacao=@dataCotacao)?%40dataCotacao='${dateText}'&%24top=1&%24format=json&%24select=cotacaoVenda`;
+    try {
+      const payload = JSON.parse(await fetchSupportersRankingText(url, 3_000));
+      const rate = Number(payload?.value?.[0]?.cotacaoVenda);
+      if (Number.isFinite(rate) && rate > 0) return rate;
+    } catch {
+      // PTAX is absent on holidays and weekends, so the previous business day is tried.
+    }
+  }
+  return defaultSupportersUsdToBrl;
+}
+
+async function getSupportersTibiaCoinBrl() {
+  try {
+    const html = await fetchSupportersRankingText("https://www.gamerbank.com.br/tibia-coins/venda-250-tibia-coins", 4_000);
+    const match = html.match(/class=["']product-price["'][^>]*>\s*R\$\s*([\d.,]+)/i);
+    const packagePrice = parseSupporterRankingDecimal(match?.[1]);
+    if (packagePrice > 0) return packagePrice / 250;
+  } catch {
+    // The locally documented fallback preserves ranking availability if the reseller page is unavailable.
+  }
+  return defaultSupportersTibiaCoinBrl;
+}
+
+async function getSupportersRankingRates() {
+  if (supportersRankingRatesCache?.expiresAt > Date.now()) {
+    return supportersRankingRatesCache;
+  }
+
+  const [usdToBrl, tibiaCoinBrl] = await Promise.all([
+    getSupportersUsdToBrl(),
+    getSupportersTibiaCoinBrl()
+  ]);
+
+  supportersRankingRatesCache = {
+    usdToBrl,
+    tibiaCoinBrl,
+    expiresAt: Date.now() + supportersRankingRatesCacheMs
+  };
+  return supportersRankingRatesCache;
+}
 
 async function migrateLegacyDocumentsDirectory() {
   if (!isProductionRuntime) {
@@ -1208,6 +1284,10 @@ function registerIpcHandlers() {
     }
 
     throw lastError || new Error("Nenhuma fonte de apoiadores esta disponivel.");
+  });
+
+  ipcMain.handle("supporters:fetch-ranking-rates", async () => {
+    return getSupportersRankingRates();
   });
 
   ipcMain.handle("overlay:get-state", async () => {

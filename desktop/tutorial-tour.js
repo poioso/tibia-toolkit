@@ -31,6 +31,8 @@ const TUTORIAL_ASSETS = {
   list: "assets/ui/tutorial/lista.gif",
   tools: "assets/ui/tutorial/ferramentas-canivete.gif",
   wheelOfDestiny: "assets/ui/tutorial/roda-do-destino.png",
+  worldBoard: "assets/ui/tutorial/world-board.png",
+  books: "assets/ui/tutorial/biblioteca.gif",
   imbuement: "assets/ui/tutorial/imbuement.gif",
   default: "assets/ui/tutorial/inicio.gif",
   invisible: "assets/ui/tutorial/invisivel.gif",
@@ -245,6 +247,14 @@ const TUTORIAL_CONFIRMATION_COPY = {
   }
 };
 
+const RECENT_NEWS_COPY = {
+  "pt-BR": "Notícias recentes do Tibia",
+  en: "Recent Tibia news",
+  de: "Aktuelle Tibia-Neuigkeiten"
+};
+
+const RECENT_NEWS_URL = "https://tibiatoolkit.com/news";
+
 // Every route uses durable first-visit state. Manual question buttons bypass
 // this gate, while Settings can clear all keys and start the welcome flow again.
 const TUTORIAL_ROUTE_CONFIG = Object.freeze({
@@ -255,6 +265,10 @@ const TUTORIAL_ROUTE_CONFIG = Object.freeze({
   stash: {
     launchPolicy: "first-visit",
     firstVisitStorageKey: "tibia-tools:tutorial:v2:stash:seen"
+  },
+  books: {
+    launchPolicy: "first-visit",
+    firstVisitStorageKey: "tibia-tools:tutorial:v2:books:seen"
   },
   tools: {
     launchPolicy: "first-visit",
@@ -279,6 +293,10 @@ const TUTORIAL_ROUTE_CONFIG = Object.freeze({
   "wheel-of-destiny": {
     launchPolicy: "first-visit",
     firstVisitStorageKey: "tibia-tools:tutorial:v2:wheel-of-destiny:seen"
+  },
+  "mini-world-changes": {
+    launchPolicy: "first-visit",
+    firstVisitStorageKey: "tibia-tools:tutorial:v2:mini-world-changes:seen"
   },
   npcs: {
     launchPolicy: "first-visit",
@@ -1089,6 +1107,110 @@ const TUTORIAL_WHEEL_OF_DESTINY_STEP_META = [
     gif: TUTORIAL_ASSETS.default,
     gifNatural: true,
     before: () => prepareWheelTutorialStep("summary-panel")
+  }
+];
+
+const TUTORIAL_MINI_WORLD_CHANGES_STEP_META = [
+  {
+    selector: '[data-section="mini-world-changes"]',
+    placement: "bottom",
+    gif: TUTORIAL_ASSETS.worldBoard,
+    gifNatural: true,
+    before: async () => {
+      await getTutorialApi()?.prepareMiniWorldChangesTutorial?.();
+      await wait(120);
+    }
+  },
+  {
+    selector: '.mini-world-changes-section[aria-labelledby="mini-world-changes-active-title"]',
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: async () => {
+      await getTutorialApi()?.prepareMiniWorldChangesTutorial?.({ showExample: true });
+      await wait(120);
+    }
+  },
+  {
+    selector: '#mini-world-changes-active .mini-world-change-active-card',
+    placement: "right",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: async () => {
+      await getTutorialApi()?.prepareMiniWorldChangesTutorial?.({ showExample: true });
+      await wait(80);
+    }
+  },
+  {
+    selector: '.mini-world-changes-section[aria-labelledby="mini-world-changes-catalog-title"]',
+    placement: "top",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: async () => {
+      await getTutorialApi()?.prepareMiniWorldChangesTutorial?.({ showExample: true });
+      await wait(80);
+    }
+  }
+];
+
+const TUTORIAL_BOOKS_STEP_META = [
+  {
+    selector: '[data-item-view="books"]',
+    placement: "bottom",
+    gif: TUTORIAL_ASSETS.books,
+    gifNatural: true,
+    before: async () => {
+      await getTutorialApi()?.prepareBooksTutorial?.();
+      await wait(120);
+    }
+  },
+  {
+    selector: ".books-toolbar",
+    placement: "bottom",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: async () => {
+      await getTutorialApi()?.prepareBooksTutorial?.();
+      await wait(100);
+    }
+  },
+  {
+    selector: "#books-grid",
+    placement: "top",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: async () => {
+      await getTutorialApi()?.prepareBooksTutorial?.({ query: "magic" });
+      await wait(120);
+    }
+  },
+  {
+    selector: "#books-detail",
+    placement: "top",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: async () => {
+      await getTutorialApi()?.prepareBooksTutorial?.({
+        query: "magic",
+        openBook: "the-magic-of-the-ghouls-book"
+      });
+      await wait(140);
+    }
+  },
+  {
+    selector: "#books-detail [data-books-inline-map-panel]",
+    placement: "top",
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
+    before: async () => {
+      await getTutorialApi()?.prepareBooksTutorial?.({
+        query: "magic",
+        openBook: "the-magic-of-the-ghouls-book",
+        openMap: true,
+        mapIndex: 0
+      });
+      await wait(240);
+    }
   }
 ];
 
@@ -2539,6 +2661,51 @@ const TUTORIAL_WHEEL_OF_DESTINY_STEP_COPY = {
   ]
 };
 
+const TUTORIAL_MINI_WORLD_CHANGES_STEP_COPY = {
+  "pt-BR": [
+    { text: "Aqui você confere as Mini World Changes do mundo selecionado." },
+    { text: "As Mini World Changes ativas aparecem nesta área." },
+    { text: "Clique em uma mudança ativa para abrir o guia completo." },
+    { text: "Na lista abaixo, você pode abrir o guia de qualquer Mini World Change." }
+  ],
+  en: [
+    { text: "Check the selected world's Mini World Changes here." },
+    { text: "Active Mini World Changes appear in this area." },
+    { text: "Click an active change to open its complete guide." },
+    { text: "Use the list below to open the guide for any Mini World Change." }
+  ],
+  de: [
+    { text: "Hier findest du die Mini World Changes der ausgewählten Welt." },
+    { text: "Aktive Mini World Changes werden in diesem Bereich angezeigt." },
+    { text: "Klicke auf eine aktive Änderung, um den vollständigen Guide zu öffnen." },
+    { text: "In der Liste unten kannst du den Guide jeder Mini World Change öffnen." }
+  ]
+};
+
+const TUTORIAL_BOOKS_STEP_COPY = {
+  "pt-BR": [
+    { text: "Aqui voce vai encontrar todo o acervo de livros do Tibia." },
+    { text: "Procure o livro por nome, autor, localizacao ou biblioteca." },
+    { text: "Aqui voce vai encontrar o resultado da sua pesquisa." },
+    { text: "Aqui voce encontra as informacoes do livro escolhido." },
+    { text: "Clique em Ver no mapa para conferir a localizacao deste livro no jogo.", done: true }
+  ],
+  en: [
+    { text: "Here you will find Tibia's complete book collection." },
+    { text: "Search for a book by name, author, location or library." },
+    { text: "Your search results appear here." },
+    { text: "Here you can see the selected book's information." },
+    { text: "Click Show on map to check this book's location in the game.", done: true }
+  ],
+  de: [
+    { text: "Hier findest du die gesamte Buchsammlung von Tibia." },
+    { text: "Suche ein Buch nach Name, Autor, Ort oder Bibliothek." },
+    { text: "Hier erscheinen die Ergebnisse deiner Suche." },
+    { text: "Hier findest du die Informationen zum ausgewaehlten Buch." },
+    { text: "Klicke auf Auf Karte zeigen, um den Fundort dieses Buchs im Spiel zu sehen.", done: true }
+  ]
+};
+
 const TUTORIAL_TIBIA_MIRROR_INTRO_STEP_COPY = {
   "pt-BR": [
     {
@@ -3394,7 +3561,11 @@ function getTourSteps(tourName = "item-prices") {
               ? { meta: TUTORIAL_SKILL_CALCULATOR_STEP_META, copy: TUTORIAL_SKILL_CALCULATOR_STEP_COPY }
               : tourName === "wheel-of-destiny"
                 ? { meta: TUTORIAL_WHEEL_OF_DESTINY_STEP_META, copy: TUTORIAL_WHEEL_OF_DESTINY_STEP_COPY }
-              : tourName === "npcs"
+                : tourName === "mini-world-changes"
+                  ? { meta: TUTORIAL_MINI_WORLD_CHANGES_STEP_META, copy: TUTORIAL_MINI_WORLD_CHANGES_STEP_COPY }
+                : tourName === "books"
+                  ? { meta: TUTORIAL_BOOKS_STEP_META, copy: TUTORIAL_BOOKS_STEP_COPY }
+                : tourName === "npcs"
                 ? { meta: TUTORIAL_NPCS_STEP_META, copy: TUTORIAL_NPCS_STEP_COPY }
                 : tourName === "bestiary"
                   ? { meta: TUTORIAL_BESTIARY_STEP_META, copy: TUTORIAL_BESTIARY_STEP_COPY }
@@ -3670,6 +3841,12 @@ async function closeActiveStep({
   if (restoreTourState && closingTourName === "wheel-of-destiny") {
     await restoreWheelOfDestinyTourState(wheelOfDestinyTourStateSnapshot);
     wheelOfDestinyTourStateSnapshot = null;
+  }
+  if (closingTourName === "mini-world-changes") {
+    getTutorialApi()?.clearMiniWorldChangesTutorialExample?.();
+  }
+  if (closingTourName === "books") {
+    getTutorialApi()?.closeBooksTutorialMap?.();
   }
   if (restoreTourState && closingTourName === "tibia-mirror") {
     await getTibiaMirrorTutorialApi()?.finishProfileDemo?.();
@@ -3966,11 +4143,17 @@ function getTutorialConfirmationGif() {
 function getActiveContextTourName() {
   const activeSection = document.querySelector(".nav-button.active")?.dataset.section || "item-prices";
   if (activeSection === "item-prices") {
+    if (document.querySelector('[data-item-view="books"].active')) {
+      return "books";
+    }
     return document.querySelector('[data-item-view="stash"].active') ? "stash" : "item-prices";
   }
   if (activeSection === "npcs") {
     const entityView = document.querySelector(".entity-tab.active")?.dataset.entityView || "npcs";
     return entityView === "monsters" ? "bestiary" : entityView === "bosses" ? "bosstiary" : "npcs";
+  }
+  if (activeSection === "mini-world-changes") {
+    return "mini-world-changes";
   }
   if (activeSection !== "tools") {
     return "item-prices";
@@ -3995,6 +4178,87 @@ function getActiveContextTourName() {
   return "tools";
 }
 
+function showContextButtonTooltip(trigger) {
+  const message = String(trigger?.dataset?.tooltip || "").trim();
+  if (!message) {
+    return;
+  }
+
+  let tooltip = document.querySelector("#floating-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.id = "floating-tooltip";
+    tooltip.className = "floating-tooltip";
+    document.body.appendChild(tooltip);
+  } else if (tooltip.parentElement !== document.body) {
+    document.body.appendChild(tooltip);
+  }
+
+  tooltip.textContent = message;
+  tooltip.setAttribute("aria-hidden", "false");
+  tooltip.classList.add("visible");
+
+  const rect = trigger.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const margin = 8;
+  const left = Math.min(
+    Math.max(margin, rect.left + rect.width / 2 - tooltipRect.width / 2),
+    Math.max(margin, window.innerWidth - tooltipRect.width - margin)
+  );
+  const topAbove = rect.top - tooltipRect.height - margin;
+  const top = topAbove >= margin ? topAbove : rect.bottom + margin;
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${Math.min(top, window.innerHeight - tooltipRect.height - margin)}px`;
+}
+
+function hideContextButtonTooltip() {
+  const tooltip = document.querySelector("#floating-tooltip");
+  tooltip?.classList.remove("visible");
+  tooltip?.setAttribute("aria-hidden", "true");
+}
+
+function bindContextButtonTooltip(button) {
+  if (button.dataset.contextTooltipBound === "true") {
+    return;
+  }
+
+  button.dataset.contextTooltipBound = "true";
+  button.addEventListener("mouseenter", () => showContextButtonTooltip(button));
+  button.addEventListener("focus", () => showContextButtonTooltip(button));
+  button.addEventListener("mouseleave", hideContextButtonTooltip);
+  button.addEventListener("blur", hideContextButtonTooltip);
+}
+
+function ensureContextNewsButton(host, hidden) {
+  let button = document.querySelector("#tt-news-context-button");
+  if (!button) {
+    button = document.createElement("button");
+    button.id = "tt-news-context-button";
+    button.type = "button";
+    button.className = "tt-tour-context-button tt-news-context-button";
+    button.innerHTML = '<img src="assets/ui/icon-news.gif" alt="">';
+    button.addEventListener("click", () => {
+      const openExternal = window.desktopApi?.links?.openExternal;
+      if (typeof openExternal === "function") {
+        void openExternal(RECENT_NEWS_URL);
+        return;
+      }
+      window.open(RECENT_NEWS_URL, "_blank", "noopener,noreferrer");
+    });
+    bindContextButtonTooltip(button);
+  }
+
+  if (button.parentElement !== host) {
+    host.appendChild(button);
+  }
+
+  const tooltip = RECENT_NEWS_COPY[getAppLocale()] || RECENT_NEWS_COPY.en;
+  button.dataset.tooltip = tooltip;
+  button.removeAttribute("title");
+  button.setAttribute("aria-label", tooltip);
+  button.hidden = hidden;
+}
+
 function ensureContextTutorialButton() {
   let button = document.querySelector("#tt-tour-context-button");
   if (!button) {
@@ -4006,6 +4270,7 @@ function ensureContextTutorialButton() {
     button.addEventListener("click", () => {
       openTutorialConfirmation({ tourName: button.dataset.tourName || "item-prices" });
     });
+    bindContextButtonTooltip(button);
   }
 
   // In the desktop shell, the main-section tabs live in the sidebar row. Keep
@@ -4020,9 +4285,11 @@ function ensureContextTutorialButton() {
   button.dataset.tourName = tourName;
   const copy = getTutorialConfirmationCopy();
   button.dataset.tooltip = copy.contextTooltip;
-  button.title = copy.contextTooltip;
+  button.removeAttribute("title");
   button.setAttribute("aria-label", copy.contextTooltip);
-  button.hidden = activeStepIndex >= 0 || Boolean(document.querySelector(".tt-tour-welcome-overlay"));
+  const hidden = activeStepIndex >= 0 || Boolean(document.querySelector(".tt-tour-welcome-overlay"));
+  button.hidden = hidden;
+  ensureContextNewsButton(host, hidden);
 }
 
 function bindContextTutorialButton() {
@@ -4089,12 +4356,14 @@ window.TibiaToolsTutorial = {
   openWelcome,
   startItemPricesTour: () => beginTutorialRoute("item-prices", { force: true }),
   startStashTour: () => beginTutorialRoute("stash", { force: true }),
+  startBooksTour: () => beginTutorialRoute("books", { force: true }),
   startToolsTour: () => beginTutorialRoute("tools", { force: true }),
   startAnalyzerTour: () => beginTutorialRoute("analyzer", { force: true }),
   startSoloAnalyzerTour: () => beginTutorialRoute("solo-analyzer", { force: true }),
   startPartyFinderTour: () => beginTutorialRoute("party-finder", { force: true }),
   startSkillCalculatorTour: () => beginTutorialRoute("skill-calculator", { force: true }),
   startWheelOfDestinyTour: () => beginTutorialRoute("wheel-of-destiny", { force: true }),
+  startMiniWorldChangesTour: () => beginTutorialRoute("mini-world-changes", { force: true }),
   startNpcsTour: () => beginTutorialRoute("npcs", { force: true }),
   startBestiaryTour: () => beginTutorialRoute("bestiary", { force: true }),
   startBossiaryTour: () => beginTutorialRoute("bosstiary", { force: true }),
@@ -4117,6 +4386,18 @@ function bindStashTourTrigger() {
   stashTab.dataset.tutorialStashBound = "true";
   stashTab.addEventListener("click", () => {
     void beginTutorialRoute("stash");
+  });
+}
+
+function bindBooksTourTrigger() {
+  const booksTab = document.querySelector('[data-item-view="books"]');
+  if (!booksTab || booksTab.dataset.tutorialBooksBound === "true") {
+    return;
+  }
+
+  booksTab.dataset.tutorialBooksBound = "true";
+  booksTab.addEventListener("click", () => {
+    window.setTimeout(() => void beginTutorialRoute("books"), 180);
   });
 }
 
@@ -4191,6 +4472,18 @@ function bindWheelOfDestinyTourTrigger() {
     // Let the regular tab handler reveal and initialize the same-origin frame
     // before the first spotlight is calculated.
     window.setTimeout(() => void beginTutorialRoute("wheel-of-destiny"), 180);
+  });
+}
+
+function bindMiniWorldChangesTourTrigger() {
+  const miniWorldChangesTab = document.querySelector('[data-section="mini-world-changes"]');
+  if (!miniWorldChangesTab || miniWorldChangesTab.dataset.tutorialMiniWorldChangesBound === "true") {
+    return;
+  }
+
+  miniWorldChangesTab.dataset.tutorialMiniWorldChangesBound = "true";
+  miniWorldChangesTab.addEventListener("click", () => {
+    window.setTimeout(() => void beginTutorialRoute("mini-world-changes"), 180);
   });
 }
 
@@ -4276,12 +4569,14 @@ function bindAlertsTourTrigger() {
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
     bindStashTourTrigger();
+    bindBooksTourTrigger();
     bindToolsTourTrigger();
     bindAnalyzerTourTrigger();
     bindSoloAnalyzerTourTrigger();
     bindPartyFinderTourTrigger();
     bindSkillCalculatorTourTrigger();
     bindWheelOfDestinyTourTrigger();
+    bindMiniWorldChangesTourTrigger();
     bindNpcsTourTrigger();
     bindBestiaryTourTrigger();
     bindBossiaryTourTrigger();
@@ -4293,12 +4588,14 @@ if (document.readyState === "loading") {
   }, { once: true });
 } else {
   bindStashTourTrigger();
+  bindBooksTourTrigger();
   bindToolsTourTrigger();
   bindAnalyzerTourTrigger();
   bindSoloAnalyzerTourTrigger();
   bindPartyFinderTourTrigger();
   bindSkillCalculatorTourTrigger();
   bindWheelOfDestinyTourTrigger();
+  bindMiniWorldChangesTourTrigger();
   bindNpcsTourTrigger();
   bindBestiaryTourTrigger();
   bindBossiaryTourTrigger();

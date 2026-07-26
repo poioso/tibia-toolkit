@@ -7,15 +7,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>ScreenVision.NativeHost</AssemblyName>
     <RootNamespace>ScreenVision.NativeHost</RootNamespace>
-    <AssemblyTitle>Tibia Toolkit Screen Vision Helper</AssemblyTitle>
-    <Product>Tibia Toolkit</Product>
-    <Company>Tibia Toolkit Project</Company>
-    <Description>Native Screen Vision helper for Tibia Toolkit</Description>
-    <Copyright>Copyright (C) Tibia Toolkit Project</Copyright>
-    <Version Condition="'$(Version)' == ''">0.3.1</Version>
-    <FileVersion Condition="'$(FileVersion)' == ''">0.3.1.0</FileVersion>
-    <AssemblyVersion Condition="'$(AssemblyVersion)' == ''">0.3.1.0</AssemblyVersion>
-    <InformationalVersion Condition="'$(InformationalVersion)' == ''">$(Version)</InformationalVersion>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
@@ -25,14 +16,9 @@
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
   </ItemGroup>
   <ItemGroup>
-    <!-- WPF pack URIs are not reliable after single-file bundling. Keep these
-         controls as physical files beside the native host instead. -->
-    <Content Include="Assets\selector\*.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <TargetPath>Assets\selector\%(Filename)%(Extension)</TargetPath>
-    </Content>
+    <!-- The selector runs from a self-contained native host. Embed its controls
+         so thin/content-pack installs cannot lose the confirm/cancel images. -->
+    <Resource Include="Assets\selector\*.png" />
     <Content Include="Assets\**\*" Exclude="Assets\selector\*.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
