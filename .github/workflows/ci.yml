@@ -37,6 +37,9 @@ jobs:
       - name: Validate public source
         run: npm run check
 
+      - name: Verify content-pack contract
+        run: npm run verify:content-contract
+
       - name: Scan for secrets
         shell: pwsh
         run: |

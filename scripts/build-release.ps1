@@ -22,6 +22,17 @@ if (-not $SkipInstall) {
 npm run check
 if ($LASTEXITCODE -ne 0) { throw 'A verificacao da fonte publica falhou.' }
 
+npm run verify:content-contract
+if ($LASTEXITCODE -ne 0) { throw 'O contrato do content pack nao cobre todos os assets referenciados.' }
+
+$contentPackPath = [string]$env:TIBIA_TOOLKIT_CONTENT_PACK_PATH
+if (-not $contentPackPath -or -not (Test-Path -LiteralPath $contentPackPath)) {
+    throw 'Defina TIBIA_TOOLKIT_CONTENT_PACK_PATH com o ZIP de conteudo validado desta release.'
+}
+
+node tools/audit-content-pack.mjs $contentPackPath
+if ($LASTEXITCODE -ne 0) { throw 'O ZIP de conteudo nao contem todos os assets exigidos pela aplicacao.' }
+
 npm run build:installer
 if ($LASTEXITCODE -ne 0) { throw 'A compilacao do instalador falhou.' }
 
