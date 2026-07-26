@@ -25,6 +25,9 @@ if ($LASTEXITCODE -ne 0) { throw 'A verificacao da fonte publica falhou.' }
 npm run build:installer
 if ($LASTEXITCODE -ne 0) { throw 'A compilacao do instalador falhou.' }
 
+npm run verify:packaged-runtime
+if ($LASTEXITCODE -ne 0) { throw 'A auditoria dos modulos obrigatorios empacotados falhou.' }
+
 & "$PSScriptRoot\verify-release.ps1" -AllowUnsigned
 & "$PSScriptRoot\generate-checksums.ps1" -InputPath (Join-Path $projectRoot 'dist\tibia-toolkit-release')
 

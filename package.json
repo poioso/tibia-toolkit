@@ -1,7 +1,7 @@
 {
   "name": "tibia-toolkit",
   "productName": "Tibia Toolkit",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "author": "Tibia Toolkit",
   "license": "GPL-3.0-only",
   "description": "App desktop overlay Tibia Toolkit para consultar precos de Tibia.",
@@ -14,6 +14,7 @@
     "check": "node tools/verify-public-source.mjs",
     "build:native-host": "dotnet publish desktop/screen-vision-native/ScreenVision.NativeHost/ScreenVision.NativeHost.csproj -c Release -r win-x64 --self-contained true -o desktop/screen-vision-native/publish/win-x64 --nologo",
     "build:installer": "node desktop/build-installer.mjs",
+    "verify:packaged-runtime": "node tools/verify-packaged-runtime-modules.mjs",
     "build:release": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1"
   },
   "devDependencies": {

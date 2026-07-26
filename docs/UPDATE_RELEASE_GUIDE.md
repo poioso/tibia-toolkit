@@ -57,3 +57,18 @@ After a public GitHub release is published, the Hospedainfo timer
 blockmap, checksums, and `latest.yml`, then promotes the manifest last.
 
 Foundation-review releases published before SignPath approval are unsigned review artifacts. Do not describe them as signed, and do not replace an existing versioned asset. After approval, the stable asset must be a byte-identical copy of the signed installer from its verified GitHub build.
+
+## Mandatory packaged-runtime gate
+
+Before every release, verify the exact `win-unpacked/resources/app` directory,
+not only the source tree. Runtime modules imported by the Electron main process
+must be present as non-empty files in the package. Run:
+
+```powershell
+npm run verify:packaged-runtime
+```
+
+This command is mandatory after `npm run build:installer`, both locally and in
+CI. Do not publish an installer when it has not passed. This protects against
+file-pattern exclusions that let source validation pass while an installed app
+fails at launch.
