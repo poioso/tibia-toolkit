@@ -5324,12 +5324,13 @@ async function syncTibiaMirrorVisibility(forceFresh = false) {
     : null;
   const obsCaptureFocused = Boolean(foregroundContext?.obsStudioFocused);
   const mirrorInteractionActive = Boolean(foregroundContext?.mirrorInteractionActive);
-  const toolkitFocused = Boolean(foregroundContext?.toolkitFocused);
   // OBS needs active native mirror windows to remain rendered while its
   // preview is focused. They stay non-topmost above Tibia, behind OBS.
+  // The Toolkit itself must remain unobstructed: showing native mirrors while
+  // its window owns focus can leave a WPF mirror above the Electron surface.
   const shouldShowMirrorOverlays = Boolean(
     shouldShowOverlays
-    || ((obsCaptureFocused || mirrorInteractionActive || toolkitFocused) && canUseTibiaWindowForScreenVision(tibiaState))
+    || ((obsCaptureFocused || mirrorInteractionActive) && canUseTibiaWindowForScreenVision(tibiaState))
   );
   const mirrorsShouldBeTopmost = Boolean(
     tibiaState
