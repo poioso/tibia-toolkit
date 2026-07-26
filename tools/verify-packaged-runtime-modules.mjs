@@ -10,8 +10,13 @@ const packageRoot = path.resolve(
 
 const requiredModules = [
   "services/game-data-hub/server.mjs",
+  "services/game-data-hub/api-security.mjs"
+];
+
+const privateModules = [
   "services/game-data-hub/mini-world-changes.mjs",
-  "services/game-data-hub/mini-world-change-visuals.mjs"
+  "services/game-data-hub/mini-world-change-visuals.mjs",
+  "services/market-cache/server.mjs"
 ];
 
 for (const relativeModulePath of requiredModules) {
@@ -26,4 +31,14 @@ for (const relativeModulePath of requiredModules) {
   }
 }
 
-console.log(`Packaged runtime module audit passed: ${requiredModules.length} required modules found.`);
+for (const relativeModulePath of privateModules) {
+  const absoluteModulePath = path.join(packageRoot, relativeModulePath);
+  const exists = await fs.stat(absoluteModulePath).then(() => true).catch(() => false);
+  if (exists) {
+    throw new Error(`Private server-only module was included in the desktop package: ${relativeModulePath}`);
+  }
+}
+
+console.log(
+  `Packaged runtime module audit passed: ${requiredModules.length} public modules found and ${privateModules.length} private modules excluded.`
+);
