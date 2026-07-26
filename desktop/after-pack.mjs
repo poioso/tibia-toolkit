@@ -5,10 +5,10 @@ import { rcedit } from "rcedit";
 export default async function patchWindowsExecutableIcon(context) {
   if (context.electronPlatformName !== "win32") return;
 
-  // Keep runtime-only Hub imports inside every desktop package.
+  // Keep the public Hub runtime imports inside every desktop package. The
+  // private mini world changes collector intentionally stays on the VPS.
   for (const relativeModulePath of [
-    "services/game-data-hub/mini-world-changes.mjs",
-    "services/game-data-hub/mini-world-change-visuals.mjs"
+    "services/game-data-hub/api-security.mjs"
   ]) {
     try {
       await access(path.join(context.appOutDir, "resources", "app", relativeModulePath));

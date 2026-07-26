@@ -7,13 +7,12 @@ import { fetchBazaarAuctionDetail } from "./bazaar-detail.mjs";
 import { buildBazaarOverviewSourceUrl, fetchBazaarOverview } from "./bazaar-overview.mjs";
 import { closeBazaarBrowser } from "./bazaar-scraper.mjs";
 import {
-  MINI_WORLD_CHANGES_KEY,
-  collectMiniWorldChanges,
-  getDueMiniWorldChangeSlots,
-  getTodayDueMiniWorldChangeSlots,
-  normalizeMiniWorldChangesConfig,
-  pruneCompletedMiniWorldChangeSlots
-} from "./mini-world-changes.mjs";
+  createFixedWindowRateLimiter,
+  getPublicJsonHeaders,
+  getRequestAddress,
+  isInternalApiRequest,
+  sanitizeMiniWorldChangeWorld
+} from "./api-security.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -66,13 +65,45 @@ const NEWS_ARCHIVE_INITIAL_IDS = new Set([
   8806, 8862, 8850, 8803, 8847, 8849, 8843
 ]);
 const NEWS_ARCHIVE_CUTOFF_DATE = "2026-07-13";
+const MINI_WORLD_CHANGES_KEY = "mini-world-changes";
+// Keep a second copy of the last non-empty cycle so a process restart or a
+// damaged primary snapshot cannot turn the pre-save window into a false
+// empty result. The empty result is allowed to replace the primary snapshot
+// only after the configured server-save time has passed.
+const MINI_WORLD_CHANGES_LAST_VALID_KEY = "mini-world-changes-last-valid";
+let miniWorldChangesModulePromise = null;
+
+function loadMiniWorldChangesModule() {
+  miniWorldChangesModulePromise ||= import("./mini-world-changes.mjs").catch((error) => {
+    // The desktop package intentionally omits the private collector. Its
+    // client uses the public Toolkit HTTPS endpoint instead, so do not make
+    // the whole application fail just because this server-only module is not
+    // present inside resources/app.
+    if (process.resourcesPath && error?.code === "ERR_MODULE_NOT_FOUND") return null;
+    throw error;
+  });
+  return miniWorldChangesModulePromise;
+}
+
+function normalizePackagedMiniWorldChangesConfig() {
+  return {
+    enabled: false,
+    sourceBase: "",
+    timeZone: "Europe/Berlin",
+    serverSaveTime: "10:00",
+    collectionTimes: [],
+    bootstrapWhenEmpty: false,
+    emptyResultRetryMs: 0
+  };
+}
 
 export async function createGameDataHubServer(overrides = {}) {
   const config = await loadConfig(overrides);
   const runtime = {
     schedulerTimer: null,
     inFlight: new Map(),
-    stateSaveInFlight: Promise.resolve()
+    stateSaveInFlight: Promise.resolve(),
+    miniWorldChangesRateLimiter: createFixedWindowRateLimiter(config.security.miniWorldChangesRateLimit)
   };
   const state = await loadState(config.stateFilePath);
 
@@ -147,12 +178,19 @@ async function handleRequest({ request, response, config, runtime, state, schedu
     }
 
     if (url.pathname === "/healthz") {
-      sendJson(response, 200, { ok: true, service: "game-data-hub" });
+      sendJson(response, 200, { ok: true, service: "tibia-toolkit-data" });
       return;
     }
 
     if (url.pathname === "/status" || url.pathname === "/api/game/status") {
-      sendJson(response, 200, buildStatusPayload({ config, state, scheduledModules }));
+      const internal = isInternalApiRequest(request, config.security.internalToken);
+      sendJson(
+        response,
+        200,
+        internal
+          ? buildStatusPayload({ config, state, scheduledModules })
+          : { ok: true, service: "tibia-toolkit-data" }
+      );
       return;
     }
 
@@ -169,12 +207,20 @@ async function handleRequest({ request, response, config, runtime, state, schedu
     }
 
     if (url.pathname === "/api/game/mini-world-changes") {
+      if (!isInternalApiRequest(request, config.security.internalToken)) {
+        sendJson(response, 404, { error: "Not found." });
+        return;
+      }
       const payload = await getCachedMiniWorldChanges({ config, state });
       sendJson(response, payload ? 200 : 503, payload || { error: "Mini World Changes cache is not ready." });
       return;
     }
 
     if (url.pathname === "/api/game/mini-world-changes/catalog") {
+      if (!isInternalApiRequest(request, config.security.internalToken)) {
+        sendJson(response, 404, { error: "Not found." });
+        return;
+      }
       const payload = await getCachedMiniWorldChanges({ config, state });
       sendJson(
         response,
@@ -188,6 +234,19 @@ async function handleRequest({ request, response, config, runtime, state, schedu
 
     const miniWorldChangesWorldMatch = url.pathname.match(/^\/api\/game\/mini-world-changes\/worlds\/([^/]+)$/);
     if (miniWorldChangesWorldMatch) {
+      const rate = runtime.miniWorldChangesRateLimiter.consume(
+        getRequestAddress(request, config.security.trustProxy)
+      );
+      if (!rate.allowed) {
+        sendJson(
+          response,
+          429,
+          { error: "Too many requests." },
+          { "Retry-After": String(rate.retryAfterSeconds) }
+        );
+        return;
+      }
+
       const requestedWorld = decodeURIComponent(miniWorldChangesWorldMatch[1]).trim();
       const payload = await getCachedMiniWorldChanges({ config, state });
       if (!payload) {
@@ -201,7 +260,9 @@ async function handleRequest({ request, response, config, runtime, state, schedu
       sendJson(
         response,
         world ? 200 : 404,
-        world ? { data: { world }, meta: payload.meta } : { error: `Unknown Tibia world: ${requestedWorld}` }
+        world
+          ? { data: { world: sanitizeMiniWorldChangeWorld(world) } }
+          : { error: "Unknown Tibia world." }
       );
       return;
     }
@@ -687,12 +748,35 @@ async function schedulerTick({ config, runtime, state, scheduledModules }) {
 }
 
 async function runMiniWorldChangesScheduler({ config, runtime, state, now = new Date() }) {
+  const miniWorldChangesModule = await loadMiniWorldChangesModule();
+  if (!miniWorldChangesModule) return;
+  const {
+    getDueMiniWorldChangeSlots,
+    getTodayDueMiniWorldChangeSlots,
+    pruneCompletedMiniWorldChangeSlots
+  } = miniWorldChangesModule;
   const schedule = config.miniWorldChanges;
   if (!schedule.enabled) return;
 
   const meta = state.modules[MINI_WORLD_CHANGES_KEY] || {};
   const snapshot = await readSnapshot(config, MINI_WORLD_CHANGES_KEY);
   let completedSlots = pruneCompletedMiniWorldChangeSlots(meta.completedSlots);
+
+  if (shouldRetryEmptyMiniWorldChanges({ snapshot, meta, schedule, now })) {
+    updateModuleMeta(state, MINI_WORLD_CHANGES_KEY, {
+      lastEmptyRetryAttemptAt: now.toISOString()
+    });
+    await saveState(config, runtime, state);
+    await refreshMiniWorldChangesSnapshot({
+      config,
+      runtime,
+      state,
+      now,
+      slot: "empty-result-retry",
+      refreshMs: schedule.emptyResultRetryMs
+    });
+    return;
+  }
 
   if (!snapshot && schedule.bootstrapWhenEmpty && !meta.bootstrapAttemptAt) {
     const bootstrapAttemptAt = now.toISOString();
@@ -731,15 +815,18 @@ async function runMiniWorldChangesScheduler({ config, runtime, state, now = new 
   await refreshMiniWorldChangesSnapshot({ config, runtime, state, now, slot });
 }
 
-async function refreshMiniWorldChangesSnapshot({ config, runtime, state, now, slot }) {
+async function refreshMiniWorldChangesSnapshot({ config, runtime, state, now, slot, refreshMs = 24 * 60 * 60_000 }) {
+  const miniWorldChangesModule = await loadMiniWorldChangesModule();
+  if (!miniWorldChangesModule) return null;
+  const { collectMiniWorldChanges, getZonedDateTimeParts } = miniWorldChangesModule;
   const schedule = config.miniWorldChanges;
   return refreshSnapshot({
     config,
     runtime,
     state,
     key: MINI_WORLD_CHANGES_KEY,
-    refreshMs: 24 * 60 * 60_000,
-    sourceUrl: "https://tibiatrade.gg/mini-world-changes",
+    refreshMs,
+    sourceUrl: schedule.sourceBase || null,
     fetcher: async () => {
       const data = await collectMiniWorldChanges({
         sourceBase: schedule.sourceBase,
@@ -747,17 +834,97 @@ async function refreshMiniWorldChangesSnapshot({ config, runtime, state, now, sl
         collectedAt: now.toISOString(),
         schedule
       });
+      const activeAssignmentCount = Number(data?.stats?.activeAssignmentCount) || 0;
+      const previousSnapshot = await readSnapshot(config, MINI_WORLD_CHANGES_KEY);
+      const lastValidSnapshot = await readSnapshot(config, MINI_WORLD_CHANGES_LAST_VALID_KEY);
+
+      if (shouldPreservePreviousMiniWorldChanges({
+        previousSnapshot: previousSnapshot || lastValidSnapshot,
+        activeAssignmentCount,
+        now,
+        schedule,
+        getZonedDateTimeParts
+      })) {
+        updateModuleMeta(state, MINI_WORLD_CHANGES_KEY, {
+          lastEmptyResultAt: now.toISOString(),
+          lastEmptyResultRejectedAt: now.toISOString()
+        });
+        await saveState(config, runtime, state);
+        throw new Error("Mini World Changes source returned no active worlds; preserving the previous snapshot until the next server-save window.");
+      }
+
+      // A non-empty response is always a valid replacement, regardless of
+      // the time of day. Keep it separately so it can be served during the
+      // pre-save window even if the primary snapshot is missing after a
+      // restart.
+      if (activeAssignmentCount > 0) {
+        await writeSnapshot(config, MINI_WORLD_CHANGES_LAST_VALID_KEY, data);
+      }
+
       updateModuleMeta(state, MINI_WORLD_CHANGES_KEY, {
         lastCompletedSlot: slot,
-        lastScheduledSuccessAt: new Date().toISOString()
+        lastScheduledSuccessAt: new Date().toISOString(),
+        lastEmptyResultAt: null,
+        lastEmptyRetrySuccessAt: slot === "empty-result-retry" ? new Date().toISOString() : null
       });
       return data;
     }
   });
 }
 
+function shouldRetryEmptyMiniWorldChanges({ snapshot, meta, schedule, now }) {
+  const retryMs = Number(schedule?.emptyResultRetryMs) || 0;
+  if (retryMs <= 0) return false;
+
+  const activeAssignmentCount = Number(snapshot?.stats?.activeAssignmentCount) || 0;
+  const hasNoResults = !snapshot || activeAssignmentCount === 0 || Boolean(meta?.lastEmptyResultAt);
+  if (!hasNoResults) return false;
+
+  const lastAttemptAt = Date.parse(meta?.lastEmptyRetryAttemptAt || meta?.lastEmptyResultAt || meta?.lastAttemptAt || 0) || 0;
+  return lastAttemptAt === 0 || now.getTime() - lastAttemptAt >= retryMs;
+}
+
+function shouldPreservePreviousMiniWorldChanges({
+  previousSnapshot,
+  activeAssignmentCount,
+  now,
+  schedule,
+  getZonedDateTimeParts
+}) {
+  if (activeAssignmentCount > 0) return false;
+
+  const previousActiveCount = Number(previousSnapshot?.stats?.activeAssignmentCount) || 0;
+  if (previousActiveCount <= 0) return false;
+
+  const previousCollectedAt = Date.parse(previousSnapshot?.source?.collectedAt || "");
+  if (!Number.isFinite(previousCollectedAt)) return true;
+
+  const previousLocal = getZonedDateTimeParts(new Date(previousCollectedAt), schedule.timeZone);
+  const currentLocal = getZonedDateTimeParts(now, schedule.timeZone);
+  if (previousLocal.date === currentLocal.date) return true;
+
+  const [saveHour, saveMinute] = String(schedule.serverSaveTime || "10:00").split(":").map(Number);
+  const currentMinutes = currentLocal.hour * 60 + currentLocal.minute;
+  const serverSaveMinutes = (Number.isFinite(saveHour) ? saveHour : 10) * 60 + (Number.isFinite(saveMinute) ? saveMinute : 0);
+  return currentMinutes < serverSaveMinutes;
+}
+
 async function getCachedMiniWorldChanges({ config, state }) {
-  const data = await readSnapshot(config, MINI_WORLD_CHANGES_KEY);
+  let data = await readSnapshot(config, MINI_WORLD_CHANGES_KEY);
+  if (!hasActiveMiniWorldChanges(data)) {
+    const lastValid = await readSnapshot(config, MINI_WORLD_CHANGES_LAST_VALID_KEY);
+    const miniWorldChangesModule = await loadMiniWorldChangesModule();
+    if (!miniWorldChangesModule) return data || lastValid || null;
+    const { getZonedDateTimeParts } = miniWorldChangesModule;
+    const useLastValid = hasActiveMiniWorldChanges(lastValid) && shouldPreservePreviousMiniWorldChanges({
+      previousSnapshot: lastValid,
+      activeAssignmentCount: Number(data?.stats?.activeAssignmentCount) || 0,
+      now: new Date(),
+      schedule: config.miniWorldChanges,
+      getZonedDateTimeParts
+    });
+    if (useLastValid) data = lastValid;
+  }
   if (!data) return null;
 
   const meta = state.modules[MINI_WORLD_CHANGES_KEY] || {};
@@ -774,6 +941,10 @@ async function getCachedMiniWorldChanges({ config, state }) {
       refreshing: false
     }
   };
+}
+
+function hasActiveMiniWorldChanges(snapshot) {
+  return Number(snapshot?.stats?.activeAssignmentCount) > 0;
 }
 
 async function getCombinedWorldStatistics({ config, runtime, state }) {
@@ -1095,6 +1266,9 @@ function buildScheduledModules(config) {
 }
 
 async function loadConfig(overrides = {}) {
+  const miniWorldChangesModule = await loadMiniWorldChangesModule();
+  const normalizeMiniWorldChangesConfig = miniWorldChangesModule?.normalizeMiniWorldChangesConfig
+    || normalizePackagedMiniWorldChangesConfig;
   const configPath =
     overrides.configPath ||
     process.env.GAME_DATA_HUB_CONFIG_PATH ||
@@ -1137,8 +1311,32 @@ async function loadConfig(overrides = {}) {
       timeZone: overrides.miniWorldChangesTimeZone || process.env.GAME_DATA_HUB_MWC_TIME_ZONE || fileMiniWorldChanges.timeZone,
       serverSaveTime: overrides.miniWorldChangesServerSaveTime || process.env.GAME_DATA_HUB_MWC_SERVER_SAVE_TIME || fileMiniWorldChanges.serverSaveTime,
       collectionTimes: overrides.miniWorldChangesCollectionTimes || process.env.GAME_DATA_HUB_MWC_COLLECTION_TIMES || fileMiniWorldChanges.collectionTimes,
-      bootstrapWhenEmpty: overrides.miniWorldChangesBootstrapWhenEmpty ?? process.env.GAME_DATA_HUB_MWC_BOOTSTRAP_WHEN_EMPTY ?? fileMiniWorldChanges.bootstrapWhenEmpty
+      bootstrapWhenEmpty: overrides.miniWorldChangesBootstrapWhenEmpty ?? process.env.GAME_DATA_HUB_MWC_BOOTSTRAP_WHEN_EMPTY ?? fileMiniWorldChanges.bootstrapWhenEmpty,
+      emptyResultRetryMs: overrides.miniWorldChangesEmptyResultRetryMs ?? process.env.GAME_DATA_HUB_MWC_EMPTY_RESULT_RETRY_MS ?? fileMiniWorldChanges.emptyResultRetryMs
     }),
+    security: {
+      internalToken: String(
+        overrides.internalToken ?? process.env.GAME_DATA_HUB_INTERNAL_TOKEN ?? fileConfig?.security?.internalToken ?? ""
+      ).trim(),
+      trustProxy: parseConfiguredBoolean(
+        overrides.trustProxy ?? process.env.GAME_DATA_HUB_TRUST_PROXY ?? fileConfig?.security?.trustProxy,
+        false
+      ),
+      miniWorldChangesRateLimit: {
+        windowMs: parsePositiveInteger(
+          overrides.miniWorldChangesRateLimitWindowMs,
+          process.env.GAME_DATA_HUB_MWC_RATE_WINDOW_MS,
+          fileConfig?.security?.miniWorldChangesRateLimit?.windowMs,
+          60_000
+        ),
+        maxRequests: parsePositiveInteger(
+          overrides.miniWorldChangesRateLimitMax,
+          process.env.GAME_DATA_HUB_MWC_RATE_MAX,
+          fileConfig?.security?.miniWorldChangesRateLimit?.maxRequests,
+          90
+        )
+      }
+    },
     refresh: {
       tibiaStatisticWorldsMs: parsePositiveInteger(
         overrides.tibiaStatisticWorldsMs,
@@ -2609,6 +2807,16 @@ function parsePositiveInteger(...values) {
   return 1;
 }
 
+function parseConfiguredBoolean(value, fallback = false) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  if (["0", "false", "no", "off"].includes(normalized)) return false;
+  return fallback;
+}
+
 function extractBazaarFilters(searchParams, subtopic) {
   const normalizedSubtopic =
     String(subtopic || "").toLowerCase() === "pastcharactertrades"
@@ -2686,11 +2894,8 @@ function buildBazaarSourceUrl(subtopic, filters) {
   return url.toString();
 }
 
-function sendJson(response, statusCode, payload) {
-  response.writeHead(statusCode, {
-    "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store"
-  });
+function sendJson(response, statusCode, payload, extraHeaders = {}) {
+  response.writeHead(statusCode, getPublicJsonHeaders(extraHeaders));
   response.end(JSON.stringify(payload));
 }
 

@@ -644,6 +644,7 @@ const state = {
   stashMarketRefreshWarningTimer: null,
   stashPreviewRequestId: 0,
   lastPreviewedStashSlug: null,
+  stashPreviewVisible: false,
   localeRefreshRequestId: 0,
   phraseTranslationMap: {},
   entityViewMode: "npcs",
@@ -850,6 +851,7 @@ const els = {
   itemListView: document.querySelector("#item-list-view"),
   itemStashView: document.querySelector("#item-stash-view"),
   itemBooksView: document.querySelector("#item-books-view"),
+  itemDetailView: null,
   booksSearchInput: document.querySelector("#books-search-input"),
   booksClearSearch: document.querySelector("#books-clear-search"),
   booksSortFilter: document.querySelector("#books-sort-filter"),
@@ -4942,11 +4944,42 @@ function syncNavigationButtons() {
   }
 }
 
+function ensureItemDetailView() {
+  if (els.itemDetailView?.isConnected) {
+    return els.itemDetailView;
+  }
+
+  const layout = els.itemListView?.querySelector(".layout-grid");
+  const related = els.itemListView?.querySelector(".related-card");
+
+  if (!layout || !els.itemBooksView) {
+    return null;
+  }
+
+  const detailView = document.createElement("div");
+  detailView.id = "item-detail-view";
+  detailView.className = "item-detail-view";
+  els.itemBooksView.insertAdjacentElement("afterend", detailView);
+  detailView.append(layout);
+
+  if (related) {
+    detailView.append(related);
+  }
+
+  els.itemDetailView = detailView;
+  return detailView;
+}
+
 async function setItemViewMode(mode, options = {}) {
   const nextMode = ["list", "stash", "books"].includes(mode) ? mode : "list";
+  const viewModeChanged = nextMode !== state.itemViewMode;
 
-  if (nextMode !== state.itemViewMode && !options.skipHistory && !state.navigationRestoring) {
+  if (viewModeChanged && !options.skipHistory && !state.navigationRestoring) {
     pushCurrentNavigationEntry();
+  }
+
+  if (viewModeChanged && nextMode === "stash") {
+    state.stashPreviewVisible = false;
   }
 
   state.itemViewMode = nextMode;
@@ -4958,6 +4991,12 @@ async function setItemViewMode(mode, options = {}) {
   els.shortcutsCard?.classList.toggle("hidden", state.itemViewMode !== "list");
   els.itemStashView?.classList.toggle("hidden", state.itemViewMode !== "stash");
   els.itemBooksView?.classList.toggle("hidden", state.itemViewMode !== "books");
+  const itemDetailView = ensureItemDetailView();
+  itemDetailView?.classList.toggle(
+    "hidden",
+    state.itemViewMode === "books" ||
+      (state.itemViewMode === "stash" && !state.stashPreviewVisible)
+  );
 
   if (state.itemViewMode === "stash") {
     try {
@@ -9370,6 +9409,15 @@ function hideStashItemTooltip() {
   document.querySelector("#stash-item-tooltip")?.classList.add("hidden");
 }
 
+function showStashItemDetail() {
+  if (state.itemViewMode !== "stash") {
+    return;
+  }
+
+  state.stashPreviewVisible = true;
+  ensureItemDetailView()?.classList.remove("hidden");
+}
+
 function getStashItemTooltip() {
   let tooltip = document.querySelector("#stash-item-tooltip");
 
@@ -9404,6 +9452,7 @@ async function previewStashItem(item, { loadMarket = false } = {}) {
   ) {
     state.currentItem = applyStashMarketPreview(state.currentItem, item);
     renderItem();
+    showStashItemDetail();
     scrollItemSummaryIntoView();
     return;
   }
@@ -9429,6 +9478,7 @@ async function previewStashItem(item, { loadMarket = false } = {}) {
 
     state.currentItem = loadMarket ? staticData : applyStashMarketPreview(staticData, item);
     renderItem();
+    showStashItemDetail();
 
     if (loadMarket) {
       void hydrateStashPreviewItem(item.slug, requestId);
