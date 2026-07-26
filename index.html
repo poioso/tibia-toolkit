@@ -104,17 +104,6 @@
           API
         </button>
 
-        <button
-          type="button"
-          class="desktop-screen-vision-toggle-button active"
-          id="desktop-screen-vision-visibility-button"
-          aria-label="Mostrar ou ocultar todos os espelhos"
-          data-tooltip="Mostrar ou ocultar todos os espelhos."
-          data-i18n-aria-label="toolbar.toggleMirrors"
-          data-i18n-tooltip="toolbar.toggleMirrors"
-        >
-          <img src="assets/ui/tools/tibia-eye/toolbar/visivel.png" alt="">
-        </button>
 
         <button
           type="button"
@@ -194,9 +183,9 @@
         <div class="nav-scroll-shell">
           <button type="button" class="nav-scroll-button nav-scroll-left" data-nav-scroll="left" aria-label="Rolar abas para esquerda" data-i18n-aria-label="toolbar.scrollTabsLeft">&lsaquo;</button>
           <nav class="nav-sections" id="main-nav-sections">
-            <button class="nav-button active" data-section="item-prices" data-tooltip="Preços dos Itens" aria-label="Preços dos Itens" data-i18n-tooltip="panel.itemPrices.title" data-i18n-aria-label="panel.itemPrices.title">
-              <img src="assets/ui/nav-precos.gif" alt="">
-              <span data-i18n="panel.itemPrices.title">Pre&ccedil;os dos Itens</span>
+            <button class="nav-button active" data-section="item-prices" data-tooltip="Biblioteca" aria-label="Biblioteca" data-i18n-tooltip="panel.itemPrices.title" data-i18n-aria-label="panel.itemPrices.title">
+              <img src="assets/ui/nav-biblioteca.gif" alt="">
+              <span data-i18n="panel.itemPrices.title">Biblioteca</span>
             </button>
             <button class="nav-button" data-section="tools" data-tooltip="Ferramentas" aria-label="Ferramentas" data-i18n-tooltip="panel.tools.title" data-i18n-aria-label="panel.tools.title">
               <img src="assets/ui/nav-ferramentas.gif" alt="">
@@ -271,6 +260,10 @@
             <button type="button" class="item-view-tab" data-item-view="stash">
               <img src="assets/ui/item-stash-tab.gif" alt="">
               <span>Stash</span>
+            </button>
+            <button type="button" class="item-view-tab" data-item-view="books">
+              <img src="assets/ui/item-books-tab.gif" alt="">
+              <span data-i18n="books.title">Livros</span>
             </button>
           </nav>
 
@@ -441,6 +434,41 @@
                 <span id="stash-status" data-i18n="stash.localBaseReady">Base local pronta.</span>
               </div>
             </article>
+          </div>
+
+          <div id="item-books-view" class="stash-view books-view hidden">
+            <article class="stash-panel books-panel">
+              <div class="stash-titlebar" data-i18n="books.title">Livros</div>
+              <div class="stash-toolbar books-toolbar">
+                <label class="stash-search">
+                  <input id="books-search-input" type="text" placeholder="Digite para pesquisar" data-i18n-placeholder="books.search" autocomplete="off">
+                  <button type="button" id="books-clear-search" aria-label="Limpar busca" data-i18n-aria-label="books.clearSearch">X</button>
+                </label>
+                <select id="books-sort-filter" aria-label="Ordenar livros" data-i18n-aria-label="books.sort">
+                  <option value="name-asc" data-i18n="books.sortNameAsc">Nome (A-Z)</option>
+                  <option value="name-desc" data-i18n="books.sortNameDesc">Nome (Z-A)</option>
+                  <option value="author-asc" data-i18n="books.sortAuthorAsc">Autor (A-Z)</option>
+                  <option value="author-desc" data-i18n="books.sortAuthorDesc">Autor (Z-A)</option>
+                  <option value="location-asc" data-i18n="books.sortLocationAsc">Localizacao (A-Z)</option>
+                  <option value="location-desc" data-i18n="books.sortLocationDesc">Localizacao (Z-A)</option>
+                  <option value="library-asc" data-i18n="books.sortLibraryAsc">Biblioteca (A-Z)</option>
+                  <option value="library-desc" data-i18n="books.sortLibraryDesc">Biblioteca (Z-A)</option>
+                </select>
+                <select id="books-location-filter" aria-label="Filtrar por localizacao" data-i18n-aria-label="books.locationFilter">
+                  <option value="" data-i18n="books.allLocations">Todas as localizacoes</option>
+                </select>
+                <select id="books-library-filter" aria-label="Filtrar por biblioteca" data-i18n-aria-label="books.libraryFilter">
+                  <option value="" data-i18n="books.allLibraries">Todas as bibliotecas</option>
+                </select>
+                <select id="books-author-filter" aria-label="Filtrar por autor" data-i18n-aria-label="books.authorFilter">
+                  <option value="" data-i18n="books.allAuthors">Todos os autores</option>
+                </select>
+              </div>
+              <div id="books-status" class="stash-status" data-i18n="books.loading">Carregando livros...</div>
+              <div id="books-grid" class="books-grid"></div>
+              <div id="books-pagination" class="books-pagination"></div>
+            </article>
+            <article id="books-detail" class="stash-panel books-detail hidden"></article>
           </div>
         </section>
 
@@ -1148,10 +1176,6 @@
         </section>
 
         <section class="panel" id="panel-npcs">
-          <header class="panel-header panel-header-status-only">
-            <div class="status-badge" id="npcs-status">Base local</div>
-          </header>
-
           <nav class="entity-tabs" aria-label="NPCs e Criaturas">
             <button type="button" class="entity-tab active" data-entity-view="npcs">
               <img src="assets/ui/tab-npcs.gif" alt="">
@@ -1245,11 +1269,37 @@
           <div id="mini-world-changes-overview" class="mini-world-changes-overview">
             <section class="mini-world-changes-section" aria-labelledby="mini-world-changes-active-title">
               <div class="mini-world-changes-heading-row">
-                <div>
-                  <p class="section-kicker" data-i18n="miniWorldChanges.today">Hoje neste mundo</p>
-                  <h2 id="mini-world-changes-active-title" data-i18n="miniWorldChanges.activeTitle">Mini World Changes ativas</h2>
+                <div class="mini-world-changes-title-actions">
+                  <button
+                    type="button"
+                    class="icon-action-button mini-world-changes-refresh-button"
+                    id="mini-world-changes-refresh-button"
+                    data-tooltip="Atualizar consulta"
+                    data-i18n-tooltip="miniWorldChanges.refresh"
+                    aria-label="Atualizar consulta"
+                    data-i18n-aria-label="miniWorldChanges.refresh"
+                  >
+                    <img src="assets/wheel-of-destiny/ui/reset.png" alt="" aria-hidden="true">
+                  </button>
+                  <span class="mini-world-changes-refresh-countdown" id="mini-world-changes-refresh-countdown" aria-live="polite" hidden></span>
+                  <div>
+                    <p class="section-kicker" id="mini-world-changes-today">Hoje em Antica</p>
+                    <h2 id="mini-world-changes-active-title" data-i18n="miniWorldChanges.activeTitle">Mini World Changes ativas</h2>
+                  </div>
                 </div>
-                <span class="status-badge" id="mini-world-changes-world-name"></span>
+                <div class="mini-world-status" id="desktop-world-status" aria-label="Destaques do mundo">
+                  <button type="button" class="desktop-yasir-podium is-inactive" id="desktop-yasir-podium" data-tooltip="Yasir não foi visto neste mundo" aria-label="Yasir não foi visto neste mundo">
+                    <img id="desktop-yasir-image" src="assets/ui/world-status/yasir-still.gif" alt="" aria-hidden="true">
+                  </button>
+                  <div class="desktop-boosted-panel" aria-label="Criatura e boss boosted">
+                    <button type="button" class="desktop-boosted-card" id="desktop-boosted-creature" disabled data-tooltip="Carregando criatura boosted" aria-label="Carregando criatura boosted">
+                      <img id="desktop-boosted-creature-image" alt="" aria-hidden="true">
+                    </button>
+                    <button type="button" class="desktop-boosted-card" id="desktop-boosted-boss" disabled data-tooltip="Carregando boss boosted" aria-label="Carregando boss boosted">
+                      <img id="desktop-boosted-boss-image" alt="" aria-hidden="true">
+                    </button>
+                  </div>
+                </div>
               </div>
               <div id="mini-world-changes-active" class="mini-world-changes-active-grid"></div>
             </section>
@@ -1279,6 +1329,9 @@
             </header>
             <div id="mini-world-change-detail-content" class="mini-world-change-detail-content"></div>
             <footer class="mini-world-change-detail-footer">
+              <button type="button" id="mini-world-change-open-npc" class="entity-link-chip hidden">
+                <span data-i18n="miniWorldChanges.openNpc">Ver informações do NPC</span>
+              </button>
               <button type="button" id="mini-world-change-open-wiki" class="entity-link-chip">
                 <span data-i18n="common.openWiki">Abrir wiki</span>
               </button>

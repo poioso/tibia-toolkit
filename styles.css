@@ -49,6 +49,42 @@
   gap: 14px;
 }
 
+.mini-world-changes-title-actions {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.mini-world-changes-refresh-button {
+  flex: 0 0 auto;
+}
+
+.mini-world-changes-refresh-button img {
+  display: block;
+  width: 21px;
+  height: 21px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.mini-world-changes-refresh-button.is-cooldown,
+.mini-world-changes-refresh-button.is-loading {
+  cursor: not-allowed;
+  filter: grayscale(1);
+  opacity: 0.46;
+}
+
+.mini-world-changes-refresh-countdown {
+  flex: 0 0 auto;
+  color: #ff7979;
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .mini-world-changes-heading-row h2,
 .mini-world-change-detail-header h2 {
   margin: 2px 0 0;
@@ -67,6 +103,26 @@
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.mini-world-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  width: 129px;
+  height: 46px;
+}
+
+@media (max-width: 520px) {
+  .mini-world-changes-heading-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .mini-world-status {
+    margin-left: auto;
+  }
 }
 
 .mini-world-changes-active-grid {
@@ -488,8 +544,14 @@
 
 .mini-world-change-detail-footer {
   display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
   padding-top: 4px;
+}
+
+.mini-world-change-detail-footer #mini-world-change-open-npc {
+  margin-right: auto;
 }
 
 .mini-world-change-image-viewer-card {
@@ -1399,6 +1461,168 @@ select:focus {
   gap: 8px;
   padding: 10px;
 }
+
+.books-toolbar {
+  grid-template-columns: minmax(180px, 1.45fr) repeat(4, minmax(118px, 0.8fr));
+}
+
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-auto-rows: minmax(78px, auto);
+  align-content: start;
+  gap: 8px;
+  margin: 0 10px;
+  padding: 8px;
+  max-height: 524px;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 0, 0, 0.55);
+  background:
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.028) 0 2px, transparent 2px 8px),
+    #303030;
+}
+
+.book-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 78px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 4px;
+  background: rgba(20, 23, 29, 0.72);
+  color: #e8e8e8;
+  text-align: left;
+  cursor: pointer;
+}
+
+.book-card:hover {
+  border-color: rgba(79, 192, 106, 0.82);
+  background: rgba(35, 43, 48, 0.92);
+}
+
+.book-card-art {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.book-card-art img {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.book-card-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.book-card-copy strong,
+.book-card-copy span,
+.book-card-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.book-card-copy strong { color: #f2f2f2; }
+.book-card-copy span { color: #aeb9c8; font-size: 0.74rem; }
+.book-card-copy small { color: #7f93aa; font-size: 0.67rem; }
+.books-empty { grid-column: 1 / -1; }
+
+.books-pagination,
+.books-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  color: #c3cbd5;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.books-detail-actions {
+  justify-content: flex-start;
+  padding-inline: 0;
+}
+
+.books-detail .boss-inline-map {
+  margin-top: 10px;
+}
+
+.books-detail {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px;
+}
+
+.books-detail-header,
+.books-detail-hero,
+.book-appearance-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.books-detail-header { justify-content: space-between; }
+.books-detail-hero { min-width: 0; }
+.books-detail-hero img,
+.book-appearance-content > img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.books-detail-hero h3,
+.books-detail-section h4 { margin: 0; color: #f2f2f2; }
+.books-detail-hero p { margin: 3px 0 0; color: #93a0b0; font-size: 0.72rem; }
+
+.books-metadata {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 7px;
+}
+
+.books-metadata > div,
+.books-detail-section,
+.book-appearance-card {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(24, 28, 35, 0.72);
+}
+
+.books-metadata > div { display: grid; gap: 3px; padding: 8px; }
+.books-metadata span { color: #91a0b4; font-size: 0.67rem; font-weight: 800; }
+.books-metadata strong { color: #e6e9ed; font-size: 0.75rem; }
+.books-detail-section { padding: 10px; }
+.books-detail-section h4 { margin-bottom: 8px; }
+.books-detail-section p { margin: 0; color: #d7dde5; font-size: 0.78rem; line-height: 1.45; }
+.books-appearances {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 7px;
+}
+.book-appearance-card {
+  display: grid;
+  align-content: space-between;
+  gap: 9px;
+  min-height: 112px;
+  padding: 8px;
+}
+.book-appearance-content > div { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.book-appearance-card strong { color: #edf0f4; font-size: 0.75rem; }
+.book-appearance-card span { color: #a9b4c1; font-size: 0.7rem; }
+.book-appearance-card .entity-link-chip { justify-self: start; }
+.book-text { margin: 0; white-space: pre-wrap; color: #dce2e9; font: 0.78rem/1.5 inherit; }
 
 .stash-search {
   display: grid;
@@ -5459,6 +5683,12 @@ button.entity-chip:hover,
   transform: translateY(0);
 }
 
+.floating-tooltip.danger {
+  border-color: rgba(255, 96, 96, 0.82);
+  background: rgba(76, 25, 30, 0.99);
+  color: #ffe5e5;
+}
+
 .loot-monster-event {
   color: #8fdcff;
   font-weight: 800;
@@ -8375,6 +8605,76 @@ body.desktop-mode .desktop-toolbar span {
   flex: 0 0 auto;
 }
 
+.desktop-boosted-panel {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  width: 81px;
+  height: 46px;
+  padding: 0 3px;
+  background: url("assets/ui/world-status/boosted-panel-frame.png") center / 81px 46px no-repeat;
+}
+
+.desktop-boosted-card {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.desktop-boosted-card:disabled {
+  cursor: default;
+}
+
+.desktop-boosted-card:focus-visible {
+  outline: 1px solid #d5ad3a;
+  outline-offset: -2px;
+}
+
+.desktop-boosted-card img {
+  width: 33px;
+  height: 33px;
+  object-fit: contain;
+  transform: translate(-5px, -8px);
+  image-rendering: pixelated;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.86));
+}
+
+.desktop-yasir-podium {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  place-items: center;
+  background: url("assets/ui/world-status/yasir-podium.webp") center top / 46px 37px no-repeat;
+  cursor: pointer;
+}
+
+.desktop-yasir-podium:focus-visible {
+  outline: 1px solid #d5ad3a;
+  outline-offset: -2px;
+}
+
+.desktop-yasir-podium img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  transform: translateY(-5px);
+  image-rendering: pixelated;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.86));
+}
+
+.desktop-yasir-podium.is-inactive {
+  filter: grayscale(1) brightness(0.58);
+}
+
+.desktop-yasir-podium.is-inactive img {
+  opacity: 0.74;
+}
+
 .desktop-toolbar-brand {
   display: flex;
   flex-direction: column;
@@ -8844,6 +9144,7 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
 
 .locale-switcher {
   position: relative;
+  z-index: 130;
   display: inline-flex;
   align-items: center;
 }
@@ -8924,6 +9225,7 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
+  z-index: 131;
   display: grid;
   gap: 6px;
   min-width: 182px;
@@ -8932,6 +9234,7 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
   border-radius: 10px;
   background: #232832;
   box-shadow: 0 16px 34px rgba(10, 14, 20, 0.28);
+  -webkit-app-region: no-drag;
 }
 
 .locale-switcher-option {
@@ -8946,6 +9249,7 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
   background: #2c313b;
   color: #eef2f8;
   cursor: pointer;
+  -webkit-app-region: no-drag;
   transition: border-color 120ms ease, background-color 120ms ease, color 120ms ease;
 }
 
@@ -12256,6 +12560,35 @@ body.desktop-mode .stash-toolbar {
   padding: 8px;
 }
 
+body.desktop-mode .books-toolbar {
+  grid-template-columns: 1.25fr repeat(4, minmax(100px, 0.8fr));
+}
+
+body.desktop-mode .books-grid {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-auto-rows: minmax(64px, auto);
+  gap: 6px;
+  margin: 0 8px;
+  padding: 6px;
+  max-height: 426px;
+}
+
+body.desktop-mode .book-card {
+  grid-template-columns: 42px minmax(0, 1fr);
+  min-height: 64px;
+  gap: 6px;
+  padding: 6px;
+}
+
+body.desktop-mode .book-card-art,
+body.desktop-mode .book-card-art img {
+  width: 38px;
+  height: 38px;
+}
+
+body.desktop-mode .book-card-copy span { font-size: 0.66rem; }
+body.desktop-mode .book-card-copy small { font-size: 0.6rem; }
+
 body.desktop-mode .stash-toolbar input,
 body.desktop-mode .stash-toolbar select,
 body.desktop-mode .stash-search button {
@@ -14224,6 +14557,19 @@ body.desktop-mode .manual-token-input {
   .stash-toolbar,
   body.desktop-mode .stash-toolbar {
     grid-template-columns: 1fr;
+  }
+
+  .books-toolbar,
+  body.desktop-mode .books-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .book-appearance-card {
+    min-height: auto;
+  }
+
+  .book-appearance-card .entity-link-chip {
+    justify-self: start;
   }
 
   .entity-layout,
@@ -16537,6 +16883,12 @@ body.desktop-mode .docked-coffee-thank-you-title {
   display: none;
 }
 
+/* The news entry shares the tutorial control geometry and sits before it. */
+.tt-news-context-button {
+  right: 60px;
+  left: auto;
+}
+
 .tt-tour-context-button:hover,
 .tt-tour-context-button:focus-visible {
   border-color: rgba(88, 196, 112, 0.72);
@@ -16570,6 +16922,13 @@ body.desktop-mode .tt-tour-context-button {
   z-index: 12;
   transform: translateY(-50%);
   -webkit-app-region: no-drag;
+}
+
+/* The desktop selector above sets the tutorial at 14px, so override it with
+   the same specificity to keep News directly to its left. */
+body.desktop-mode .tt-news-context-button {
+  right: 60px;
+  left: auto;
 }
 
 body.desktop-mode .tt-tour-context-button:hover,

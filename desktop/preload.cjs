@@ -87,6 +87,9 @@ contextBridge.exposeInMainWorld("desktopApi", {
   supporters: {
     fetchDocument() {
       return ipcRenderer.invoke("supporters:fetch-document");
+    },
+    fetchRankingRates() {
+      return ipcRenderer.invoke("supporters:fetch-ranking-rates");
     }
   },
   updater: {
@@ -160,6 +163,9 @@ contextBridge.exposeInMainWorld("desktopApi", {
     supporters: {
       fetchDocument() {
         return ipcRenderer.invoke("supporters:fetch-document");
+      },
+      fetchRankingRates() {
+        return ipcRenderer.invoke("supporters:fetch-ranking-rates");
       }
     },
     storage: {
