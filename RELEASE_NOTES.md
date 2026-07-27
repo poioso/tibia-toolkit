@@ -13,8 +13,6 @@ Tibia Toolkit 0.6.4
 - Hardened the packaged Game Data Hub: the private Mini World Changes collector remains server-only and cannot block desktop startup when it is intentionally absent.
 - The installed app continues checking for updates every 30 minutes and shows the update indicator as soon as a new version is found.
 
-Previous versions
-
 Tibia Toolkit 0.6.3
 - The initial update notice now opens in the Tibia Toolkit visual style before the main interface loads.
 - Downloads show progress inside the app and open the installer automatically after completion.
