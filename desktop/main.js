@@ -673,7 +673,9 @@ async function createOverlayWindow() {
     backgroundColor: "#1d2129",
     icon: appIconPath,
     frame: false,
-    roundedCorners: false,
+    // Keep Windows 11's native frame treatment enabled for the borderless shell.
+    // The native host reinforces this after the window is visible.
+    roundedCorners: true,
     show: false,
     alwaysOnTop: true,
     autoHideMenuBar: true,

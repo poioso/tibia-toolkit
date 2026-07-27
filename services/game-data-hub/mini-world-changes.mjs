@@ -3,7 +3,13 @@ import { enrichMiniWorldChange } from "./mini-world-change-visuals.mjs";
 const DEFAULT_SOURCE_BASE = "https://tibiatrade.gg/trpc";
 const DEFAULT_TIME_ZONE = "Europe/Berlin";
 const DEFAULT_SERVER_SAVE_TIME = "10:00";
-const DEFAULT_COLLECTION_TIMES = ["10:10", "10:30"];
+// TibiaTrade can lag just after server save. Refresh twice per hour throughout
+// the server day instead of stopping after the first two post-save attempts.
+const DEFAULT_COLLECTION_TIMES = Array.from(
+  { length: 24 },
+  (_, hour) => [`${String(hour).padStart(2, "0")}:00`, `${String(hour).padStart(2, "0")}:10`]
+).flat();
+const DEFAULT_EMPTY_RESULT_RETRY_MS = 0;
 
 const SOURCE_HEADERS = {
   Accept: "application/json",
@@ -22,7 +28,8 @@ export function normalizeMiniWorldChangesConfig(input = {}) {
     timeZone: String(input.timeZone || DEFAULT_TIME_ZONE).trim() || DEFAULT_TIME_ZONE,
     serverSaveTime: normalizeClock(input.serverSaveTime, DEFAULT_SERVER_SAVE_TIME),
     collectionTimes: collectionTimes.length > 0 ? collectionTimes : [...DEFAULT_COLLECTION_TIMES],
-    bootstrapWhenEmpty: normalizeBoolean(input.bootstrapWhenEmpty, true)
+    bootstrapWhenEmpty: normalizeBoolean(input.bootstrapWhenEmpty, true),
+    emptyResultRetryMs: normalizePositiveMilliseconds(input.emptyResultRetryMs, DEFAULT_EMPTY_RESULT_RETRY_MS)
   };
 }
 
@@ -244,6 +251,11 @@ function normalizeBoolean(value, fallback) {
   if (typeof value === "boolean") return value;
   if (value === undefined || value === null || value === "") return fallback;
   return !["0", "false", "no", "off"].includes(String(value).trim().toLowerCase());
+}
+
+function normalizePositiveMilliseconds(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
 }
 
 function requireArray(value, label) {

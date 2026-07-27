@@ -18,6 +18,7 @@ const LEGACY_SAFE_ASSET_EXTENSIONS = new Set([
   ".css", ".gif", ".gitkeep", ".html", ".jpg", ".js", ".json",
   ".md", ".ogg", ".png", ".svg", ".webp"
 ]);
+const NON_RUNTIME_ASSET_PREFIXES = ["assets/tibia-client/organized/"];
 const configuredTargets = Array.isArray(runtimeConfig.contentPackDistributionTargets)
   ? runtimeConfig.contentPackDistributionTargets
   : [];
@@ -55,7 +56,10 @@ const archive = new AdmZip();
 archive.addLocalFolder(path.join(projectRoot, "assets"), "assets", (filePath) => {
   // .jpeg was introduced after early thin clients shipped. The matching .jpg
   // asset is packaged instead, so an old client can still bootstrap safely.
-  return path.basename(filePath) !== ".gitkeep" && path.extname(filePath).toLowerCase() !== ".jpeg";
+  const relativePath = path.relative(projectRoot, filePath).replaceAll("\\", "/");
+  return path.basename(filePath) !== ".gitkeep"
+    && path.extname(filePath).toLowerCase() !== ".jpeg"
+    && !NON_RUNTIME_ASSET_PREFIXES.some((prefix) => relativePath.startsWith(prefix));
 });
 
 const incompatibleEntries = archive
