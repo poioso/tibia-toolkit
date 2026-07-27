@@ -1,7 +1,10 @@
 # Content pack release checklist
 
-The installer intentionally excludes `assets/`. Every runtime asset must be in
-the separately promoted content ZIP before an app version that references it is
+The installer intentionally excludes `assets/`, except for three bootstrap
+assets that must work before the content pack is available:
+`assets/ui/Tick.png`, `assets/ui/Cross.png`, and
+`assets/ui/tutorial/update.gif`. Every other runtime asset must be in the
+separately promoted content ZIP before an app version that references it is
 published.
 
 ## Required order
@@ -22,6 +25,9 @@ published.
 6. Only after both content origins pass, build and publish the installer.
 7. Test a clean installed copy with an empty content cache. Confirm every new
    icon, image, audio file, and local catalog loads before announcement.
+8. Run `npm run verify:packaged-runtime` against the exact `win-unpacked`
+   output. It verifies the bootstrap assets above as well as the required
+   desktop runtime files. Do not substitute a source-tree check for this step.
 
 Never point `latest.json` at an archive that has not passed the audit. Never
 publish an app whose new renderer assets have not been promoted in the content

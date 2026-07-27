@@ -73,6 +73,12 @@ CI. Do not publish an installer when it has not passed. This protects against
 file-pattern exclusions that let source validation pass while an installed app
 fails at launch.
 
+The initial updater dialogs are a bootstrap path: `Tick.png`, `Cross.png`, and
+`tutorial/update.gif` must remain explicitly included in the installer rather
+than only in the content pack. The packaged-runtime audit is the required proof
+for this; never rely on a development checkout where the full asset tree hides
+a missing installer file.
+
 ## Mandatory content-pack gate
 
 Read and complete [CONTENT_PACK_RELEASE_CHECKLIST.md](CONTENT_PACK_RELEASE_CHECKLIST.md)

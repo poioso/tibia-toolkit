@@ -884,7 +884,7 @@ function shouldRetryEmptyMiniWorldChanges({ snapshot, meta, schedule, now }) {
   return lastAttemptAt === 0 || now.getTime() - lastAttemptAt >= retryMs;
 }
 
-function shouldPreservePreviousMiniWorldChanges({
+export function shouldPreservePreviousMiniWorldChanges({
   previousSnapshot,
   activeAssignmentCount,
   now,
@@ -901,12 +901,28 @@ function shouldPreservePreviousMiniWorldChanges({
 
   const previousLocal = getZonedDateTimeParts(new Date(previousCollectedAt), schedule.timeZone);
   const currentLocal = getZonedDateTimeParts(now, schedule.timeZone);
-  if (previousLocal.date === currentLocal.date) return true;
+  const serverSaveMinutes = getMiniWorldServerSaveMinutes(schedule.serverSaveTime);
 
-  const [saveHour, saveMinute] = String(schedule.serverSaveTime || "10:00").split(":").map(Number);
-  const currentMinutes = currentLocal.hour * 60 + currentLocal.minute;
-  const serverSaveMinutes = (Number.isFinite(saveHour) ? saveHour : 10) * 60 + (Number.isFinite(saveMinute) ? saveMinute : 0);
-  return currentMinutes < serverSaveMinutes;
+  // Calendar dates change at midnight, but a Tibia server day changes at
+  // server save. A snapshot captured before 10:00 Berlin still belongs to
+  // the preceding server day and must not survive an empty post-save result.
+  return getMiniWorldServerDay(previousLocal, serverSaveMinutes)
+    === getMiniWorldServerDay(currentLocal, serverSaveMinutes);
+}
+
+function getMiniWorldServerSaveMinutes(serverSaveTime) {
+  const [saveHour, saveMinute] = String(serverSaveTime || "10:00").split(":").map(Number);
+  return (Number.isFinite(saveHour) ? saveHour : 10) * 60
+    + (Number.isFinite(saveMinute) ? saveMinute : 0);
+}
+
+function getMiniWorldServerDay(local, serverSaveMinutes) {
+  const minutes = local.hour * 60 + local.minute;
+  if (minutes >= serverSaveMinutes) return local.date;
+
+  const [year, month, day] = String(local.date || "").split("-").map(Number);
+  if (![year, month, day].every(Number.isFinite)) return local.date;
+  return new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10);
 }
 
 async function getCachedMiniWorldChanges({ config, state }) {

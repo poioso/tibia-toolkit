@@ -10,6 +10,7 @@ import {
   MINI_WORLD_CHANGE_VISUALS,
   enrichMiniWorldChange
 } from "./mini-world-change-visuals.mjs";
+import { shouldPreservePreviousMiniWorldChanges } from "./server.mjs";
 
 test("collector normalizes all worlds with only two upstream HTTP requests", async () => {
   const calls = [];
@@ -118,6 +119,14 @@ test("Europe/Berlin schedule follows European winter time", () => {
   );
 });
 
+test("default schedule collects at :00 and :10 throughout the server day", () => {
+  const config = normalizeMiniWorldChangesConfig();
+
+  assert.equal(config.collectionTimes.length, 48);
+  assert.deepEqual(config.collectionTimes.slice(0, 4), ["00:00", "00:10", "01:00", "01:10"]);
+  assert.deepEqual(config.collectionTimes.slice(-4), ["22:00", "22:10", "23:00", "23:10"]);
+});
+
 test("completed slots are not returned again", () => {
   const now = new Date("2026-07-19T08:45:00.000Z");
   assert.deepEqual(
@@ -135,14 +144,70 @@ test("completed slots are not returned again", () => {
 });
 
 test("invalid schedule values fall back to the safe defaults", () => {
-  assert.deepEqual(normalizeMiniWorldChangesConfig({ collectionTimes: ["bad"], enabled: "false" }), {
+  const config = normalizeMiniWorldChangesConfig({ collectionTimes: ["bad"], enabled: "false" });
+
+  assert.deepEqual({
+    enabled: config.enabled,
+    sourceBase: config.sourceBase,
+    timeZone: config.timeZone,
+    serverSaveTime: config.serverSaveTime,
+    bootstrapWhenEmpty: config.bootstrapWhenEmpty,
+    emptyResultRetryMs: config.emptyResultRetryMs
+  }, {
     enabled: false,
     sourceBase: "https://tibiatrade.gg/trpc",
     timeZone: "Europe/Berlin",
     serverSaveTime: "10:00",
-    collectionTimes: ["10:10", "10:30"],
-    bootstrapWhenEmpty: true
+    bootstrapWhenEmpty: true,
+    emptyResultRetryMs: 0
   });
+  assert.equal(config.collectionTimes.length, 48);
+  assert.equal(config.collectionTimes[0], "00:00");
+  assert.equal(config.collectionTimes.at(-1), "23:10");
+});
+
+test("an empty result after server save replaces a pre-save snapshot", () => {
+  const schedule = { timeZone: "Europe/Berlin", serverSaveTime: "10:00" };
+  const getLocal = (date) => getZonedDateTimeParts(date, schedule.timeZone);
+  const previousSnapshot = {
+    source: { collectedAt: "2026-07-27T02:30:00.000Z" }, // 04:30 Berlin
+    stats: { activeAssignmentCount: 10 }
+  };
+
+  assert.equal(shouldPreservePreviousMiniWorldChanges({
+    previousSnapshot,
+    activeAssignmentCount: 0,
+    now: new Date("2026-07-27T10:13:00.000Z"), // 12:13 Berlin
+    schedule,
+    getZonedDateTimeParts: getLocal
+  }), false);
+});
+
+test("an empty result before server save retains the prior server-day snapshot", () => {
+  const schedule = { timeZone: "Europe/Berlin", serverSaveTime: "10:00" };
+  const getLocal = (date) => getZonedDateTimeParts(date, schedule.timeZone);
+  const previousSnapshot = {
+    source: { collectedAt: "2026-07-26T10:10:00.000Z" }, // 12:10 Berlin, prior cycle
+    stats: { activeAssignmentCount: 10 }
+  };
+
+  assert.equal(shouldPreservePreviousMiniWorldChanges({
+    previousSnapshot,
+    activeAssignmentCount: 0,
+    now: new Date("2026-07-27T07:30:00.000Z"), // 09:30 Berlin
+    schedule,
+    getZonedDateTimeParts: getLocal
+  }), true);
+});
+
+test("empty result retries can be enabled temporarily without changing the daily schedule", () => {
+  const config = normalizeMiniWorldChangesConfig({
+    collectionTimes: ["10:10", "10:30"],
+    emptyResultRetryMs: 10 * 60_000
+  });
+
+  assert.equal(config.emptyResultRetryMs, 10 * 60_000);
+  assert.deepEqual(config.collectionTimes, ["10:10", "10:30"]);
 });
 
 test("collector rejects malformed upstream batches", async () => {

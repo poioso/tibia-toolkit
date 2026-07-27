@@ -10,7 +10,11 @@ const packageRoot = path.resolve(
 
 const requiredModules = [
   "services/game-data-hub/server.mjs",
-  "services/game-data-hub/api-security.mjs"
+  "services/game-data-hub/api-security.mjs",
+  "assets/ui/Tick.png",
+  "assets/ui/Cross.png",
+  "assets/ui/tutorial/update.gif",
+  "desktop/screen-vision-native/publish/win-x64/ScreenVision.NativeHost.exe"
 ];
 
 const serverOnlyModules = [

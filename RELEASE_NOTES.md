@@ -1,3 +1,10 @@
+Tibia Toolkit 0.6.7
+
+- Corrected the installed Windows window so native rounded corners are applied without clipping the interface.
+- Revalidated the installer and immutable content package together, including runtime icons, tutorial media and local catalogs.
+
+Previous versions
+
 Tibia Toolkit 0.6.6
 
 - Stash items now render an immediate local preview before prices and NPC details are enriched in the background, reducing interface stalls on slower machines.
