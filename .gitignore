@@ -33,6 +33,7 @@ pnpm-workspace.yaml
 .tmp-*.log
 tmp/
 reports/
+artifacts/
 .playwright/
 .codex/
 .secrets-temp/
