@@ -16,6 +16,8 @@ internal static class WindowStyleInterop
     private const uint SwpNoActivate = 0x0010;
     private const uint SwpFrameChanged = 0x0020;
     private const uint GwHwndPrev = 3;
+    private const uint DwmwaWindowCornerPreference = 33;
+    private const int DwmWindowCornerPreferenceRound = 2;
     private static readonly IntPtr HwndTop = new(0);
     private static readonly IntPtr HwndTopmost = new(-1);
     private static readonly IntPtr HwndNotTopmost = new(-2);
@@ -38,6 +40,28 @@ internal static class WindowStyleInterop
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(
+        IntPtr hwnd,
+        uint attribute,
+        ref int value,
+        uint valueSize);
+
+    internal static bool SetWindowRoundedCorners(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        var preference = DwmWindowCornerPreferenceRound;
+        return DwmSetWindowAttribute(
+            hwnd,
+            DwmwaWindowCornerPreference,
+            ref preference,
+            sizeof(int)) == 0;
+    }
 
     internal static int GetWindowExtendedStyle(IntPtr hwnd)
     {
