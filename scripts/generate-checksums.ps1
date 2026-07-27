@@ -32,5 +32,7 @@ $lines = foreach ($file in $files) {
     "$hash *$relative"
 }
 
-Set-Content -LiteralPath $OutputPath -Value $lines -Encoding utf8
+$content = (($lines -join "`n") + "`n")
+# Release hosts validate this file on Linux. Keep it ASCII/UTF-8 without BOM and LF-only.
+[System.IO.File]::WriteAllText($OutputPath, $content, [System.Text.UTF8Encoding]::new($false))
 Write-Host "Checksums gravados em: $OutputPath"

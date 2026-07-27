@@ -605,6 +605,7 @@ const state = {
   itemSuggestionRequestId: 0,
   itemSearchRequestId: 0,
   itemSearchLoadingRequestId: 0,
+  itemSearchGlobalLoadingRequestId: 0,
   itemCacheWarmupTimer: null,
   itemCacheWarmupRequestId: 0,
   itemViewMode: "list",
@@ -9509,8 +9510,8 @@ async function hydrateStashPreviewItem(itemSlug, requestId) {
     }
 
     state.currentItem = data;
-    await refreshCurrencyRates();
-    await saveRecentItem(data.item);
+    refreshItemCurrencyRatesInBackground(data.item.slug, state.currentWorldSlug);
+    saveRecentItemInBackground(data.item);
     state.selectedItemSuggestion = {
       slug: data.item.slug,
       name: data.item.wiki_name || data.item.name,
@@ -9535,6 +9536,22 @@ async function hydrateStashPreviewItem(itemSlug, requestId) {
       setFeedback("Item carregado com cache local.", false);
     }
   }
+}
+
+function refreshItemCurrencyRatesInBackground(itemSlug, worldSlug) {
+  void refreshCurrencyRates({ worldSlug })
+    .then(() => {
+      if (state.currentWorldSlug === worldSlug && state.currentItem?.item?.slug === itemSlug) {
+        renderItem();
+      }
+    })
+    .catch(() => {});
+}
+
+function saveRecentItemInBackground(item) {
+  void saveRecentItem(item)
+    .then(() => renderRecentItems())
+    .catch(() => {});
 }
 
 function scrollItemSummaryIntoView(options = {}) {
@@ -9962,6 +9979,17 @@ async function handleItemSearch(skipInputNormalization = false) {
   const searchRequestId = ++state.itemSearchRequestId;
   state.itemSearchLoadingRequestId = searchRequestId;
   setItemSearchDropdownLoading(true);
+  if (state.itemSearchGlobalLoadingRequestId) {
+    hideGlobalLoading();
+    state.itemSearchGlobalLoadingRequestId = 0;
+  }
+  let itemLoadingShown = false;
+  const itemLoadingTimer = window.setTimeout(() => {
+    if (searchRequestId !== state.itemSearchRequestId) return;
+    itemLoadingShown = true;
+    state.itemSearchGlobalLoadingRequestId = searchRequestId;
+    showGlobalLoading(t("common.loading"));
+  }, 150);
 
   try {
     const staticData = await fetchItemStatic({
@@ -9993,8 +10021,8 @@ async function handleItemSearch(skipInputNormalization = false) {
     }
 
     state.currentItem = data;
-    await refreshCurrencyRates();
-    await saveRecentItem(data.item);
+    refreshItemCurrencyRatesInBackground(data.item.slug, state.currentWorldSlug);
+    saveRecentItemInBackground(data.item);
     state.selectedItemSuggestion = {
       slug: data.item.slug,
       name: data.item.wiki_name || data.item.name,
@@ -10021,6 +10049,11 @@ async function handleItemSearch(skipInputNormalization = false) {
 
     setFeedback(error instanceof Error ? error.message : "Falha ao consultar item.", true);
   } finally {
+    window.clearTimeout(itemLoadingTimer);
+    if (itemLoadingShown && state.itemSearchGlobalLoadingRequestId === searchRequestId) {
+      hideGlobalLoading();
+      state.itemSearchGlobalLoadingRequestId = 0;
+    }
     if (state.itemSearchLoadingRequestId === searchRequestId) {
       setItemSearchDropdownLoading(false);
     }

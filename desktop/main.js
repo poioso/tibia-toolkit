@@ -7,6 +7,7 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { app, BrowserWindow, desktopCapturer, dialog, globalShortcut, ipcMain, Menu, nativeImage, net as electronNet, protocol, safeStorage, screen, shell, Tray } from "electron";
+import { configureDataService, handleDataServiceMessage } from "../lib/data-service.js";
 import {
   createDefaultOverlayToolsState,
   cloneOverlayToolsStateForSave,
@@ -288,11 +289,7 @@ let runtimeAssetsRoot = path.join(projectRoot, "assets");
 let runtimeSupportersDataUrls = [];
 let appUpdaterController = null;
 let appUpdateState = { phase: "idle", info: null };
-let configureDataService = null;
-let handleDataServiceMessage = null;
 const APP_UPDATE_DOWNLOAD_DIALOG_ROLE = "app-update-download";
-let startupUpdateInstallRequested = false;
-const STABLE_INSTALLER_URL = "https://github.com/poioso/tibia-toolkit/releases/latest/download/Tibia-Toolkit-Setup.exe";
 let storeWriteQueue = Promise.resolve();
 let cacheStoreWriteQueue = Promise.resolve();
 let overlayToolsStoreWriteQueue = Promise.resolve();
@@ -381,67 +378,6 @@ function tr(key, variables = {}) {
   return translateUiString(getActiveLocale(), key, variables);
 }
 
-async function loadDataServiceRuntime() {
-  if (configureDataService && handleDataServiceMessage) {
-    return;
-  }
-
-  const dataService = await import("../lib/data-service.js");
-  configureDataService = dataService.configureDataService;
-  handleDataServiceMessage = dataService.handleDataServiceMessage;
-}
-
-async function promptStartupUpdate(info = {}) {
-  const normalizedInfo = normalizeAppUpdateInfo(info);
-  const message = [
-    tr("updater.availableMessage", {
-      version: normalizedInfo.version || tr("updater.newVersion")
-    }),
-    normalizedInfo.releaseNotes
-  ].filter(Boolean).join("\n\n");
-  const response = await showScreenVisionConfirmDialog(null, {
-    title: tr("updater.availableTitle"),
-    message,
-    confirmLabel: tr("updater.downloadNow"),
-    cancelLabel: tr("updater.downloadLater"),
-    confirmTooltip: tr("updater.downloadNow"),
-    cancelTooltip: tr("updater.downloadLater"),
-    tone: "success",
-    flat: true,
-    mediaPath: path.join("assets", "ui", "tutorial", "update.gif"),
-    mediaWidth: 300,
-    width: 520,
-    height: 760,
-    autoHeight: true,
-    external: true,
-    centerOnDisplay: true
-  });
-
-  return response.confirmed;
-}
-
-async function waitForInitialUpdateCheck(controller, timeoutMs = 8_000) {
-  if (!controller?.initialCheck) {
-    return null;
-  }
-
-  return Promise.race([
-    controller.initialCheck,
-    new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs))
-  ]);
-}
-
-async function openInstallerRecovery(error) {
-  await writeDebugLog(`runtime-module-load-failed ${error?.message || String(error)}`);
-  await dialog.showMessageBox({
-    type: "error",
-    title: "Tibia Toolkit",
-    message: tr("updater.recoveryTitle"),
-    detail: tr("updater.recoveryMessage")
-  });
-  await shell.openExternal(STABLE_INSTALLER_URL);
-}
-
 function broadcastLocaleChange(locale) {
   const normalizedLocale = normalizeLocale(locale);
 
@@ -481,70 +417,9 @@ if (!hasSingleInstanceLock) {
     await migrateLegacyRuntimeCacheStore().catch(() => {});
     const storedLocale = await readStorageValue(APP_LOCALE_STORAGE_KEY).catch(() => ({}));
     setActiveLocale(storedLocale?.[APP_LOCALE_STORAGE_KEY] || INITIAL_APP_LOCALE);
-    const runtimeConfig = await loadRuntimeConfig();
-    if (isProductionRuntime) {
-      appUpdaterController = startAppUpdater({
-        appIsPackaged: app.isPackaged,
-        urls: runtimeConfig.updateUrls,
-        onStatus(message) {
-          void writeDebugLog(`app-updater ${message}`);
-        },
-        onError(error) {
-          closeScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE);
-          void writeDebugLog(`app-updater-error ${error?.message || String(error)}`);
-        },
-        onAvailable(info) {
-          appUpdateState = { phase: "available", info: normalizeAppUpdateInfo(info) };
-          broadcastAppUpdateState();
-        },
-        onProgress(progress) {
-          const percent = Math.max(0, Math.min(100, Number(progress?.percent) || 0));
-          appUpdateState = {
-            ...appUpdateState,
-            phase: "downloading",
-            progress: percent
-          };
-          updateScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE, {
-            message: tr("updater.downloadingMessage", { percent: Math.round(percent) }),
-            progress: percent
-          });
-          broadcastAppUpdateState();
-        },
-        onDownloaded(info) {
-          closeScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE);
-          appUpdateState = { phase: "downloaded", info: normalizeAppUpdateInfo(info) };
-          broadcastAppUpdateState();
-          if (startupUpdateInstallRequested) {
-            return;
-          }
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            void showAppUpdateDownloadedDialog(info);
-          }
-        }
-      });
-
-      const initialUpdate = await waitForInitialUpdateCheck(appUpdaterController);
-      if (initialUpdate?.available && await promptStartupUpdate(initialUpdate.info)) {
-        startupUpdateInstallRequested = true;
-        showAppUpdateDownloadProgressDialog(initialUpdate.info);
-        try {
-          await appUpdaterController.download();
-          if (appUpdaterController.install()) {
-            appIsQuitting = true;
-            return;
-          }
-          startupUpdateInstallRequested = false;
-        } catch (error) {
-          closeScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE);
-          startupUpdateInstallRequested = false;
-          await writeDebugLog(`startup-update-download-failed ${error?.message || String(error)}`);
-        }
-      }
-    } else {
-      await writeDebugLog(`app-updater-skipped channel=${runtimeChannel}`);
-    }
     splashStatus = tr("splash.preparing");
     await createSplashWindow();
+    const runtimeConfig = await loadRuntimeConfig();
     runtimeSupportersDataUrls = normalizeRuntimeBaseList(
       runtimeConfig.supportersDataUrls || [],
       runtimeConfig.supportersDataUrl || ""
@@ -559,14 +434,6 @@ if (!hasSingleInstanceLock) {
       return;
     }
     await prepareClosePreferenceForCurrentSession();
-
-    try {
-      await loadDataServiceRuntime();
-    } catch (error) {
-      await openInstallerRecovery(error);
-      app.quit();
-      return;
-    }
 
     configureDataService({
       marketApiBase: runtimeConfig.marketApiBase || null,
@@ -605,6 +472,44 @@ if (!hasSingleInstanceLock) {
     await writeDebugLog("create-overlay-window:start");
     mainWindow = await createOverlayWindow();
     await writeDebugLog("create-overlay-window:finish");
+    if (isProductionRuntime) {
+      appUpdaterController = startAppUpdater({
+        appIsPackaged: app.isPackaged,
+        urls: runtimeConfig.updateUrls,
+        onStatus(message) {
+          void writeDebugLog(`app-updater ${message}`);
+        },
+        onError(error) {
+          closeScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE);
+          void writeDebugLog(`app-updater-error ${error?.message || String(error)}`);
+        },
+        onAvailable(info) {
+          appUpdateState = { phase: "available", info: normalizeAppUpdateInfo(info) };
+          broadcastAppUpdateState();
+        },
+        onProgress(progress) {
+          const percent = Math.max(0, Math.min(100, Number(progress?.percent) || 0));
+          appUpdateState = {
+            ...appUpdateState,
+            phase: "downloading",
+            progress: percent
+          };
+          updateScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE, {
+            message: tr("updater.downloadingMessage", { percent: Math.round(percent) }),
+            progress: percent
+          });
+          broadcastAppUpdateState();
+        },
+        onDownloaded(info) {
+          closeScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE);
+          appUpdateState = { phase: "downloaded", info: normalizeAppUpdateInfo(info) };
+          broadcastAppUpdateState();
+          void showAppUpdateDownloadedDialog(info);
+        }
+      });
+    } else {
+      await writeDebugLog(`app-updater-skipped channel=${runtimeChannel}`);
+    }
     app.on("activate", async () => {
       if (BrowserWindow.getAllWindows().length === 0) {
         mainWindow = await createOverlayWindow();
@@ -809,6 +714,13 @@ async function createOverlayWindow() {
   });
   window.on("ready-to-show", () => {
     void writeDebugLog("window-ready-to-show");
+    // Electron's roundedCorners option does not affect borderless Windows windows.
+    // Apply the native DWM preference after the installed window is visible.
+    if (app.isPackaged && process.platform === "win32") {
+      setTimeout(() => {
+        void applyNativeWindowCornerPreference(window);
+      }, 450);
+    }
   });
   window.on("move", () => {
     scheduleOverlayBoundsSave(window);
@@ -5515,6 +5427,34 @@ async function ensureNativeHostStarted() {
     return await nativeHostStartPromise;
   } finally {
     nativeHostStartPromise = null;
+  }
+}
+
+async function applyNativeWindowCornerPreference(window) {
+  if (!window || window.isDestroyed() || process.platform !== "win32") {
+    return;
+  }
+
+  try {
+    const handle = window.getNativeWindowHandle();
+    if (!Buffer.isBuffer(handle) || handle.length < 4) {
+      return;
+    }
+
+    const hwnd = handle.length >= 8
+      ? handle.readBigInt64LE(0).toString()
+      : String(handle.readInt32LE(0));
+
+    await ensureNativeHostStarted();
+    const response = await callNativeHost({
+      command: "setWindowRoundedCorners",
+      hwnd
+    }, { timeoutMs: 2500 });
+
+    await writeDebugLog(`window-rounded-corners applied=${Boolean(response?.ok)}`);
+  } catch (error) {
+    // This cosmetic Windows preference must never block startup.
+    await writeDebugLog(`window-rounded-corners-error ${error?.message || String(error)}`);
   }
 }
 

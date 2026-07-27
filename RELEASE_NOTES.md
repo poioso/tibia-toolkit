@@ -1,11 +1,17 @@
+Tibia Toolkit 0.6.5
+
+- Added native rounded corners to the installed Windows window without clipping the interface.
+- Item details now open without waiting for currency conversion or recent-history persistence, with the standard loading state for slower requests.
+- Included the 0.6.4 stability work for Wheel of Destiny, Stash, the packaged Game Data Hub and background update checks.
+
+Previous versions
+
 Tibia Toolkit 0.6.4
 
 - Restored responsive navigation by preventing an inactive Wheel of Destiny observer from continuously rewriting its own interface.
 - Restored Stash item details after the Books tab integration, without changing the Library catalog or item selection flow.
 - Hardened the packaged Game Data Hub: the private Mini World Changes collector remains server-only and cannot block desktop startup when it is intentionally absent.
 - The installed app continues checking for updates every 30 minutes and shows the update indicator as soon as a new version is found.
-
-Previous versions
 
 Tibia Toolkit 0.6.3
 - The initial update notice now opens in the Tibia Toolkit visual style before the main interface loads.

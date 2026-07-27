@@ -1,30 +1,47 @@
+# Dependencies and build output
 node_modules/
 dist/
-artifacts/
+output/
 release/
-coverage/
-.cache/
-.playwright-cli/
-
-# Large externally distributed content and local build output.
+site/.deploy/
 assets/
+.playwright-cli/
+services/market-cache/
+
+# Local developer runtimes and generated native-host artifacts
+third_party/dotnet/
+third_party/ilspy/
+third_party/tibia-sprites-exporter/
+desktop/screen-vision-native/**/bin/
+desktop/screen-vision-native/**/obj/
+desktop/screen-vision-native/_build-verify/
 desktop/screen-vision-native/publish/
-desktop/screen-vision-native/ScreenVision.NativeHost/bin/
-desktop/screen-vision-native/ScreenVision.NativeHost/obj/
 
-# Local configuration, credentials and private operational data.
-.env
-.env.*
-!.env.example
-*.pfx
-*.p12
-*.pem
-*.key
-desktop/app-config.local.json
+# Logs, caches, temporary research and local backups
 *.log
+desktop-debug.log
+native-host-*.log
+electron-*.log
+.tmp-*.html
+tmp-*.png
+tmp-*.json
+tmp-*.txt
+tmp-*.out.log
+tmp-*.err.log
+pnpm-lock.yaml
+pnpm-workspace.yaml
+.tmp-*.log
+tmp/
+reports/
+.playwright/
+.codex/
+.secrets-temp/
+.vps-checker-test/
+*.zip
+ACESSOS_PRIVADOS_SITE.md
+ACESSOS_PRIVADOS_EMAIL_TIBIA_TOOLKIT.md
 
-# Editor and operating-system files.
-.DS_Store
+# OS/editor noise
 Thumbs.db
-.vscode/
-.idea/
+Desktop.ini
+.DS_Store
