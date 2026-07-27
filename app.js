@@ -23,6 +23,7 @@ import {
   fetchIngredientMetadata,
   fetchItem,
   fetchItemStatic,
+  fetchStashItemPreview,
   fetchItemSuggestions,
   fetchNpcDetail,
   fetchNpcIndex,
@@ -9468,7 +9469,9 @@ async function previewStashItem(item, { loadMarket = false } = {}) {
   }, 180);
 
   try {
-    const staticData = await fetchItemStatic({
+    // The Stash catalog is already in memory. Use it for the first paint so a
+    // click never waits on the detailed catalog or market enrichment.
+    const staticData = await fetchStashItemPreview({
       itemSlug: item.slug,
       worldSlug: state.currentWorldSlug
     });
@@ -9482,10 +9485,15 @@ async function previewStashItem(item, { loadMarket = false } = {}) {
     showStashItemDetail();
 
     if (loadMarket) {
-      void hydrateStashPreviewItem(item.slug, requestId);
+      scheduleStashPreviewHydration(item.slug, requestId);
     }
 
-    scrollItemSummaryIntoView();
+    // Let the local preview paint before forcing a layout-changing scroll.
+    window.requestAnimationFrame(() => {
+      if (requestId === state.stashPreviewRequestId) {
+        scrollItemSummaryIntoView();
+      }
+    });
   } catch (error) {
     if (requestId === state.stashPreviewRequestId) {
       setFeedback(error instanceof Error ? error.message : "Falha ao abrir preview do item.", true);
@@ -9496,6 +9504,25 @@ async function previewStashItem(item, { loadMarket = false } = {}) {
       hideGlobalLoading();
     }
   }
+}
+
+function scheduleStashPreviewHydration(itemSlug, requestId) {
+  const hydrate = () => {
+    if (requestId === state.stashPreviewRequestId) {
+      void hydrateStashPreviewItem(itemSlug, requestId);
+    }
+  };
+
+  // The full item record can include market data and NPC detail lookups. It
+  // should never compete with the first frame of the Stash preview.
+  window.setTimeout(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(hydrate, { timeout: 800 });
+      return;
+    }
+
+    hydrate();
+  }, 0);
 }
 
 async function hydrateStashPreviewItem(itemSlug, requestId) {
@@ -9510,8 +9537,6 @@ async function hydrateStashPreviewItem(itemSlug, requestId) {
     }
 
     state.currentItem = data;
-    refreshItemCurrencyRatesInBackground(data.item.slug, state.currentWorldSlug);
-    saveRecentItemInBackground(data.item);
     state.selectedItemSuggestion = {
       slug: data.item.slug,
       name: data.item.wiki_name || data.item.name,
@@ -9520,8 +9545,9 @@ async function hydrateStashPreviewItem(itemSlug, requestId) {
     };
     els.itemInput.value = state.selectedItemSuggestion.name;
     closeItemSuggestions();
-    renderRecentItems();
     renderItem();
+    refreshItemCurrencyRatesInBackground(data.item.slug, state.currentWorldSlug);
+    saveRecentItemInBackground(data.item);
     scheduleWarmItemCache();
     setCurrentNavigationEntry({
       type: "item",

@@ -1,10 +1,15 @@
+Tibia Toolkit 0.6.6
+
+- Stash items now render an immediate local preview before prices and NPC details are enriched in the background, reducing interface stalls on slower machines.
+- Kept the standard loading feedback for slower enrichment while avoiding expensive work before the first item view is visible.
+
+Previous versions
+
 Tibia Toolkit 0.6.5
 
 - Added native rounded corners to the installed Windows window without clipping the interface.
 - Item details now open without waiting for currency conversion or recent-history persistence, with the standard loading state for slower requests.
 - Included the 0.6.4 stability work for Wheel of Destiny, Stash, the packaged Game Data Hub and background update checks.
-
-Previous versions
 
 Tibia Toolkit 0.6.4
 
