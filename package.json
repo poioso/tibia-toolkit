@@ -35,6 +35,6 @@
     "jquery": "^3.7.1",
     "leaflet": "^1.9.4",
     "obs-websocket-js": "^5.0.8",
-    "playwright": "^1.61.1"
+    "playwright": "^1.62.0"
   }
 }
