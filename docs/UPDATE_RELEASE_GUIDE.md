@@ -138,6 +138,15 @@ Validar, nesta ordem:
 8. Perfis, configuracoes e conteudo local continuam intactos.
 9. Os dois dominios de compatibilidade respondem com os mesmos bytes.
 
+### Regra do encerramento antes da instalacao
+
+O aplicativo possui um encerramento assíncrono para fechar o Native Host e as
+demais janelas auxiliares. Quando esse fluxo intercepta `before-quit`, ele deve
+acionar `appUpdaterController.install()` somente depois que a limpeza terminar
+e então chamar `app.quit()`. O método `install()` mantém uma guarda de uma única
+execução e trata erros síncronos de `quitAndInstall()`. Essa sequência é
+obrigatória para que o instalador baixado não fique pendente sem ser executado.
+
 ## Promocao para o publico
 
 Somente depois do aval do teste beta:

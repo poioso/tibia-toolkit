@@ -35,6 +35,7 @@ export function startAppUpdater({
   let sourceSwitchInFlight = false;
   let downloadFinished = false;
   let downloadInFlight = false;
+  let installRequested = false;
   let updateInfo = null;
 
   const tryNextSource = async (previousError = null) => {
@@ -117,10 +118,21 @@ export function startAppUpdater({
       }
     },
     install() {
+      if (installRequested) {
+        return true;
+      }
       if (!downloadFinished) {
         return false;
       }
-      autoUpdater.quitAndInstall();
+      installRequested = true;
+      onStatus("Iniciando instalador da atualizacao.");
+      try {
+        autoUpdater.quitAndInstall();
+      } catch (error) {
+        installRequested = false;
+        onError(error);
+        return false;
+      }
       return true;
     },
     dispose() {

@@ -1,3 +1,7 @@
+Tibia Toolkit 0.7.3
+
+- Corrigido o fluxo de instalação automática após o download de uma atualização, garantindo que o instalador seja acionado depois do encerramento seguro do aplicativo.
+
 Tibia Toolkit 0.7.2
 
 - Corrigido um problema onde o content pack utilizava um caminho obsoleto da 0.6.7 fazendo com que alguns assets não fossem carregados na versão 0.7.0 em diante
