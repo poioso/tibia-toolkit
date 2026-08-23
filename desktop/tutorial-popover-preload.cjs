@@ -1,6 +1,11 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("tutorialPopoverApi", {
+  onPreloadAssets(callback) {
+    const listener = (_event, assets) => callback(assets);
+    ipcRenderer.on("tutorial-popover:preload-assets", listener);
+    return () => ipcRenderer.removeListener("tutorial-popover:preload-assets", listener);
+  },
   storage: {
     get(key) {
       return ipcRenderer.invoke("storage:get", key);
@@ -28,7 +33,7 @@ contextBridge.exposeInMainWorld("tutorialPopoverApi", {
     return () => ipcRenderer.removeListener("tutorial-popover:render", listener);
   },
   resizeToContent(height) {
-    ipcRenderer.send("tutorial-popover:resize-to-content", height);
+    return ipcRenderer.invoke("tutorial-popover:resize-to-content", height);
   },
   next() {
     ipcRenderer.send("tutorial-popover:next");

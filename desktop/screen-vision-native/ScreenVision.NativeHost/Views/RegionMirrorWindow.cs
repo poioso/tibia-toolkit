@@ -22,6 +22,7 @@ internal sealed class RegionMirrorWindow : Window
     private static readonly GlobalMouseClickListener ContextMenuMouseClickListener = CreateContextMenuMouseClickListener();
     private const double MirrorFramePadding = 12;
     private static readonly SolidColorBrush MirrorAccentBrush = new(Color.FromRgb(88, 196, 112));
+    private static readonly SolidColorBrush ObsMirrorAccentBrush = new(Color.FromRgb(49, 95, 199));
     private readonly Border _selectionBorder;
     private readonly Border _interactionSurface;
     private readonly Border _glowOuter;
@@ -95,13 +96,23 @@ internal sealed class RegionMirrorWindow : Window
         || DateTime.UtcNow < _preserveInteractionUntilUtc;
     private double MirrorVisualOpacity => Math.Clamp(_spec.Opacity / 100.0, 0.15, 1.0);
     internal IntPtr SourceHwnd => _sourceHwnd;
+    internal IntPtr WindowHandle => _windowHandle;
     internal event EventHandler<RectInfo>? BoundsChanged;
 
     internal event EventHandler<RegionMirrorActionEventArgs>? ActionRequested;
 
     internal void PromoteForInteraction()
     {
-        WindowStyleInterop.BringWindowToFrontNoActivate(_windowHandle, _alwaysOnTop);
+        if (_alwaysOnTop || _sourceHwnd == IntPtr.Zero)
+        {
+            WindowStyleInterop.BringWindowToFrontNoActivate(_windowHandle, _alwaysOnTop);
+            return;
+        }
+
+        // A Tibia mirror that is not topmost must remain immediately above its
+        // source window. Raising it to HWND_TOP here would place it over the
+        // Tibia Toolkit controller after a click, drag or snap-group action.
+        WindowStyleInterop.PlaceWindowAbove(_windowHandle, _sourceHwnd);
     }
 
     internal void FlushInteractionBounds()
@@ -155,7 +166,7 @@ internal sealed class RegionMirrorWindow : Window
 
         _selectionBorder = new Border
         {
-            BorderBrush = MirrorAccentBrush,
+            BorderBrush = ResolveMirrorAccentBrush(),
             BorderThickness = new Thickness(3),
             CornerRadius = new CornerRadius(0),
             Background = Brushes.Transparent,
@@ -192,7 +203,7 @@ internal sealed class RegionMirrorWindow : Window
         _resizeInfoBadge = new Border
         {
             Background = new SolidColorBrush(Color.FromArgb(220, 31, 38, 49)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(120, 88, 196, 112)),
+            BorderBrush = ResolveMirrorAccentBrush(120),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(8, 4, 8, 4),
@@ -229,6 +240,10 @@ internal sealed class RegionMirrorWindow : Window
 
         grid.Children.Add(_flashBorder);
         Content = grid;
+        // WPF closes the menu after final commands. The global listener below
+        // supplements that behavior by dismissing it on real outside clicks,
+        // including clicks beyond the owner window. Interactive entries opt
+        // into StaysOpenOnClick individually.
         ContextMenu = new ContextMenu { StaysOpen = false };
         MirrorContextMenuTheme.Apply(ContextMenu);
         ContextMenu.Opened += (_, _) =>
@@ -271,8 +286,9 @@ internal sealed class RegionMirrorWindow : Window
                 return;
             }
 
-            var tibiaInfo = WindowProbe.GetTibiaWindowInfo();
-            var shouldBeTopmost = tibiaInfo?.IsForeground == true;
+            var isObsMirror = string.Equals(_spec.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase);
+            var tibiaInfo = isObsMirror ? null : WindowProbe.GetGameWindowInfo(_spec.SourceGame);
+            var shouldBeTopmost = isObsMirror ? _alwaysOnTop : tibiaInfo?.IsForeground == true;
             var nativeTopmostBefore = WindowStyleInterop.IsWindowAlwaysOnTop(_windowHandle);
             var repairSucceeded = true;
             var repairError = 0;
@@ -399,7 +415,8 @@ internal sealed class RegionMirrorWindow : Window
             CloseActiveContextMenu();
         }
 
-        var nextSourceHandle = tibiaInfo is null ? IntPtr.Zero : new IntPtr(tibiaInfo.Hwnd);
+        var sourceInfo = ResolveSourceInfo();
+        var nextSourceHandle = sourceInfo is null ? IntPtr.Zero : new IntPtr(sourceInfo.Hwnd);
         if (_globalVisible == visible
             && nextSourceHandle == _sourceHwnd
             && (_sourceHwnd == IntPtr.Zero || _thumbnail != IntPtr.Zero))
@@ -408,7 +425,7 @@ internal sealed class RegionMirrorWindow : Window
         }
 
         _globalVisible = visible;
-        UpdateSourceHandle(tibiaInfo);
+        UpdateSourceHandle(sourceInfo);
         ApplyVisibilityState();
     }
 
@@ -454,6 +471,22 @@ internal sealed class RegionMirrorWindow : Window
         _appliedZOrderSourceHwnd = _sourceHwnd;
     }
 
+    internal string SourceType => _spec.SourceType;
+
+    internal string SourceGame => _spec.SourceGame;
+
+    private SolidColorBrush ResolveMirrorAccentBrush(byte alpha = 255)
+    {
+        var color = string.Equals(_spec.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase)
+            ? ObsMirrorAccentBrush.Color
+            : MirrorAccentBrush.Color;
+        return alpha == 255
+            ? (string.Equals(_spec.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase)
+                ? ObsMirrorAccentBrush
+                : MirrorAccentBrush)
+            : new SolidColorBrush(Color.FromArgb(alpha, color.R, color.G, color.B));
+    }
+
     private (bool Success, int Error) RepairAlwaysOnTopAfterContextMenu()
     {
         if (_windowHandle == IntPtr.Zero)
@@ -482,7 +515,7 @@ internal sealed class RegionMirrorWindow : Window
         WindowStyleInterop.SetWindowAlwaysOnTop(_windowHandle, _alwaysOnTop);
         ApplyWindowBehavior();
         _appliedLockState = _spec.IsLocked;
-        UpdateSourceHandle(WindowProbe.GetTibiaWindowInfo());
+        UpdateSourceHandle(ResolveSourceInfo());
         ApplyVisibilityState();
     }
 
@@ -765,6 +798,16 @@ internal sealed class RegionMirrorWindow : Window
         OnBoundsChangedTimerTick(this, EventArgs.Empty);
     }
 
+    private TibiaWindowInfo? ResolveSourceInfo()
+    {
+        if (string.Equals(_spec.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase))
+        {
+            return WindowProbe.ResolveSourceWindow(_spec.SourceHwnd, _spec.SourceWindowTitle, _spec.SourceProcessName);
+        }
+
+        return WindowProbe.GetGameWindowInfo(_spec.SourceGame);
+    }
+
     private void UpdateSourceHandle(TibiaWindowInfo? tibiaInfo)
     {
         var nextHandle = tibiaInfo is null ? IntPtr.Zero : new IntPtr(tibiaInfo.Hwnd);
@@ -1020,7 +1063,7 @@ internal sealed class RegionMirrorWindow : Window
             }
 
             RaiseAction("set-allow-snapping", boolValue: next);
-        });
+        }, staysOpenOnClick: true);
         allowSnapping.IsCheckable = true;
         allowSnapping.IsChecked = _spec.AllowSnapping;
         menu.Items.Add(allowSnapping);
@@ -1039,16 +1082,11 @@ internal sealed class RegionMirrorWindow : Window
         menu.Items.Add(MirrorContextMenuTheme.CreateSeparator());
 
         var makeNewCrop = CreateMenuItem("Criar novo recorte", () => RaiseAction("make-new-crop"), CreateMakeNewCropIcon());
-        var cropCurrentMirror = CreateMenuItem(
-            "Cortar espelho atual",
-            () => Dispatcher.BeginInvoke(CropCurrentMirror, DispatcherPriority.ContextIdle),
-            CreateCropCurrentMirrorIcon());
         menu.Items.Add(makeNewCrop);
-        menu.Items.Add(cropCurrentMirror);
 
         menu.Items.Add(MirrorContextMenuTheme.CreateSeparator());
 
-        var scaleMenu = CreateMenuItem("Escala", null, CreateScaleIcon());
+        var scaleMenu = CreateMenuItem("Escala", null, CreateScaleIcon(), staysOpenOnClick: true);
 
         foreach (var (label, value) in new (string label, double value)[]
         {
@@ -1063,7 +1101,7 @@ internal sealed class RegionMirrorWindow : Window
         })
         {
             var scaleValue = value;
-            var item = CreateMenuItem(label, () => ApplyScaleSelection(scaleValue));
+            var item = CreateMenuItem(label, () => ApplyScaleSelection(scaleValue), staysOpenOnClick: true);
             item.IsCheckable = true;
             item.IsChecked = Math.Abs(ResolveCurrentScale() - scaleValue) < 0.01;
             scaleMenu.Items.Add(item);
@@ -1072,24 +1110,27 @@ internal sealed class RegionMirrorWindow : Window
         menu.Items.Add(scaleMenu);
         menu.Items.Add(MirrorContextMenuTheme.CreateSeparator());
 
-        var glowMenu = CreateMenuItem("Brilho", null, CreateGlowIcon());
+        var glowMenu = CreateMenuItem("Brilho", null, CreateGlowIcon(), staysOpenOnClick: true);
         var toggleGlow = CreateMenuItem(_spec.GlowEnabled ? "Desativar brilho" : "Ativar brilho", () =>
         {
             var next = !_spec.GlowEnabled;
-            ApplyLocalGlow(next, _spec.GlowColor, _spec.GlowIntensity);
+            // Do not rebuild the context menu while its own click handler is
+            // still running. The persisted state will refresh it after the
+            // native event is handled by Electron.
+            ApplyLocalGlow(next, _spec.GlowColor, _spec.GlowIntensity, refreshMenu: false);
             RaiseAction("set-glow-enabled", boolValue: next);
-        });
+        }, staysOpenOnClick: true);
         toggleGlow.IsCheckable = true;
         toggleGlow.IsChecked = _spec.GlowEnabled;
         glowMenu.Items.Add(toggleGlow);
         glowMenu.Items.Add(MirrorContextMenuTheme.CreateSeparator());
 
-        var colorMenu = CreateMenuItem("Cor");
+        var colorMenu = CreateMenuItem("Cor", staysOpenOnClick: true);
         colorMenu.Items.Add(CreateGlowColorPickerItem());
 
         glowMenu.Items.Add(colorMenu);
 
-        var intensityMenu = CreateMenuItem("Intensidade");
+        var intensityMenu = CreateMenuItem("Intensidade", staysOpenOnClick: true);
         intensityMenu.Items.Add(CreateGlowIntensitySliderItem());
         glowMenu.Items.Add(intensityMenu);
         menu.Items.Add(glowMenu);
@@ -1181,7 +1222,7 @@ internal sealed class RegionMirrorWindow : Window
             var nextColor = ColorFromHsv(hueSlider.Value, 0.92, brightnessSlider.Value / 100.0);
             selectedColor = ColorToHex(nextColor);
             currentPreview.Fill = new SolidColorBrush(nextColor);
-            ApplyLocalGlow(true, selectedColor, _spec.GlowIntensity, refreshMenu: false);
+            ApplyLocalGlow(_spec.GlowEnabled, selectedColor, _spec.GlowIntensity, refreshMenu: false);
 
             if (commit)
             {
@@ -1226,7 +1267,7 @@ internal sealed class RegionMirrorWindow : Window
 
             nextColors.Add(normalizedSelected);
             warningText.Visibility = Visibility.Collapsed;
-            ApplyLocalGlow(true, normalizedSelected, _spec.GlowIntensity, nextColors, refreshMenu: false);
+            ApplyLocalGlow(_spec.GlowEnabled, normalizedSelected, _spec.GlowIntensity, nextColors, refreshMenu: false);
             root.Children.Add(CreateGlowSavedColorRow(normalizedSelected));
             RaiseAction("set-glow-saved-colors", stringValue: JsonSerializer.Serialize(nextColors));
         };
@@ -1293,7 +1334,7 @@ internal sealed class RegionMirrorWindow : Window
         {
             e.Handled = true;
             var normalized = NormalizeGlowColorHex(colorHex);
-            ApplyLocalGlow(true, normalized, _spec.GlowIntensity, refreshMenu: false);
+            ApplyLocalGlow(_spec.GlowEnabled, normalized, _spec.GlowIntensity, refreshMenu: false);
             RaiseAction("set-glow-color", stringValue: normalized);
         };
         row.Children.Add(swatchButton);
@@ -1319,7 +1360,7 @@ internal sealed class RegionMirrorWindow : Window
             var nextColors = NormalizeGlowSavedColors(_spec.GlowSavedColors)
                 .Where(colorValue => !string.Equals(NormalizeGlowColorHex(colorValue), NormalizeGlowColorHex(colorHex), StringComparison.OrdinalIgnoreCase))
                 .ToList();
-            ApplyLocalGlow(true, _spec.GlowColor, _spec.GlowIntensity, nextColors, refreshMenu: false);
+            ApplyLocalGlow(_spec.GlowEnabled, _spec.GlowColor, _spec.GlowIntensity, nextColors, refreshMenu: false);
             if (row.Parent is Panel parent)
             {
                 parent.Children.Remove(row);
@@ -1360,7 +1401,7 @@ internal sealed class RegionMirrorWindow : Window
         {
             var nextIntensity = Math.Clamp(slider.Value, 1, 30);
             valueText.Text = $"{GlowIntensityToPercent(nextIntensity)}%";
-            ApplyLocalGlow(true, _spec.GlowColor, nextIntensity, refreshMenu: false);
+            ApplyLocalGlow(_spec.GlowEnabled, _spec.GlowColor, nextIntensity, refreshMenu: false);
         };
         slider.PreviewMouseLeftButtonDown += (_, _) => _isDraggingGlowIntensity = true;
         slider.PreviewMouseLeftButtonUp += (_, _) =>
@@ -1600,11 +1641,16 @@ internal sealed class RegionMirrorWindow : Window
         };
     }
 
-    private MenuItem CreateMenuItem(string header, Action? onClick = null, object? icon = null)
+    private MenuItem CreateMenuItem(
+        string header,
+        Action? onClick = null,
+        object? icon = null,
+        bool staysOpenOnClick = false)
     {
         var item = new MenuItem
         {
-            Header = header
+            Header = header,
+            StaysOpenOnClick = staysOpenOnClick
         };
 
         if (icon is not null)
@@ -1641,6 +1687,10 @@ internal sealed class RegionMirrorWindow : Window
             CaptureBounds = _spec.CaptureBounds,
             MirrorBounds = _spec.MirrorBounds,
             RelativeBounds = _spec.RelativeBounds,
+            SourceType = _spec.SourceType,
+            SourceHwnd = _spec.SourceHwnd,
+            SourceWindowTitle = _spec.SourceWindowTitle,
+            SourceProcessName = _spec.SourceProcessName,
             Opacity = opacity,
             IsLocked = _spec.IsLocked,
             IsVisible = _spec.IsVisible,
@@ -1775,6 +1825,10 @@ internal sealed class RegionMirrorWindow : Window
             CaptureBounds = nextCaptureBounds,
             MirrorBounds = nextMirrorBounds,
             RelativeBounds = nextRelativeBounds,
+            SourceType = _spec.SourceType,
+            SourceHwnd = _spec.SourceHwnd,
+            SourceWindowTitle = _spec.SourceWindowTitle,
+            SourceProcessName = _spec.SourceProcessName,
             Opacity = _spec.Opacity,
             IsLocked = _spec.IsLocked,
             IsVisible = _spec.IsVisible,
@@ -1856,6 +1910,10 @@ internal sealed class RegionMirrorWindow : Window
                 Height = (int)Math.Round(nextHeight)
             },
             RelativeBounds = _spec.RelativeBounds,
+            SourceType = _spec.SourceType,
+            SourceHwnd = _spec.SourceHwnd,
+            SourceWindowTitle = _spec.SourceWindowTitle,
+            SourceProcessName = _spec.SourceProcessName,
             Opacity = _spec.Opacity,
             IsLocked = _spec.IsLocked,
             IsVisible = _spec.IsVisible,
@@ -1907,6 +1965,10 @@ internal sealed class RegionMirrorWindow : Window
             CaptureBounds = _spec.CaptureBounds,
             MirrorBounds = _spec.MirrorBounds,
             RelativeBounds = _spec.RelativeBounds,
+            SourceType = _spec.SourceType,
+            SourceHwnd = _spec.SourceHwnd,
+            SourceWindowTitle = _spec.SourceWindowTitle,
+            SourceProcessName = _spec.SourceProcessName,
             Opacity = _spec.Opacity,
             IsLocked = _spec.IsLocked,
             IsVisible = _spec.IsVisible,
@@ -2237,17 +2299,10 @@ internal sealed class RegionMirrorWindow : Window
 
     private static double GetGlowIntensityFactor(double intensity)
     {
-        if (intensity <= 6)
-        {
-            return 0.6;
-        }
-
-        if (intensity >= 14)
-        {
-            return 1.5;
-        }
-
-        return 1.0;
+        // The UI exposes a continuous 0-100% slider. Keep the rendering
+        // continuous as well instead of snapping it to only three levels.
+        var normalized = (Math.Clamp(intensity, 1, 30) - 1.0) / 29.0;
+        return 0.15 + (normalized * 1.55);
     }
 
     private static Viewbox CreateMakeNewCropIcon()
@@ -2678,7 +2733,7 @@ internal sealed class RegionMirrorWindow : Window
 
     internal void UpdateSnapGroupBorders()
     {
-        _selectionBorder.BorderBrush = MirrorAccentBrush;
+        _selectionBorder.BorderBrush = ResolveMirrorAccentBrush();
         _selectionBorder.BorderThickness = new Thickness(3);
         _selectionBorder.CornerRadius = new CornerRadius(0);
 
@@ -2743,7 +2798,9 @@ internal sealed class RegionMirrorWindow : Window
     private void TrySnapToOtherWindows()
     {
         var otherWindows = _getAllMirrorWindows?.Invoke()
-            ?.Where((window) => window != this && window.AllowSnapping)
+            ?.Where((window) => window != this
+                && window.AllowSnapping
+                && string.Equals(window.SourceType, SourceType, StringComparison.OrdinalIgnoreCase))
             ?.ToList();
 
         if (otherWindows is null || otherWindows.Count == 0 || !AllowSnapping)
@@ -2918,12 +2975,53 @@ internal sealed class RegionMirrorWindow : Window
                 && cursor.X <= topLeft.X + ContextMenu.ActualWidth
                 && cursor.Y >= topLeft.Y
                 && cursor.Y <= topLeft.Y + ContextMenu.ActualHeight;
-            return insideRoot;
+            return insideRoot || IsPointerInsideOpenSubmenus(ContextMenu, cursor);
         }
         catch
         {
             return false;
         }
+    }
+
+    private static bool IsPointerInsideOpenSubmenus(ItemsControl parent, NativePoint cursor)
+    {
+        foreach (var entry in parent.Items)
+        {
+            if (entry is not MenuItem menuItem || !menuItem.IsSubmenuOpen)
+            {
+                continue;
+            }
+
+            menuItem.ApplyTemplate();
+            if (menuItem.Template.FindName("SubMenuPopup", menuItem) is Popup popup
+                && popup.IsOpen
+                && popup.Child is FrameworkElement popupContent
+                && IsPointerInsideElement(popupContent, cursor))
+            {
+                return true;
+            }
+
+            if (IsPointerInsideOpenSubmenus(menuItem, cursor))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsPointerInsideElement(FrameworkElement element, NativePoint cursor)
+    {
+        if (!element.IsVisible || element.ActualWidth <= 0 || element.ActualHeight <= 0)
+        {
+            return false;
+        }
+
+        var topLeft = element.PointToScreen(new Point(0, 0));
+        return cursor.X >= topLeft.X
+            && cursor.X <= topLeft.X + element.ActualWidth
+            && cursor.Y >= topLeft.Y
+            && cursor.Y <= topLeft.Y + element.ActualHeight;
     }
 
     private static void CloseActiveContextMenu(RegionMirrorWindow? except = null)
@@ -2975,6 +3073,10 @@ internal sealed class RegionMirrorWindow : Window
 
     private void ClearThumbnailDiagnostic()
     {
+        if (!string.IsNullOrWhiteSpace(_lastThumbnailDiagnostic))
+        {
+            Console.Error.WriteLine($"mirror[{_spec.Id}] thumbnail-ready source={_sourceHwnd} recoveredFrom={_lastThumbnailDiagnostic}");
+        }
         _lastThumbnailDiagnostic = "";
     }
 }

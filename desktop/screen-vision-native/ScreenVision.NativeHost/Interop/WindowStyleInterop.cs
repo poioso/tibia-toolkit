@@ -4,6 +4,10 @@ namespace ScreenVision.NativeHost.Interop;
 
 internal static class WindowStyleInterop
 {
+    // Windows 11 rounds borderless windows only when the preference is set through DWM.
+    // Electron's roundedCorners option does not apply on Windows.
+    private const uint DwmwaWindowCornerPreference = 33;
+    private const int DwMWindowCornerPreferenceRound = 2;
     private const int GwlExStyle = -20;
     private const int WsExToolWindow = 0x80;
     private const int WsExTopmost = 0x08;
@@ -15,9 +19,8 @@ internal static class WindowStyleInterop
     private const uint SwpNoMove = 0x0002;
     private const uint SwpNoActivate = 0x0010;
     private const uint SwpFrameChanged = 0x0020;
+    private const uint GwHwndNext = 2;
     private const uint GwHwndPrev = 3;
-    private const uint DwmwaWindowCornerPreference = 33;
-    private const int DwmWindowCornerPreferenceRound = 2;
     private static readonly IntPtr HwndTop = new(0);
     private static readonly IntPtr HwndTopmost = new(-1);
     private static readonly IntPtr HwndNotTopmost = new(-2);
@@ -41,6 +44,9 @@ internal static class WindowStyleInterop
     [DllImport("user32.dll")]
     private static extern IntPtr GetWindow(IntPtr hwnd, uint command);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetTopWindow(IntPtr hwnd);
+
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(
         IntPtr hwnd,
@@ -55,7 +61,7 @@ internal static class WindowStyleInterop
             return false;
         }
 
-        var preference = DwmWindowCornerPreferenceRound;
+        var preference = DwMWindowCornerPreferenceRound;
         return DwmSetWindowAttribute(
             hwnd,
             DwmwaWindowCornerPreference,
@@ -149,6 +155,30 @@ internal static class WindowStyleInterop
             0,
             0,
             SwpNoMove | SwpNoSize | SwpNoActivate);
+    }
+
+    internal static IntPtr FindHighestWindowInZOrder(IEnumerable<IntPtr> handles)
+    {
+        var candidates = handles
+            .Where((handle) => handle != IntPtr.Zero)
+            .ToHashSet();
+        if (candidates.Count == 0)
+        {
+            return IntPtr.Zero;
+        }
+
+        var current = GetTopWindow(IntPtr.Zero);
+        while (current != IntPtr.Zero)
+        {
+            if (candidates.Contains(current))
+            {
+                return current;
+            }
+
+            current = GetWindow(current, GwHwndNext);
+        }
+
+        return candidates.First();
     }
 
     internal static void BringWindowToFrontNoActivate(IntPtr hwnd, bool topmost)

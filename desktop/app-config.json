@@ -1,16 +1,15 @@
 {
-  "marketApiBase": "http://138.117.217.99:4317",
+  "marketApiBase": "https://tibiatoolkit.com/api/app-market",
   "marketApiBases": [
-    "http://138.117.217.99:4317",
-    "http://136.248.77.127:4317"
+    "https://tibiatoolkit.com/api/app-market"
   ],
-  "gameDataHubBase": "http://138.117.217.99:4318",
+  "gameDataHubBase": "https://tibiatoolkit.com/api/app-game",
   "gameDataHubBases": [
-    "http://138.117.217.99:4318",
-    "http://136.248.77.127:4318"
+    "https://tibiatoolkit.com/api/app-game"
   ],
   "supportersDataUrl": "https://downloads.tibiatoolkit.com/supporters/supporters.json",
   "supportersDataUrls": [
+    "https://tibiatoolkit.com/api/supporters",
     "https://downloads.tibiatoolkit.com/supporters/supporters.json",
     "https://downloads-backup.tibiatoolkit.com/supporters/supporters.json"
   ],

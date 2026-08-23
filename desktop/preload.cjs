@@ -19,8 +19,22 @@ contextBridge.exposeInMainWorld("desktopApi", {
     getVersion() {
       return ipcRenderer.invoke("app:get-version");
     },
-    tutorial: {
-      showStep(payload) {
+    performanceMetric(name, details) {
+      return ipcRenderer.invoke("app:performance-metric", name, details || {});
+    },
+    setMirrorGameSelectorVisible(visible) {
+      return ipcRenderer.invoke("screen-vision:mirror-source:set-selector-visible", Boolean(visible));
+    },
+    onActivityStateChanged(callback) {
+      const listener = (_event, state) => callback(state);
+      ipcRenderer.on("app:activity-state", listener);
+      return () => ipcRenderer.removeListener("app:activity-state", listener);
+    },
+      tutorial: {
+        preload() {
+          return ipcRenderer.invoke("tutorial:preload");
+        },
+        showStep(payload) {
         return ipcRenderer.invoke("tutorial:show-step", payload);
       },
       closeStep() {
@@ -29,8 +43,17 @@ contextBridge.exposeInMainWorld("desktopApi", {
       setWindowLocked(locked) {
         return ipcRenderer.invoke("tutorial:set-window-locked", Boolean(locked));
       },
+      setPriority(active) {
+        return ipcRenderer.invoke("tutorial:set-priority", Boolean(active));
+      },
       ensureWide() {
         return ipcRenderer.invoke("tutorial:ensure-wide");
+      },
+      focusSupportersShowcase(target) {
+        return ipcRenderer.invoke("tutorial:focus-supporters-showcase", target);
+      },
+      focusMirrorGameSelector(active) {
+        return ipcRenderer.invoke("tutorial:focus-mirror-game-selector", Boolean(active));
       },
       ensureCompactCentered() {
         return ipcRenderer.invoke("tutorial:ensure-compact-centered");
@@ -55,6 +78,9 @@ contextBridge.exposeInMainWorld("desktopApi", {
         const listener = () => callback();
         ipcRenderer.on("tutorial:reset-all", listener);
         return () => ipcRenderer.removeListener("tutorial:reset-all", listener);
+      },
+      resetAll() {
+        return ipcRenderer.invoke("screen-vision:tutorial:reset-all");
       }
     },
     wheelInformation: {
@@ -92,6 +118,21 @@ contextBridge.exposeInMainWorld("desktopApi", {
       return ipcRenderer.invoke("supporters:fetch-ranking-rates");
     }
   },
+  supportersShowcase: {
+    update(payload) {
+      ipcRenderer.send("supporters-showcase:update", payload || {});
+    },
+    onOpenPanel(callback) {
+      const listener = () => callback();
+      ipcRenderer.on("supporters-showcase:open-panel", listener);
+      return () => ipcRenderer.removeListener("supporters-showcase:open-panel", listener);
+    },
+    onOpenCoffeePanel(callback) {
+      const listener = () => callback();
+      ipcRenderer.on("supporters-showcase:open-coffee-panel", listener);
+      return () => ipcRenderer.removeListener("supporters-showcase:open-coffee-panel", listener);
+    }
+  },
   updater: {
     getState() {
       return ipcRenderer.invoke("app-updater:get-state");
@@ -103,6 +144,22 @@ contextBridge.exposeInMainWorld("desktopApi", {
       const listener = (_event, state) => callback(state);
       ipcRenderer.on("app-updater:state", listener);
       return () => ipcRenderer.removeListener("app-updater:state", listener);
+    }
+  },
+  libraryContent: {
+    getState() {
+      return ipcRenderer.invoke("library-content:get-state");
+    },
+    check() {
+      return ipcRenderer.invoke("library-content:check");
+    },
+    activate() {
+      return ipcRenderer.invoke("library-content:activate");
+    },
+    onChanged(callback) {
+      const listener = (_event, state) => callback(state);
+      ipcRenderer.on("library-content:state", listener);
+      return () => ipcRenderer.removeListener("library-content:state", listener);
     }
   },
   locale: {
@@ -135,6 +192,102 @@ contextBridge.exposeInMainWorld("desktopApi", {
   links: {
     openExternal(url) {
       return ipcRenderer.invoke("links:open-external", url);
+    }
+  },
+  screenshots: {
+    getSettings() {
+      return ipcRenderer.invoke("desktop:screenshot:get-settings");
+    },
+    setUpscale(value) {
+      return ipcRenderer.invoke("desktop:screenshot:set-upscale", value);
+    },
+    setDeleteOriginal(value) {
+      return ipcRenderer.invoke("desktop:screenshot:set-delete-original", Boolean(value));
+    },
+    getAvailability() {
+      return ipcRenderer.invoke("desktop:screenshot:get-availability");
+    },
+    chooseDirectory() {
+      return ipcRenderer.invoke("desktop:screenshot:choose-directory");
+    },
+    chooseSourceDirectory() {
+      return ipcRenderer.invoke("desktop:screenshot:choose-source-directory");
+    },
+    openDirectory() {
+      return ipcRenderer.invoke("desktop:screenshot:open-directory");
+    },
+    showAssistant(options = {}) {
+      return ipcRenderer.invoke("desktop:screenshot-assistant:show", options);
+    },
+    setEnabled(value) {
+      return ipcRenderer.invoke("desktop:screenshot-assistant:set-enabled", Boolean(value));
+    },
+    showAssistantHelp() {
+      return ipcRenderer.invoke("desktop:screenshot-assistant:show-help");
+    },
+    clearAssistantTutorialFocus() {
+      return ipcRenderer.invoke("desktop:screenshot-assistant:set-tutorial-focus", false);
+    },
+    capture() {
+      return ipcRenderer.invoke("desktop:screenshot:capture");
+    },
+    onStatus(callback) {
+      const listener = (_event, message) => callback(String(message || ""));
+      ipcRenderer.on("desktop:screenshot:status", listener);
+      return () => ipcRenderer.removeListener("desktop:screenshot:status", listener);
+    },
+    onNewScreenshotCount(callback) {
+      const listener = (_event, count) => callback(Math.max(0, Number(count) || 0));
+      ipcRenderer.on("desktop:screenshot:assistant-new-count", listener);
+      return () => ipcRenderer.removeListener("desktop:screenshot:assistant-new-count", listener);
+    },
+    onState(callback) {
+      const listener = (_event, payload) => callback(payload && typeof payload === "object" ? payload : {});
+      ipcRenderer.on("desktop:screenshot:assistant-state", listener);
+      return () => ipcRenderer.removeListener("desktop:screenshot:assistant-state", listener);
+    },
+    onDiscoveryState(callback) {
+      const listener = (_event, payload) => callback(payload || {});
+      ipcRenderer.on("desktop:screenshot:discovery-state", listener);
+      return () => ipcRenderer.removeListener("desktop:screenshot:discovery-state", listener);
+    }
+  },
+  globalWorldPicker: {
+    open(payload) {
+      return ipcRenderer.invoke("desktop:global-world-picker:open", payload || {});
+    },
+    onSelected(callback) {
+      const listener = (_event, slug) => callback(String(slug || ""));
+      ipcRenderer.on("desktop:global-world-picker:selected", listener);
+      return () => ipcRenderer.removeListener("desktop:global-world-picker:selected", listener);
+    },
+    onClosed(callback) {
+      const listener = () => callback();
+      ipcRenderer.on("desktop:global-world-picker:closed", listener);
+      return () => ipcRenderer.removeListener("desktop:global-world-picker:closed", listener);
+    }
+  },
+  account: {
+    getState() {
+      return ipcRenderer.invoke("account:get-state");
+    },
+    refresh() {
+      return ipcRenderer.invoke("account:refresh");
+    },
+    getCampaigns() {
+      return ipcRenderer.invoke("account:get-campaigns");
+    },
+    submitFeedback(payload) {
+      return ipcRenderer.invoke("account:submit-feedback", payload || {});
+    },
+    openPage(page) {
+      return ipcRenderer.invoke("account:open-page", page);
+    },
+    connect() {
+      return ipcRenderer.invoke("account:connect");
+    },
+    disconnect() {
+      return ipcRenderer.invoke("account:disconnect");
     }
   },
   maps: {
@@ -208,15 +361,42 @@ contextBridge.exposeInMainWorld("desktopApi", {
         return ipcRenderer.invoke("screen-vision:close-docked-panel", { panelKey });
       }
     },
+    // The docked Buy me a Coffee panel runs in the main renderer, but it uses
+    // this nested bridge. Keep the account contract identical to the regular
+    // desktop bridge so the proof-upload page can own its login/return flow
+    // instead of behaving like a no-op.
+    account: {
+      getState() {
+        return ipcRenderer.invoke("account:get-state");
+      },
+      refresh() {
+        return ipcRenderer.invoke("account:refresh");
+      },
+      connect() {
+        return ipcRenderer.invoke("account:connect");
+      },
+      disconnect() {
+        return ipcRenderer.invoke("account:disconnect");
+      },
+      openPage(page) {
+        return ipcRenderer.invoke("account:open-page", page);
+      }
+    },
     dialogs: {
       confirm(payload) {
         return ipcRenderer.invoke("screen-vision:dialogs:confirm", payload);
       },
       prompt(payload) {
         return ipcRenderer.invoke("screen-vision:dialogs:prompt", payload);
+      },
+      pickAudioFile() {
+        return ipcRenderer.invoke("screen-vision:dialogs:pick-audio-file");
       }
     },
     obs: {
+      isWindowAvailable() {
+        return ipcRenderer.invoke("screen-vision:obs-window:is-available");
+      },
       getStatus() {
         return ipcRenderer.invoke("screen-vision:obs:get-status");
       },
@@ -270,6 +450,9 @@ contextBridge.exposeInMainWorld("desktopApi", {
       add() {
         return ipcRenderer.invoke("screen-vision:regions:add");
       },
+      addObs() {
+        return ipcRenderer.invoke("screen-vision:regions:add-obs");
+      },
       addFixed() {
         return ipcRenderer.invoke("screen-vision:regions:add-fixed");
       },
@@ -313,6 +496,14 @@ contextBridge.exposeInMainWorld("desktopApi", {
         return ipcRenderer.invoke("screen-vision:regions:delete", { regionId });
       }
     },
+    magnifier: {
+      get() {
+        return ipcRenderer.invoke("screen-vision:magnifier:get");
+      },
+      toggle() {
+        return ipcRenderer.invoke("screen-vision:magnifier:toggle");
+      }
+    },
     visual: {
       get() {
         return ipcRenderer.invoke("screen-vision:visual:get");
@@ -346,6 +537,11 @@ contextBridge.exposeInMainWorld("desktopApi", {
     tibia: {
       getState() {
         return ipcRenderer.invoke("screen-vision:tibia:get-state");
+      },
+      onMirrorSourceChanged(callback) {
+        const listener = (_event, payload) => callback(payload || {});
+        ipcRenderer.on("screen-vision:mirror-source-changed", listener);
+        return () => ipcRenderer.removeListener("screen-vision:mirror-source-changed", listener);
       }
     },
     capture: {
@@ -359,6 +555,9 @@ contextBridge.exposeInMainWorld("desktopApi", {
     timers: {
       getRuntime() {
         return ipcRenderer.invoke("screen-vision:timers:get-runtime");
+      },
+      previewSound(payload) {
+        return ipcRenderer.invoke("screen-vision:timers:preview-sound", payload);
       },
       start(payload) {
         return ipcRenderer.invoke("screen-vision:timers:start", payload);

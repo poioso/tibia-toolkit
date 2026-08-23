@@ -9,12 +9,16 @@ internal sealed class SnapGroupBorderWindow : Window
 {
     private readonly Border _border;
 
-    internal SnapGroupBorderWindow()
+    internal SnapGroupBorderWindow(bool isObsGroup = false)
     {
+        var accentColor = isObsGroup
+            ? Color.FromRgb(49, 95, 199)
+            : Color.FromRgb(88, 196, 112);
+
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         Background = Brushes.Transparent;
-        Topmost = true;
+        Topmost = false;
         ShowActivated = false;
         ShowInTaskbar = false;
         IsHitTestVisible = false;
@@ -22,16 +26,16 @@ internal sealed class SnapGroupBorderWindow : Window
 
         _border = new Border
         {
-            BorderBrush = new SolidColorBrush(Color.FromRgb(88, 196, 112)),
+            BorderBrush = new SolidColorBrush(accentColor),
             BorderThickness = new Thickness(3),
             CornerRadius = new CornerRadius(0),
-            Background = new SolidColorBrush(Color.FromArgb(34, 88, 196, 112))
+            Background = new SolidColorBrush(Color.FromArgb(34, accentColor.R, accentColor.G, accentColor.B))
         };
         _border.Effect = new System.Windows.Media.Effects.DropShadowEffect
         {
             BlurRadius = 24,
             ShadowDepth = 0,
-            Color = Color.FromRgb(88, 196, 112),
+            Color = accentColor,
             Opacity = 0.55
         };
 
@@ -41,7 +45,6 @@ internal sealed class SnapGroupBorderWindow : Window
             var handle = new System.Windows.Interop.WindowInteropHelper(this).Handle;
             WindowStyleInterop.EnableToolWindow(handle);
             WindowStyleInterop.MakeWindowClickThrough(handle);
-            WindowStyleInterop.SetWindowAlwaysOnTop(handle, true);
         };
     }
 

@@ -166,6 +166,24 @@ button {
   font-weight: 800;
 }
 
+.toolbar-counter.mirror-count-upsell {
+  cursor: pointer;
+}
+
+.toolbar-counter.mirror-count-upsell:focus-visible {
+  outline: 2px solid rgba(88, 196, 112, 0.82);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.toolbar-counter.mirror-count-warning {
+  color: #ffd84d;
+}
+
+.toolbar-counter.mirror-count-danger {
+  color: #ff6666;
+}
+
 .toolbar-text-button,
 .footer-text-button {
   min-height: 34px;
@@ -214,6 +232,10 @@ button {
   height: 22px;
   object-fit: contain;
   pointer-events: none;
+}
+
+.toolbar-state-tile.toolbar-pixel-icon img {
+  image-rendering: pixelated;
 }
 
 .toolbar-state-tile:hover,
@@ -276,6 +298,13 @@ button {
 .countdown-test-button:disabled {
   opacity: 0.3;
   cursor: default;
+  transform: none;
+}
+
+.toolbar-icon-button.inactive {
+  opacity: 0.3;
+  filter: grayscale(1) saturate(0.25);
+  cursor: not-allowed;
   transform: none;
 }
 
@@ -515,6 +544,18 @@ button {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
+.region-card.obs-source-card:not(.locked-state) {
+  border-color: #284cb8;
+}
+
+.region-card.obs-source-card:not(.locked-state):hover {
+  border-color: #3b63ce;
+}
+
+.region-card.obs-source-card.locked-state {
+  border-color: rgba(72, 104, 196, 0.52);
+}
+
 .region-card-surface {
   grid-column: 2;
   position: relative;
@@ -578,22 +619,40 @@ button {
   align-items: center;
   gap: 4px;
   margin-left: auto;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .region-opacity {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.region-opacity-shell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
+  flex: 1 1 auto;
 }
 
 .region-opacity input[type="range"] {
-  width: 68px;
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
   height: 20px;
   accent-color: var(--accent);
 }
 
 .region-opacity span {
   width: 30px;
+  min-width: 30px;
+  flex: 0 0 30px;
   color: var(--muted);
   font-size: 10px;
   font-weight: 700;
@@ -857,6 +916,18 @@ button {
 .floating-tooltip.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+.floating-tooltip.warning {
+  border-color: rgba(255, 216, 77, 0.76);
+  background: rgba(78, 62, 15, 0.99);
+  color: #ffe89a;
+}
+
+.floating-tooltip.danger {
+  border-color: rgba(255, 102, 102, 0.82);
+  background: rgba(76, 24, 28, 0.99);
+  color: #ffb6b6;
 }
 
 .screen-vision-modal-root {

@@ -1,5 +1,5 @@
-import { t } from "../../lib/app-i18n.js";
-import { bootstrapRendererLocale } from "../../lib/renderer-locale.js";
+import { t } from "../../lib/i18n/app-i18n.js";
+import { bootstrapRendererLocale } from "../../lib/i18n/renderer-locale.js";
 
 const COLOR_OPTIONS = ["#58C470", "#FF0000", "#0088FF", "#00FF00", "#8800FF", "#FFFFFF", "#FFD700"];
 

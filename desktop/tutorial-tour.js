@@ -1,5 +1,33 @@
 import { driver } from "../node_modules/driver.js/dist/driver.js.mjs";
-import { getAppLocale, setAppLocale, t } from "../lib/app-i18n.js";
+import { getAppLocale, setAppLocale, t } from "../lib/i18n/app-i18n.js";
+
+const tutorialRouteMetricStarts = new Map();
+
+function recordTutorialPerformanceMetric(name, details = {}) {
+  return window.desktopApi?.app?.performanceMetric?.(name, details).catch(() => {});
+}
+
+function getTutorialErrorKind(error) {
+  return error instanceof Error && error.name ? error.name : "unknown";
+}
+
+window.addEventListener("error", (event) => {
+  if (activeStepIndex < 0) return;
+  void recordTutorialPerformanceMetric("tutorial-runtime-error", {
+    route: activeTourName,
+    step: activeStepIndex + 1,
+    errorKind: getTutorialErrorKind(event.error)
+  });
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  if (activeStepIndex < 0) return;
+  void recordTutorialPerformanceMetric("tutorial-runtime-rejection", {
+    route: activeTourName,
+    step: activeStepIndex + 1,
+    errorKind: getTutorialErrorKind(event.reason)
+  });
+});
 
 const TUTORIAL_ASSETS = {
   welcome: "assets/ui/tutorial/tibia-toolkit-logo.png",
@@ -16,16 +44,20 @@ const TUTORIAL_ASSETS = {
   skillBonus: "assets/ui/tutorial/duo-sword.gif",
   sqmFinder: "assets/ui/tutorial/sqmfindertutorial.gif",
   alerts: "assets/ui/tutorial/alertas.gif",
+  screenshot: "assets/ui/tutorial/screenshot.png",
+  screenshotUncheck: "assets/ui/tutorial/uncheck.png",
+  screenshotOpenFolder: "assets/ui/tutorial/openscreenshotfolder.png",
   obs: "assets/ui/tutorial/obs.gif",
   bossCategoryIcons: [
-    "assets/ui/Bosstiary_Bane.png",
-    "assets/ui/Bosstiary_Archfoe.png",
-    "assets/ui/Bosstiary_Nemesis.png"
+    "assets/ui/bestiary/Bosstiary_Bane.png",
+    "assets/ui/bestiary/Bosstiary_Archfoe.png",
+    "assets/ui/bestiary/Bosstiary_Nemesis.png"
   ],
   waiting: "assets/ui/tools/tibia-eye/states/esperando.gif",
   tibiaMirror: "assets/ui/tutorial/casadosespelhos.gif",
-  analyzerHelp: "assets/ui/party-loot-help.jpg",
-  soloAnalyzerHelp: "assets/ui/hunt-analyzer-help.png",
+  tibiaMirrorClients: "assets/ui/tutorial/tibia-mirror-clientes.png",
+  analyzerHelp: "assets/ui/analyzer/party-loot-help.jpg",
+  soloAnalyzerHelp: "assets/ui/analyzer/hunt-analyzer-help.png",
   npcMarket: "assets/ui/tutorial/npc-mercado.png",
   worldList: "assets/ui/tutorial/lista-mundos.gif",
   list: "assets/ui/tutorial/lista.gif",
@@ -325,6 +357,10 @@ const TUTORIAL_ROUTE_CONFIG = Object.freeze({
   alerts: {
     launchPolicy: "first-visit",
     firstVisitStorageKey: "tibia-tools:tutorial:v2:alerts:seen"
+  },
+  screenshots: {
+    launchPolicy: "manual",
+    firstVisitStorageKey: "tibia-tools:tutorial:v2:screenshots:seen"
   }
 });
 
@@ -363,7 +399,7 @@ const TUTORIAL_STEP_META = [
       await getTutorialApi()?.setItemViewMode?.("list");
       await getTutorialApi()?.selectItemByName?.("Plate Armor");
       getTutorialApi()?.scrollToSelector?.(".item-summary-card", "center");
-      await wait(620);
+      await wait(180);
     }
   },
   {
@@ -394,7 +430,7 @@ const TUTORIAL_STEP_META = [
     }
   },
   {
-    selector: "#desktop-toolbar-brand",
+    selector: "#desktop-update-button",
     placement: "bottom",
     gif: TUTORIAL_ASSETS.update,
     simulateUpdate: true,
@@ -409,32 +445,37 @@ const TUTORIAL_STEP_META = [
     }
   },
   {
-    selector: "#desktop-coffee-button",
+    selector: () => ensureTutorialExternalFocusAnchor(),
     placement: "bottom",
     gif: TUTORIAL_ASSETS.coffee,
     popoverHeight: 500,
     requiresCoffee: true,
+    externalFocus: true,
     before: async () => {
-      getTutorialApi()?.scrollToSelector?.("#desktop-toolbar", "start");
-      await wait(220);
+      const result = await window.desktopApi?.app?.tutorial?.focusSupportersShowcase?.("coffee");
+      await wait(180);
+      return result;
     }
   },
   {
-    selector: "#desktop-supporters-button",
+    selector: () => ensureTutorialExternalFocusAnchor(),
     placement: "bottom",
     gif: TUTORIAL_ASSETS.supporters,
     gifNatural: true,
     popoverHeight: 420,
     requiresSupporters: true,
+    externalFocus: true,
     before: async () => {
-      await window.desktopApi?.app?.tutorial?.ensureWide?.();
+      const result = await window.desktopApi?.app?.tutorial?.focusSupportersShowcase?.("supporters");
       await wait(180);
+      return result;
     }
   },
   {
     selector: ".docked-supporter-card:first-child",
     placement: "left",
-    hideGif: true,
+    gif: TUTORIAL_ASSETS.default,
+    gifNatural: true,
     longCopy: true,
     popoverHeight: 290,
     requiresSupporters: true,
@@ -464,7 +505,7 @@ const TUTORIAL_STASH_STEP_META = [
     placement: "bottom",
     before: async () => {
       getTutorialApi()?.switchSection?.("item-prices");
-      await getTutorialApi()?.setItemViewMode?.("stash");
+      await getTutorialApi()?.setItemViewMode?.("stash", { deferStashLoad: true });
       await wait(0);
     }
   },
@@ -759,7 +800,9 @@ const TUTORIAL_SOLO_ANALYZER_STEP_META = [
     gif: TUTORIAL_ASSETS.soloHunt,
     popoverDelayMs: 140,
     before: async () => {
-      getTutorialApi()?.configureLootAnalyzerTour?.({ mode: "solo" });
+      // Começa o exemplo limpo uma só vez. Os passos seguintes só apontam
+      // controles; o relatório demonstrativo entra exclusivamente no passo 4.
+      getTutorialApi()?.configureLootAnalyzerTour?.({ mode: "solo", text: "" });
       await wait(100);
     }
   },
@@ -1198,18 +1241,26 @@ const TUTORIAL_BOOKS_STEP_META = [
     }
   },
   {
-    selector: "#books-detail [data-books-inline-map-panel]",
+    selector: "#books-detail [data-books-inline-map-panel]:not(.hidden)",
     placement: "top",
     gif: TUTORIAL_ASSETS.default,
     gifNatural: true,
     before: async () => {
       await getTutorialApi()?.prepareBooksTutorial?.({
         query: "magic",
+        openBook: "the-magic-of-the-ghouls-book"
+      });
+      await wait(120);
+    },
+    afterPreviousClose: async () => {
+      await getTutorialApi()?.prepareBooksTutorial?.({
+        query: "magic",
         openBook: "the-magic-of-the-ghouls-book",
         openMap: true,
         mapIndex: 0
       });
-      await wait(240);
+      getTutorialApi()?.scrollToSelector?.("#books-detail [data-books-inline-map-panel]:not(.hidden)", "center");
+      await wait(220);
     }
   }
 ];
@@ -1268,11 +1319,10 @@ const TUTORIAL_TIBIA_MIRROR_STEP_META = [
     }
   },
   {
-    selector: "#tt-mirror-create-focus",
+    selector: "#add-region-button",
     placement: "top-center",
     before: async () => {
       await getTibiaMirrorTutorialApi()?.closeProfilesPanel?.();
-      getTibiaMirrorTutorialApi()?.createFocus?.("tt-mirror-create-focus", ["#add-region-button", "#crop-tool-button"]);
       await wait(180);
     }
   },
@@ -1291,6 +1341,22 @@ const TUTORIAL_TIBIA_MIRROR_STEP_META = [
     done: true,
     before: async () => {
       await wait(100);
+    }
+  },
+  {
+    selector: () => ensureTutorialExternalFocusAnchor(),
+    externalFocus: true,
+    placement: "right",
+    gif: TUTORIAL_ASSETS.tibiaMirrorClients,
+    gifNatural: true,
+    longCopy: true,
+    popoverHeight: 470,
+    done: true,
+    before: async () => {
+      await getTibiaMirrorTutorialApi()?.closeProfilesPanel?.();
+      const result = await window.desktopApi?.app?.tutorial?.focusMirrorGameSelector?.(true);
+      await wait(120);
+      return result;
     }
   }
 ];
@@ -1727,11 +1793,12 @@ const TUTORIAL_ALERTS_STEP_META = [
     }
   },
   {
-    selector: '[data-docked-action="toggle-alerts-view"]',
+    selector: '[data-docked-action="set-alerts-view"][data-alerts-view="magias"]',
     placement: "left",
     gif: TUTORIAL_ASSETS.default,
     before: async () => {
-      await getTibiaMirrorTutorialApi()?.setAlertDemoStage?.("magic-panel");
+      // Explain the spell-book control before the next step opens it.
+      await getTibiaMirrorTutorialApi()?.setAlertDemoStage?.("magic-toggle");
       await wait(120);
     }
   },
@@ -1916,6 +1983,89 @@ const TUTORIAL_ALERTS_STEP_META = [
     before: async () => {
       await getTibiaMirrorTutorialApi()?.setAlertDemoStage?.("visual-style");
       await wait(120);
+    }
+  }
+];
+
+const TUTORIAL_SCREENSHOTS_STEP_META = [
+  {
+    selector: '[data-tutorial-focus="screenshots-panel"]',
+    placement: "left",
+    gif: TUTORIAL_ASSETS.screenshot,
+    gifNatural: true,
+    textByLocale: {
+      "pt-BR": "Aqui você pode configurar suas screenshots.",
+      en: "Here you can configure your screenshots.",
+      de: "Hier kannst du deine Screenshots konfigurieren."
+    }
+  },
+  {
+    selector: '[data-tutorial-focus="screenshots-panel"]',
+    placement: "left",
+    gif: TUTORIAL_ASSETS.screenshotUncheck,
+    gifNatural: true,
+    htmlByLocale: {
+      "pt-BR": "Primeiramente, vá em:<br><strong>Options &gt; Misc. &gt; Screenshots</strong><br>e <strong>desmarque</strong> a opção <strong>\"Only capture game window\"</strong>, ou a imagem não ficará alinhada corretamente.",
+      en: "First, go to:<br><strong>Options &gt; Misc. &gt; Screenshots</strong><br>and <strong>uncheck</strong> <strong>\"Only capture game window\"</strong>, or the image will not be aligned correctly.",
+      de: "Gehe zuerst zu:<br><strong>Options &gt; Misc. &gt; Screenshots</strong><br>und entferne das Häkchen bei <strong>\"Only capture game window\"</strong>, sonst wird das Bild nicht korrekt ausgerichtet."
+    }
+  },
+  {
+    selector: '[data-tutorial-focus="screenshots-panel"]',
+    placement: "left",
+    gif: TUTORIAL_ASSETS.screenshotOpenFolder,
+    gifNatural: true,
+    htmlByLocale: {
+      "pt-BR": "Se você ainda não abriu a pasta de screenshots do Tibia, abra-a uma vez para criá-la.<br>No Tibia, vá em <strong>Options &gt; Misc. &gt; Screenshots</strong> e clique em <strong>Open Screenshot Folder</strong>.",
+      en: "If you have never opened Tibia's screenshot folder, open it once to create it.<br>In Tibia, go to <strong>Options &gt; Misc. &gt; Screenshots</strong> and click <strong>Open Screenshot Folder</strong>.",
+      de: "Wenn du den Screenshot-Ordner von Tibia noch nie geöffnet hast, öffne ihn einmal, damit er erstellt wird.<br>Gehe in Tibia zu <strong>Options &gt; Misc. &gt; Screenshots</strong> und klicke auf <strong>Open Screenshot Folder</strong>."
+    }
+  },
+  {
+    selector: '[data-tutorial-focus="screenshot-select-area"]',
+    placement: "left",
+    gif: TUTORIAL_ASSETS.default,
+    textByLocale: {
+      "pt-BR": "Clique neste botão para abrir o ScreenshotToolkit. Dentro do modal, selecione a área e ative o switch. Depois, use a hotkey normal do próprio Tibia: o Toolkit apenas recorta o PNG que o jogo salvou.",
+      en: "Click this button to open ScreenshotToolkit. Inside the modal, select the area and turn on the switch. Then use Tibia's own screenshot hotkey: Toolkit only crops the PNG saved by the game.",
+      de: "Klicke hier, um das ScreenshotToolkit zu öffnen. Wähle im Modal den Bereich aus und aktiviere den Schalter. Verwende danach die Screenshot-Taste von Tibia: Toolkit schneidet nur die vom Spiel gespeicherte PNG zu."
+    }
+  },
+  {
+    selector: '[data-tutorial-focus="screenshot-directory"]',
+    placement: "left",
+    gif: TUTORIAL_ASSETS.default,
+    textByLocale: {
+      "pt-BR": "Escolha a pasta onde suas screenshots recortadas serão salvas. Isso é opcional.",
+      en: "Choose where your cropped screenshots are saved. This is optional.",
+      de: "Wähle den Ordner, in dem deine zugeschnittenen Screenshots gespeichert werden. Dies ist optional."
+    }
+  },
+  {
+    selector: '.desktop-screenshot-extra-actions .desktop-screenshot-folder-icon',
+    placement: "left",
+    gif: TUTORIAL_ASSETS.default,
+    textByLocale: {
+      "pt-BR": "Clique aqui para abrir sua pasta de screenshots.",
+      en: "Click here to open your screenshots folder.",
+      de: "Klicke hier, um deinen Screenshot-Ordner zu öffnen."
+    }
+  },
+  {
+    selector: () => ensureTutorialExternalFocusAnchor(),
+    placement: "left",
+    gif: TUTORIAL_ASSETS.default,
+    done: true,
+    externalFocus: true,
+    before: async () => {
+      const result = await window.desktopApi?.screenshots?.showAssistant?.({ tutorial: true });
+      await wait(180);
+      return result;
+    },
+    textByLocale: {
+      "pt-BR": "Quando o recorte automático está ativo, este modal de auxílio aparece para ajudar você a selecionar novas áreas sem precisar maximizar o TibiaToolkit. Ele também oferece um acesso rápido à pasta das screenshots.",
+      en: "When automatic cropping is active, this help window appears so you can select new areas without maximizing TibiaToolkit. It also gives you quick access to your screenshots folder.",
+      de: "Wenn der automatische Zuschnitt aktiv ist, erscheint dieses Hilfsfenster. So kannst du neue Bereiche auswählen, ohne das TibiaToolkit zu maximieren. Außerdem bietet es einen schnellen Zugriff auf deinen Screenshot-Ordner."
     }
   }
 ];
@@ -2988,6 +3138,10 @@ const TUTORIAL_TIBIA_MIRROR_STEP_COPY = {
     {
       text: "Ative esta op\u00e7\u00e3o se quiser que os espelhos do Tibia Mirror apare\u00e7am na sua tela ao gravar ou fazer stream com o OBS Studio.",
       done: true
+    },
+    {
+        html: "Você pode selecionar a função do Tibia Mirror entre <strong>Tibia, RubinOT e Medivia</strong>.<br><br>Essa adição serve para a função de espelhamento, mas as magias específicas não foram adaptadas aos dois OT servers.<br><br><strong style=\"color:#ff766d\">RubinOT não é compatível com Alerta sonoro.</strong>",
+      done: true
     }
   ],
   en: [
@@ -3018,6 +3172,10 @@ const TUTORIAL_TIBIA_MIRROR_STEP_COPY = {
     },
     {
       text: "Enable this option if you want Tibia Mirror mirrors to appear in your recording or stream with OBS Studio.",
+      done: true
+    },
+    {
+        html: "You can select the Tibia Mirror source between <strong>Tibia, RubinOT and Medivia</strong>.<br><br>This addition applies to the mirroring feature, but game-specific spells have not been adapted for the two OT servers.<br><br><strong style=\"color:#ff766d\">RubinOT is not compatible with Sound Alerts.</strong>",
       done: true
     }
   ],
@@ -3050,6 +3208,10 @@ const TUTORIAL_TIBIA_MIRROR_STEP_COPY = {
     {
       text: "Aktiviere diese Option, wenn die Tibia-Mirror-Spiegel in deiner OBS-Studio-Aufnahme oder deinem Stream erscheinen sollen.",
       done: true
+    },
+    {
+        html: "Du kannst die Quelle von Tibia Mirror zwischen <strong>Tibia, RubinOT und Medivia</strong> auswählen.<br><br>Diese Ergänzung gilt für die Spiegelungsfunktion; die spielspezifischen Magien wurden jedoch nicht an die beiden OT-Server angepasst.<br><br><strong style=\"color:#ff766d\">RubinOT ist nicht mit Sound-Alerts kompatibel.</strong>",
+      done: true
     }
   ]
 };
@@ -3067,6 +3229,18 @@ const WHEEL_TUTORIAL_CANVAS_POINTS = Object.freeze({
 let activeTour = null;
 let activeStepIndex = -1;
 let activeTourName = "item-prices";
+let activeTutorialHighlightFrame = null;
+let activeTutorialHighlightFrameRequest = 0;
+let activeTutorialHighlightElement = null;
+let activeTutorialHighlightSelector = "";
+let activeTutorialHighlightResizeObserver = null;
+let activeTutorialHighlightMutationObserver = null;
+let activeTutorialHighlightScheduleUpdate = null;
+let activeTutorialHighlightRectSignature = "";
+let desktopScreenshotActionBusy = false;
+let desktopScreenshotDiscoveryState = "searching";
+let desktopScreenshotNeedsSelection = false;
+let desktopScreenshotNeedsTibia = false;
 let removeNextListener = null;
 let removeCancelListener = null;
 let activeStepTransitionId = 0;
@@ -3470,12 +3644,131 @@ async function prepareWheelTutorialStep(kind) {
   }
 }
 
-function getElement(selector) {
+function findVisibleTutorialElement(selector) {
   if (!selector) {
-    return document.body;
+    return null;
   }
 
-  return document.querySelector(selector) || document.body;
+  const candidates = [...document.querySelectorAll(selector)];
+  return candidates.find((candidate) => {
+    const rect = candidate.getBoundingClientRect();
+    const style = getComputedStyle(candidate);
+    return !candidate.hidden
+      && style.display !== "none"
+      && style.visibility !== "hidden"
+      && rect.width > 0
+      && rect.height > 0;
+  }) || candidates[0] || null;
+}
+
+function getElement(selector) {
+  return findVisibleTutorialElement(selector) || document.body;
+}
+
+function ensureTutorialExternalFocusAnchor() {
+  let anchor = document.querySelector("#tt-tutorial-external-focus-anchor");
+  if (!anchor) {
+    anchor = document.createElement("span");
+    anchor.id = "tt-tutorial-external-focus-anchor";
+    anchor.setAttribute("aria-hidden", "true");
+    document.body.appendChild(anchor);
+  }
+  return "#tt-tutorial-external-focus-anchor";
+}
+
+function stopTutorialHighlightFrame() {
+  if (activeTutorialHighlightFrameRequest) {
+    window.cancelAnimationFrame(activeTutorialHighlightFrameRequest);
+    activeTutorialHighlightFrameRequest = 0;
+  }
+  activeTutorialHighlightElement = null;
+  activeTutorialHighlightSelector = "";
+  activeTutorialHighlightRectSignature = "";
+  activeTutorialHighlightResizeObserver?.disconnect();
+  activeTutorialHighlightResizeObserver = null;
+  activeTutorialHighlightMutationObserver?.disconnect();
+  activeTutorialHighlightMutationObserver = null;
+  if (activeTutorialHighlightScheduleUpdate) {
+    window.removeEventListener("resize", activeTutorialHighlightScheduleUpdate);
+    window.removeEventListener("scroll", activeTutorialHighlightScheduleUpdate, true);
+  }
+  activeTutorialHighlightScheduleUpdate = null;
+  activeTutorialHighlightFrame?.remove();
+  activeTutorialHighlightFrame = null;
+}
+
+function startTutorialHighlightFrame(element, selector = "") {
+  stopTutorialHighlightFrame();
+  if (!element || element === document.body || element.id === "tt-tutorial-external-focus-anchor") {
+    return;
+  }
+
+  const frame = document.createElement("div");
+  frame.className = "tt-tour-highlight-frame";
+  frame.setAttribute("aria-hidden", "true");
+  document.body.appendChild(frame);
+  activeTutorialHighlightFrame = frame;
+  activeTutorialHighlightElement = element;
+  activeTutorialHighlightSelector = selector;
+
+  const update = () => {
+    activeTutorialHighlightFrameRequest = 0;
+    if (!activeTutorialHighlightFrame || activeTutorialHighlightElement !== element) {
+      stopTutorialHighlightFrame();
+      return;
+    }
+    // Dynamic panels rebuild their controls. Keep the border on the
+    // replacement instead of removing it when the previous node is detached.
+    if (!element.isConnected) {
+      const replacement = findVisibleTutorialElement(activeTutorialHighlightSelector);
+      if (!replacement) {
+        return;
+      }
+      element = replacement;
+      activeTutorialHighlightElement = replacement;
+      activeTutorialHighlightResizeObserver?.disconnect();
+      activeTutorialHighlightResizeObserver?.observe(replacement);
+    }
+    const rect = element.getBoundingClientRect();
+    const padding = 8;
+    const rectSignature = [
+      Math.round(rect.left - padding),
+      Math.round(rect.top - padding),
+      Math.max(1, Math.round(rect.width + padding * 2)),
+      Math.max(1, Math.round(rect.height + padding * 2))
+    ].join(":");
+    if (rectSignature === activeTutorialHighlightRectSignature) {
+      return;
+    }
+    activeTutorialHighlightRectSignature = rectSignature;
+    const [left, top, width, height] = rectSignature.split(":");
+    frame.style.left = `${left}px`;
+    frame.style.top = `${top}px`;
+    frame.style.width = `${width}px`;
+    frame.style.height = `${height}px`;
+  };
+  const scheduleUpdate = () => {
+    if (!activeTutorialHighlightFrame || activeTutorialHighlightFrameRequest) {
+      return;
+    }
+    activeTutorialHighlightFrameRequest = window.requestAnimationFrame(update);
+  };
+  activeTutorialHighlightScheduleUpdate = scheduleUpdate;
+  if ("ResizeObserver" in window) {
+    activeTutorialHighlightResizeObserver = new ResizeObserver(scheduleUpdate);
+    activeTutorialHighlightResizeObserver.observe(element);
+  }
+  // A replacement target is only checked after an actual DOM mutation. This
+  // preserves focus across dynamic panel rebuilds without polling layout at
+  // every animation frame while a tutorial step is idle.
+  activeTutorialHighlightMutationObserver = new MutationObserver(scheduleUpdate);
+  activeTutorialHighlightMutationObserver.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
+  window.addEventListener("resize", scheduleUpdate);
+  window.addEventListener("scroll", scheduleUpdate, true);
+  scheduleUpdate();
 }
 
 function escapeHtml(value) {
@@ -3579,6 +3872,8 @@ function getTourSteps(tourName = "item-prices") {
                     ? { meta: TUTORIAL_SQM_FINDER_STEP_META, copy: TUTORIAL_SQM_FINDER_STEP_COPY }
                     : tourName === "alerts"
                       ? { meta: TUTORIAL_ALERTS_STEP_META, copy: TUTORIAL_ALERTS_STEP_COPY }
+                      : tourName === "screenshots"
+                        ? { meta: TUTORIAL_SCREENSHOTS_STEP_META, copy: TUTORIAL_STEP_COPY }
                     : { meta: TUTORIAL_STEP_META, copy: TUTORIAL_STEP_COPY };
   const copySource = route.copy;
   const copy = copySource[getTutorialLocale()] || copySource.en;
@@ -3586,12 +3881,24 @@ function getTourSteps(tourName = "item-prices") {
     ? getTutorialApi()?.getSupportersTutorialState?.() || {}
     : {};
   let copyIndex = 0;
-  const entries = route.meta.map((entry) => ({
+  const entries = route.meta.map((sourceEntry) => {
+    const entry = tourName === "sqm-finder" && sourceEntry.hideGif
+      ? { ...sourceEntry, hideGif: false, gif: TUTORIAL_ASSETS.default, gifNatural: true }
+      : sourceEntry;
+    return ({
     entry,
-    copy: entry.textByLocale
-      ? { text: entry.textByLocale[getTutorialLocale()] || entry.textByLocale.en || "" }
+    copy: entry.textByLocale || entry.htmlByLocale
+      ? {
+        text: entry.textByLocale
+          ? entry.textByLocale[getTutorialLocale()] || entry.textByLocale.en || ""
+          : "",
+        html: entry.htmlByLocale
+          ? entry.htmlByLocale[getTutorialLocale()] || entry.htmlByLocale.en || ""
+          : ""
+      }
       : copy[copyIndex++] || {}
-  }))
+    });
+  })
     .filter(({ entry }) => {
       if (entry.requiresCoffee && !supporterState.coffeeVisible) {
         return false;
@@ -3614,6 +3921,11 @@ async function beginTutorialRoute(tourName, options = {}) {
   const config = TUTORIAL_ROUTE_CONFIG[tourName];
 
   if (!config || activeStepIndex >= 0) {
+    void recordTutorialPerformanceMetric("tutorial-route-conflict", {
+      route: tourName,
+      reason: !config ? "unknown-route" : "another-route-active",
+      activeRoute: activeStepIndex >= 0 ? activeTourName : ""
+    });
     return;
   }
 
@@ -3622,15 +3934,27 @@ async function beginTutorialRoute(tourName, options = {}) {
     const ready = await mirrorApi?.ensureTibiaReady?.();
     if (!ready) {
       tibiaMirrorTutorialRestartPending = tourName;
+      void recordTutorialPerformanceMetric("tutorial-route-blocked", {
+        route: tourName,
+        reason: "tibia-not-ready"
+      });
       return;
     }
   }
 
   if (!force && config.launchPolicy === "first-visit" && hasTutorialBeenSeen(config)) {
+    void recordTutorialPerformanceMetric("tutorial-route-blocked", {
+      route: tourName,
+      reason: "already-seen"
+    });
     return;
   }
 
   if (!force && config.launchPolicy === "session" && tutorialRoutesStartedThisSession.has(tourName)) {
+    void recordTutorialPerformanceMetric("tutorial-route-blocked", {
+      route: tourName,
+      reason: "already-started-this-session"
+    });
     return;
   }
 
@@ -3638,6 +3962,12 @@ async function beginTutorialRoute(tourName, options = {}) {
     tutorialRoutesStartedThisSession.add(tourName);
     markTutorialSeen(config);
   }
+
+  tutorialRouteMetricStarts.set(tourName, performance.now());
+  void recordTutorialPerformanceMetric("tutorial-route-started", {
+    route: tourName,
+    forced: force
+  });
 
   if (tourName === "tools") {
     imbuementTourStateSnapshot ??= getTutorialApi()?.getImbuementTourState?.() || null;
@@ -3681,10 +4011,12 @@ async function typeSearchText(text) {
 
   for (const char of text) {
     input.value += char;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
     await wait(35);
   }
 
+  // The tutorial still shows a typed query, but it must not run the normal
+  // suggestion request for every simulated character. The final API call
+  // below keeps the same result and performs exactly one lookup.
   await getTutorialApi()?.typeItemSearch?.(text);
 }
 
@@ -3724,6 +4056,7 @@ function setTutorialInteractionBlocked(blocked) {
   }
 
   tutorialInteractionBlocked = blocked;
+  void window.desktopApi?.app?.tutorial?.setPriority?.(blocked);
   document.body.classList.toggle("tt-tutorial-interaction-blocked", blocked);
   const method = blocked ? "addEventListener" : "removeEventListener";
   for (const eventName of [
@@ -3772,8 +4105,12 @@ async function closeActiveStep({
   unlockWindow = true,
   restoreTourState = true,
   cleanupTransient = true,
+  clearSupportersShowcaseFocus = cleanupTransient,
+  clearMirrorGameSelectorFocus = cleanupTransient,
+  closePopover = true,
   invalidateTransition = true
 } = {}) {
+  const closeStartedAt = performance.now();
   if (invalidateTransition) {
     activeStepTransitionId += 1;
   }
@@ -3789,10 +4126,17 @@ async function closeActiveStep({
       element.classList.remove("tt-tutorial-compact-focus");
     });
   }
+  if (clearSupportersShowcaseFocus) {
+    await window.desktopApi?.app?.tutorial?.focusSupportersShowcase?.("");
+  }
+  if (clearMirrorGameSelectorFocus) {
+    await window.desktopApi?.app?.tutorial?.focusMirrorGameSelector?.(false);
+  }
   removeNextListener?.();
   removeNextListener = null;
   removeCancelListener?.();
   removeCancelListener = null;
+  stopTutorialHighlightFrame();
   activeTour?.destroy?.();
   activeTour = null;
   activeStepIndex = -1;
@@ -3805,7 +4149,9 @@ async function closeActiveStep({
     await window.desktopApi?.app?.tutorial?.restoreWindowBounds?.();
     await window.desktopApi?.app?.tutorial?.setWindowLocked?.(false);
   }
-  await window.desktopApi?.app?.tutorial?.closeStep?.();
+  if (closePopover) {
+    await window.desktopApi?.app?.tutorial?.closeStep?.();
+  }
   if (restoreTourState && closingTourName === "tools" && imbuementTourStateSnapshot) {
     getTutorialApi()?.restoreImbuementTourState?.(imbuementTourStateSnapshot);
     imbuementTourStateSnapshot = null;
@@ -3857,6 +4203,22 @@ async function closeActiveStep({
   if (restoreTourState && closingTourName === "alerts") {
     await getTibiaMirrorTutorialApi()?.finishAlertDemo?.();
   }
+  if (closingTourName === "screenshots" && restoreTourState) {
+    await window.desktopApi?.screenshots?.clearAssistantTutorialFocus?.();
+  }
+
+  const routeStartedAt = tutorialRouteMetricStarts.get(closingTourName);
+  void recordTutorialPerformanceMetric("tutorial-route-closed", {
+    route: closingTourName,
+    restored: restoreTourState,
+    closeElapsedMs: Math.round(performance.now() - closeStartedAt),
+    routeElapsedMs: Number.isFinite(routeStartedAt)
+      ? Math.round(performance.now() - routeStartedAt)
+      : null
+  });
+  if (restoreTourState && releaseInteraction) {
+    tutorialRouteMetricStarts.delete(closingTourName);
+  }
 }
 
 async function runStep(index = 0, tourName = "item-prices") {
@@ -3865,7 +4227,10 @@ async function runStep(index = 0, tourName = "item-prices") {
   if (index >= steps.length) {
     await closeActiveStep();
     if (tourName === "tibia-mirror-intro") {
-      await beginTutorialRoute("tibia-mirror");
+      // The 1/1 introduction is explicitly followed by the practical route.
+      // On a restarted tutorial that route may already be marked as seen, but
+      // must still run so the in-memory temporary profile can be demonstrated.
+      await beginTutorialRoute("tibia-mirror", { force: true });
     }
     return;
   }
@@ -3878,6 +4243,12 @@ async function runStep(index = 0, tourName = "item-prices") {
   removeCancelListener?.();
   removeCancelListener = null;
   const transitionId = ++activeStepTransitionId;
+  const stepStartedAt = performance.now();
+  void recordTutorialPerformanceMetric("tutorial-step-transition-started", {
+    route: tourName,
+    step: index + 1,
+    totalSteps: steps.length
+  });
 
   activeStepIndex = index;
   activeTourName = tourName;
@@ -3893,19 +4264,33 @@ async function runStep(index = 0, tourName = "item-prices") {
   if (transitionId !== activeStepTransitionId) {
     return;
   }
-
-  const step = steps[index];
-  try {
-    await step.before?.();
-  } catch (error) {
-    console.error(`[tutorial] Failed to prepare ${tourName} step ${index + 1}`, error);
+  // External tutorial targets (the supporters controls) keep their own focus
+  // border. Clear the preceding target before preparing the next one.
+  await window.desktopApi?.app?.tutorial?.focusSupportersShowcase?.("");
+  if (transitionId !== activeStepTransitionId) {
+    return;
   }
+  await window.desktopApi?.app?.tutorial?.focusMirrorGameSelector?.(false);
   if (transitionId !== activeStepTransitionId) {
     return;
   }
 
-  const selector = typeof step.selector === "function" ? step.selector() : step.selector;
-  const element = getElement(selector);
+  const step = steps[index];
+  let stepPreparationResult = null;
+  const preparationStartedAt = performance.now();
+  try {
+    stepPreparationResult = await step.before?.();
+  } catch (error) {
+    console.error(`[tutorial] Failed to prepare ${tourName} step ${index + 1}`, error);
+    void recordTutorialPerformanceMetric("tutorial-step-preparation-error", {
+      route: tourName,
+      step: index + 1,
+      errorKind: getTutorialErrorKind(error)
+    });
+  }
+  if (transitionId !== activeStepTransitionId) {
+    return;
+  }
 
   const preserveTransient = tourName === "solo-analyzer" && index === steps.length - 1;
   await closeActiveStep({
@@ -3913,12 +4298,44 @@ async function runStep(index = 0, tourName = "item-prices") {
     unlockWindow: false,
     restoreTourState: false,
     cleanupTransient: !preserveTransient,
+    clearSupportersShowcaseFocus: false,
+    clearMirrorGameSelectorFocus: false,
+    // The popover was already cleared before this step's asynchronous
+    // preparation. Clearing it again creates a second blank composition and
+    // makes every tutorial transition visibly flash.
+    closePopover: false,
     invalidateTransition: false
   });
   if (transitionId !== activeStepTransitionId) {
     return;
   }
+  try {
+    await step.afterPreviousClose?.();
+  } catch (error) {
+    console.error(`[tutorial] Failed to finish preparing ${tourName} step ${index + 1}`, error);
+    void recordTutorialPerformanceMetric("tutorial-step-post-close-error", {
+      route: tourName,
+      step: index + 1,
+      errorKind: getTutorialErrorKind(error)
+    });
+  }
+  if (transitionId !== activeStepTransitionId) {
+    return;
+  }
   setTutorialUpdateDemo(step.simulateUpdate === true);
+  const selector = typeof step.selector === "function" ? step.selector() : step.selector;
+  // Closing the previous Driver instance can change a responsive layout or
+  // replace dynamic detail controls. Resolve the target only after that
+  // cleanup and any post-cleanup preparation so the spotlight follows the
+  // element that is actually visible now.
+  const targetElement = findVisibleTutorialElement(selector);
+  const element = targetElement || document.body;
+  if (!targetElement) {
+    void recordTutorialPerformanceMetric("tutorial-step-target-missing", {
+      route: tourName,
+      step: index + 1
+    });
+  }
   activeStepIndex = index;
   activeTourName = tourName;
   activeTour = driver({
@@ -3937,6 +4354,9 @@ async function runStep(index = 0, tourName = "item-prices") {
   });
 
   activeTour.drive();
+  if (!step.externalFocus) {
+    startTutorialHighlightFrame(element, selector);
+  }
   setTutorialInteractionBlocked(true);
   // Some screens replace their own controls right before the first tooltip.
   // Let those DOM updates settle before opening the separate animated window.
@@ -3944,21 +4364,24 @@ async function runStep(index = 0, tourName = "item-prices") {
 
   const rect = element.getBoundingClientRect();
   const actionCopy = getTutorialActionCopy();
-  await window.desktopApi?.app?.tutorial?.showStep?.({
+  const popoverShown = await window.desktopApi?.app?.tutorial?.showStep?.({
     rect: {
       x: rect.x,
       y: rect.y,
       width: rect.width,
       height: rect.height
     },
+    screenRect: step.externalFocus ? stepPreparationResult?.bounds : null,
     gif: toAbsoluteAssetUrl(step.gif || TUTORIAL_ASSETS.default),
+    nextGif: steps[index + 1]?.gif ? toAbsoluteAssetUrl(steps[index + 1].gif) : "",
     hideGif: step.hideGif === true,
-    gifFit: step.gifFit || "cover",
-    gifNatural: step.gifNatural === true,
+    gifFit: "contain",
+    gifNatural: true,
     supplementalImages: Array.isArray(step.supplementalImages)
       ? step.supplementalImages.map((assetPath) => toAbsoluteAssetUrl(assetPath))
       : [],
     longCopy: step.longCopy === true,
+    variant: tourName === "screenshots" ? "screenshots" : "",
     text: step.text || "",
     html: step.html || "",
     placement: step.placement || "",
@@ -3970,6 +4393,22 @@ async function runStep(index = 0, tourName = "item-prices") {
     cancelIcon: toAbsoluteAssetUrl(TUTORIAL_ASSETS.cancel),
     cancelLabel: actionCopy.cancel
   });
+  if (popoverShown !== true) {
+    void recordTutorialPerformanceMetric("tutorial-step-popover-error", {
+      route: tourName,
+      step: index + 1
+    });
+  }
+  if (transitionId === activeStepTransitionId) {
+    void recordTutorialPerformanceMetric("tutorial-step-popover-dispatched", {
+      route: tourName,
+      step: index + 1,
+      totalSteps: steps.length,
+      preparationElapsedMs: Math.round(performance.now() - preparationStartedAt),
+      transitionElapsedMs: Math.round(performance.now() - stepStartedAt),
+      targetFound: Boolean(element)
+    });
+  }
   if (transitionId !== activeStepTransitionId) {
     return;
   }
@@ -3977,6 +4416,11 @@ async function runStep(index = 0, tourName = "item-prices") {
   removeNextListener = window.desktopApi?.app?.tutorial?.onNext?.(() => {
     removeNextListener?.();
     removeNextListener = null;
+    void recordTutorialPerformanceMetric("tutorial-step-next-received", {
+      route: tourName,
+      step: index + 1,
+      totalSteps: steps.length
+    });
     void runStep(index + 1, tourName);
   }) || null;
   removeCancelListener = window.desktopApi?.app?.tutorial?.onCancel?.(() => {
@@ -4005,11 +4449,13 @@ function renderTutorialLocaleButtons() {
 
 function closeWelcome() {
   document.querySelector(".tt-tour-welcome-overlay")?.remove();
+  void window.desktopApi?.app?.tutorial?.setPriority?.(false);
   ensureContextTutorialButton();
 }
 
 function openWelcome() {
   closeWelcome();
+  void window.desktopApi?.app?.tutorial?.setPriority?.(true);
   void window.desktopApi?.app?.tutorial?.setWindowLocked?.(true);
   const copy = getTutorialWelcomeCopy();
 
@@ -4092,6 +4538,7 @@ function openWelcomeIfNeeded() {
 
 function closeTutorialConfirmation() {
   document.querySelector(".tt-tour-confirm-overlay")?.remove();
+  void window.desktopApi?.app?.tutorial?.setPriority?.(false);
   ensureContextTutorialButton();
 }
 
@@ -4101,6 +4548,7 @@ function openTutorialConfirmation({ tourName = "item-prices", resetAll = false }
   }
 
   const copy = getTutorialConfirmationCopy();
+  void window.desktopApi?.app?.tutorial?.setPriority?.(true);
   const title = resetAll ? copy.resetTitle : copy.title;
   const message = resetAll ? copy.resetMessage : copy.message;
   const overlay = document.createElement("div");
@@ -4195,6 +4643,7 @@ function showContextButtonTooltip(trigger) {
   }
 
   tooltip.textContent = message;
+  tooltip.classList.toggle("danger", trigger?.dataset?.tooltipTone === "danger");
   tooltip.setAttribute("aria-hidden", "false");
   tooltip.classList.add("visible");
 
@@ -4223,10 +4672,67 @@ function bindContextButtonTooltip(button) {
   }
 
   button.dataset.contextTooltipBound = "true";
-  button.addEventListener("mouseenter", () => showContextButtonTooltip(button));
-  button.addEventListener("focus", () => showContextButtonTooltip(button));
-  button.addEventListener("mouseleave", hideContextButtonTooltip);
+  const showTooltip = () => {
+    if (button.id === "tt-screenshot-context-button") {
+      // Show the last known copy immediately.  The availability/settings IPC
+      // calls below may take a moment and must not make this hover feel dead.
+      showContextButtonTooltip(button);
+      void refreshContextScreenshotButtonState(button).finally(() => {
+        if (button.matches(":hover") || document.activeElement === button) {
+          showContextButtonTooltip(button);
+        }
+      });
+      return;
+    }
+    showContextButtonTooltip(button);
+  };
+  // Pointer events keep this tooltip reliable after the desktop toolbar is
+  // rebuilt/reparented (the old mouseenter-only binding could be lost during
+  // that transition).
+  button.addEventListener("pointerenter", showTooltip);
+  button.addEventListener("focus", showTooltip);
+  button.addEventListener("pointerleave", hideContextButtonTooltip);
   button.addEventListener("blur", hideContextButtonTooltip);
+}
+
+const DESKTOP_SCREENSHOT_SOURCE_MISSING_COPY = "Pasta de screenshot do Tibia não identificada. Clique aqui para selecionar a pasta de screenshots do Tibia.";
+const DESKTOP_SCREENSHOT_ENABLE_COPY = "Ativar ScreenshotToolkit";
+const DESKTOP_SCREENSHOT_ACTIVE_ICON = "assets/ui/tutorial/polaroid.gif";
+const DESKTOP_SCREENSHOT_INACTIVE_ICON = "assets/ui/tutorial/polaroid-inactive.png";
+
+async function refreshContextScreenshotButtonState(button) {
+  if (!button) return;
+
+  try {
+    const [availability, settings] = await Promise.all([
+      window.desktopApi?.screenshots?.getAvailability?.(),
+      window.desktopApi?.screenshots?.getSettings?.()
+    ]);
+    desktopScreenshotDiscoveryState = availability?.discoveryState === "found" || availability?.screenshotDirectory
+      ? "found"
+      : "not-found";
+    const sourceAvailable = Boolean(availability?.screenshotDirectory);
+    const enabled = Boolean(settings?.enabled);
+    const tooltip = !sourceAvailable
+      ? DESKTOP_SCREENSHOT_SOURCE_MISSING_COPY
+      : DESKTOP_SCREENSHOT_ENABLE_COPY;
+    button.classList.toggle("screenshot-enabled", enabled);
+    button.classList.toggle("screenshot-disabled", !enabled);
+    button.classList.toggle("screenshot-needs-selection", (desktopScreenshotNeedsSelection || desktopScreenshotNeedsTibia) && !enabled);
+    const icon = button.querySelector(".screenshot-context-icon");
+    const iconSource = enabled ? DESKTOP_SCREENSHOT_ACTIVE_ICON : DESKTOP_SCREENSHOT_INACTIVE_ICON;
+    if (icon && icon.getAttribute("src") !== iconSource) {
+      icon.setAttribute("src", iconSource);
+    }
+    button.dataset.tooltip = tooltip;
+    button.dataset.tooltipTone = !sourceAvailable ? "danger" : "";
+    button.removeAttribute("title");
+    button.setAttribute("aria-label", tooltip);
+    button.dataset.screenshotStateResolved = "true";
+    button.dataset.screenshotDiscoveryState = desktopScreenshotDiscoveryState;
+  } catch {
+    // Keep the last known state if the desktop bridge is temporarily busy.
+  }
 }
 
 function ensureContextNewsButton(host, hidden) {
@@ -4236,7 +4742,7 @@ function ensureContextNewsButton(host, hidden) {
     button.id = "tt-news-context-button";
     button.type = "button";
     button.className = "tt-tour-context-button tt-news-context-button";
-    button.innerHTML = '<img src="assets/ui/icon-news.gif" alt="">';
+    button.innerHTML = '<img src="assets/ui/navigation/icon-news.gif" alt="">';
     button.addEventListener("click", () => {
       const openExternal = window.desktopApi?.links?.openExternal;
       if (typeof openExternal === "function") {
@@ -4259,6 +4765,75 @@ function ensureContextNewsButton(host, hidden) {
   button.hidden = hidden;
 }
 
+function ensureContextReportButton(host, hidden) {
+  let button = document.querySelector("#tt-report-context-button");
+  if (!button) {
+    button = document.createElement("button");
+    button.id = "tt-report-context-button";
+    button.type = "button";
+    button.className = "tt-tour-context-button tt-report-context-button";
+    // Use the same report icon as the site launcher.  The tutorial question
+    // remains a separate control on the opposite side of this navigation row.
+    button.innerHTML = '<img src="assets/ui/feedback/report.png" alt="">';
+    button.addEventListener("click", () => window.dispatchEvent(new CustomEvent("tibia-toolkit:open-report")));
+    bindContextButtonTooltip(button);
+  }
+  if (button.parentElement !== host) host.appendChild(button);
+  const tooltip = t("account.report.contextTooltip");
+  button.dataset.tooltip = tooltip;
+  button.removeAttribute("title");
+  button.setAttribute("aria-label", tooltip);
+  button.hidden = hidden;
+}
+
+function ensureContextScreenshotButton(host, hidden) {
+  let button = document.querySelector("#tt-screenshot-context-button");
+  if (!button) {
+    button = document.createElement("button");
+    button.id = "tt-screenshot-context-button";
+    button.type = "button";
+    button.className = "tt-tour-context-button tt-screenshot-context-button";
+    button.innerHTML = `<img class="screenshot-context-icon" src="${DESKTOP_SCREENSHOT_INACTIVE_ICON}" alt="">`;
+    button.addEventListener("click", () => window.dispatchEvent(new CustomEvent("tibia-toolkit:open-screenshot-assistant")));
+    bindContextButtonTooltip(button);
+  }
+  // The host is a permanent, layout-neutral layer inside the toolbar. The
+  // button is mounted there once and never follows rerendered panel content.
+  if (button.parentElement !== host) host.appendChild(button);
+  // Keep the last resolved copy while the toolbar is mutating. Replacing it
+  // with the fallback on every observer pass makes the hover appear delayed
+  // and briefly shows the wrong message.
+  const discoverySearching = desktopScreenshotDiscoveryState === "searching";
+  if (discoverySearching || !button.dataset.tooltip) button.dataset.tooltip = discoverySearching
+    ? "Procurando pasta de screenshots"
+    : DESKTOP_SCREENSHOT_SOURCE_MISSING_COPY;
+  if (discoverySearching) button.dataset.tooltipTone = "";
+  else if (!button.hasAttribute("data-tooltip-tone")) button.dataset.tooltipTone = "danger";
+  const busy = desktopScreenshotActionBusy || discoverySearching;
+  button.disabled = busy;
+  button.classList.toggle("screenshot-action-busy", busy);
+  if (busy) button.setAttribute("aria-busy", "true");
+  else button.removeAttribute("aria-busy");
+  // Resolve the initial state once. Later updates come from the explicit
+  // screenshot-state event or from an immediate hover refresh; a body
+  // mutation must never start another IPC race.
+  if (
+    !desktopScreenshotActionBusy
+    && button.dataset.screenshotStateResolved !== "true"
+    && button.dataset.screenshotStatePending !== "true"
+  ) {
+    button.dataset.screenshotStatePending = "true";
+    void refreshContextScreenshotButtonState(button).finally(() => {
+      delete button.dataset.screenshotStatePending;
+    });
+  }
+  const tooltip = button.dataset.tooltip;
+  button.removeAttribute("title");
+  button.setAttribute("aria-label", tooltip);
+  // Busy state must not change visibility or toolbar placement.
+  button.hidden = hidden;
+}
+
 function ensureContextTutorialButton() {
   let button = document.querySelector("#tt-tour-context-button");
   if (!button) {
@@ -4276,7 +4851,16 @@ function ensureContextTutorialButton() {
   // In the desktop shell, the main-section tabs live in the sidebar row. Keep
   // the contextual tutorial entry point in that same row so it follows the
   // active workspace instead of floating over the content below it.
-  const host = document.querySelector("body.desktop-mode .sidebar") || document.body;
+  // Keep the contextual controls in the same toolbar host while the desktop
+  // shell is being rebuilt. During a panel transition the sidebar can be
+  // momentarily unavailable; falling back to the current parent prevents the
+  // screenshot control from being reparented and visibly jumping slots.
+  const currentHost = document.querySelector("#tt-screenshot-context-button")?.parentElement
+    || document.querySelector("#tt-tour-context-button")?.parentElement;
+  const host = document.querySelector("body.desktop-mode #desktop-context-actions")
+    || document.querySelector("body.desktop-mode .sidebar")
+    || currentHost
+    || document.body;
   if (button.parentElement !== host) {
     host.appendChild(button);
   }
@@ -4290,6 +4874,8 @@ function ensureContextTutorialButton() {
   const hidden = activeStepIndex >= 0 || Boolean(document.querySelector(".tt-tour-welcome-overlay"));
   button.hidden = hidden;
   ensureContextNewsButton(host, hidden);
+  ensureContextReportButton(host, hidden);
+  ensureContextScreenshotButton(host, hidden);
 }
 
 function bindContextTutorialButton() {
@@ -4297,12 +4883,19 @@ function bindContextTutorialButton() {
   document.addEventListener("click", () => {
     window.setTimeout(ensureContextTutorialButton, 0);
   }, true);
-  new MutationObserver(() => ensureContextTutorialButton()).observe(document.body, {
-    subtree: true,
-    childList: true,
-    attributes: true,
-    attributeFilter: ["class"]
-  });
+  // Tutorial dialogs are direct children of body. Watching only that level
+  // avoids rerunning the toolbar mount for every class change in the app
+  // (including the screenshot spinner and dock transitions).
+  new MutationObserver((mutations) => {
+    const tutorialLayerChanged = mutations.some((mutation) =>
+      [...mutation.addedNodes, ...mutation.removedNodes].some((node) =>
+        node instanceof Element
+        && (node.matches(".tt-tour-welcome-overlay, .tt-tour-confirm-overlay")
+          || Boolean(node.querySelector?.(".tt-tour-welcome-overlay, .tt-tour-confirm-overlay")))
+      )
+    );
+    if (tutorialLayerChanged) ensureContextTutorialButton();
+  }).observe(document.body, { childList: true });
 }
 
 window.desktopApi?.locale?.onChanged?.((locale) => {
@@ -4322,6 +4915,43 @@ window.desktopApi?.locale?.onChanged?.((locale) => {
 
 window.desktopApi?.app?.tutorial?.onResetAll?.(() => {
   openTutorialConfirmation({ resetAll: true });
+});
+
+window.addEventListener("tibia-toolkit:screenshot-state-changed", () => {
+  const button = document.querySelector("#tt-screenshot-context-button");
+  if (button) void refreshContextScreenshotButtonState(button);
+});
+
+window.desktopApi?.screenshots?.onState?.((payload) => {
+  desktopScreenshotNeedsSelection = Boolean(payload?.needsSelection);
+  desktopScreenshotNeedsTibia = Boolean(payload?.needsTibia);
+  const button = document.querySelector("#tt-screenshot-context-button");
+  if (button) void refreshContextScreenshotButtonState(button);
+});
+
+window.desktopApi?.screenshots?.onDiscoveryState?.((payload) => {
+  const discoveryState = String(payload?.state || "").trim();
+  if (!["searching", "found", "not-found"].includes(discoveryState)) return;
+  desktopScreenshotDiscoveryState = discoveryState;
+  const button = document.querySelector("#tt-screenshot-context-button");
+  if (!button) return;
+  button.dataset.screenshotDiscoveryState = discoveryState;
+  if (discoveryState === "searching") {
+    delete button.dataset.screenshotStateResolved;
+    button.dataset.tooltip = "Procurando pasta de screenshots";
+    button.dataset.tooltipTone = "";
+  }
+  ensureContextScreenshotButton(button.parentElement, button.hidden);
+});
+
+window.addEventListener("tibia-toolkit:screenshot-action-state", (event) => {
+  desktopScreenshotActionBusy = Boolean(event?.detail?.busy);
+  const button = document.querySelector("#tt-screenshot-context-button");
+  if (!button) return;
+  button.disabled = desktopScreenshotActionBusy;
+  button.classList.toggle("screenshot-action-busy", desktopScreenshotActionBusy);
+  if (desktopScreenshotActionBusy) button.setAttribute("aria-busy", "true");
+  else button.removeAttribute("aria-busy");
 });
 
 window.addEventListener("tibia-mirror:tibia-readiness", (event) => {
@@ -4370,6 +5000,7 @@ window.TibiaToolsTutorial = {
   startTibiaMirrorTour: () => beginTutorialRoute("tibia-mirror-intro", { force: true }),
   startSqmFinderTour: () => beginTutorialRoute("sqm-finder", { force: true }),
   startAlertsTour: () => beginTutorialRoute("alerts", { force: true }),
+  startScreenshotsTour: () => beginTutorialRoute("screenshots", { force: true }),
   close: () => {
     void closeActiveStep();
     closeWelcome();

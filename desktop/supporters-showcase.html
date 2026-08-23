@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Top apoiadores</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+      user-select: none;
+    }
+    body {
+      display: grid;
+      align-items: end;
+      justify-items: stretch;
+      padding: 40px 3px 3px;
+      font: 700 12px/1.25 "Trebuchet MS", "Segoe UI", sans-serif;
+      color: #eef4ff;
+    }
+    #supporters-row {
+      display: grid;
+      grid-template-columns: 40px minmax(0, 1fr);
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      height: 40px;
+    }
+    #coffee-button {
+      position: relative;
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      padding: 4px;
+      border: 1px solid rgba(148, 163, 184, .25);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(48, 57, 70, .98), rgba(29, 35, 44, .98));
+      cursor: pointer;
+      transition: border-color 120ms ease, filter 120ms ease, transform 120ms ease;
+      -webkit-app-region: no-drag;
+    }
+    #coffee-button:hover,
+    #coffee-button:focus-visible {
+      border-color: rgba(91, 232, 143, .72);
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+      outline: none;
+    }
+    #coffee-button.is-tutorial-focused,
+    #supporters-showcase.is-tutorial-focused {
+      border-color: rgba(236, 190, 77, .98);
+      box-shadow: 0 0 0 2px rgba(236, 190, 77, .72), 0 0 18px rgba(236, 190, 77, .30);
+      filter: brightness(1.08);
+      outline: none;
+    }
+    #coffee-button::after {
+      display: none;
+    }
+    #coffee-button img {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      pointer-events: none;
+    }
+    #supporters-showcase {
+      position: relative;
+      width: 100%;
+      height: 40px;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border: 1px solid rgba(148, 163, 184, .25);
+      border-radius: 8px;
+      background-color: rgba(30, 35, 44, .98);
+      background-position: center;
+      background-size: cover;
+      background-blend-mode: soft-light;
+      cursor: pointer;
+      transition: border-color 120ms ease, filter 120ms ease, transform 120ms ease;
+      -webkit-app-region: no-drag;
+    }
+    #supporters-showcase:hover,
+    #supporters-showcase:focus-visible {
+      border-color: rgba(91, 232, 143, .72);
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+      outline: none;
+    }
+    #supporters-showcase::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: rgba(8, 12, 19, .46);
+      pointer-events: none;
+      z-index: 1;
+    }
+    #supporters-showcase > * {
+      position: relative;
+      z-index: 2;
+    }
+    #supporters-showcase::after {
+      display: none;
+    }
+    #showcase-tooltip {
+      position: fixed;
+      z-index: 10;
+      top: 0;
+      left: 0;
+      padding: 8px 11px;
+      border: 1px solid rgba(91, 232, 143, .62);
+      border-radius: 7px;
+      background: rgba(28, 33, 42, .98);
+      color: #eef4ff;
+      font: 700 12px/1.25 "Trebuchet MS", "Segoe UI", sans-serif;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, calc(-100% + 3px));
+      transition: opacity 120ms ease, transform 120ms ease;
+    }
+    #showcase-tooltip.is-visible {
+      opacity: 1;
+      transform: translate(-50%, -100%);
+    }
+    #supporters-showcase[data-tier="diamond"] { border-color: rgba(87, 214, 255, .5); }
+    #supporters-showcase[data-tier="gold"] { border-color: rgba(240, 193, 75, .5); }
+    #supporters-showcase[data-tier="silver"] { border-color: rgba(207, 216, 230, .5); }
+    #supporters-showcase[data-tier="bronze"] { border-color: rgba(201, 128, 70, .5); }
+    #supporters-showcase[data-tier="iron"] { border-color: rgba(140, 151, 168, .5); }
+    #supporters-medal {
+      display: block;
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      pointer-events: none;
+    }
+    #supporters-marquee {
+      min-width: 0;
+      overflow: hidden;
+      mask-image: linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
+    }
+    #supporters-track {
+      --supporters-marquee-duration: 18s;
+      display: inline-flex;
+      align-items: center;
+      width: max-content;
+      min-width: 100%;
+      animation: supporters-marquee-scroll var(--supporters-marquee-duration) linear infinite;
+    }
+    #supporters-showcase:hover #supporters-track,
+    #supporters-showcase:focus-visible #supporters-track {
+      animation-play-state: paused;
+    }
+    .supporters-copy {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding-right: 14px;
+    }
+    .supporter-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    .supporter-item::after {
+      content: "";
+      width: 3px;
+      height: 3px;
+      margin-left: 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .28);
+    }
+    .supporters-copy .supporter-item:last-child::after { display: none; }
+    .supporter-item img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      pointer-events: none;
+    }
+    .supporter-item strong {
+      color: #fff;
+      font-size: .73rem;
+      font-weight: 800;
+      letter-spacing: .01em;
+    }
+    .supporter-item-diamond strong { color: #8be8ff; }
+    .supporter-item-gold strong { color: #f2c552; }
+    .supporter-item-silver strong { color: #dfe7f1; }
+    .supporter-item-bronze strong { color: #d89b65; }
+    .supporter-item-iron strong { color: #b8c1cf; }
+    @keyframes supporters-marquee-scroll {
+      100% { transform: translateX(-50%); }
+    }
+  </style>
+</head>
+<body>
+  <div id="showcase-tooltip" aria-hidden="true"></div>
+  <div id="supporters-row">
+    <button id="coffee-button" type="button" aria-label="Buy me a coffee">
+      <img src="tibiatoolkit://app/assets/ui/tools/tibia-eye/buy-me-a-coffee/coffee-toolbar.gif" alt="">
+    </button>
+    <button id="supporters-showcase" type="button" aria-label="Top apoiadores">
+      <img id="supporters-medal" src="tibiatoolkit://app/assets/ui/supporters/medalha-diamante.png" alt="">
+      <span id="supporters-marquee" aria-hidden="true">
+        <span id="supporters-track"></span>
+      </span>
+    </button>
+  </div>
+  <script>
+    const coffeeButton = document.querySelector("#coffee-button");
+    const showcase = document.querySelector("#supporters-showcase");
+    const showcaseTooltip = document.querySelector("#showcase-tooltip");
+    const medal = document.querySelector("#supporters-medal");
+    const track = document.querySelector("#supporters-track");
+
+    function assetPath(path) {
+      const value = String(path || "").trim();
+      if (/^(?:data|file|https?|tibiatoolkit):/i.test(value)) {
+        return value;
+      }
+      return `tibiatoolkit://app/${value.replace(/^\/+/, "")}`;
+    }
+
+    function createCopy(supporters) {
+      const copy = document.createElement("span");
+      copy.className = "supporters-copy";
+      supporters.forEach((supporter) => {
+        const item = document.createElement("span");
+        item.className = `supporter-item supporter-item-${String(supporter.tier || "default").replace(/[^a-z0-9-]/gi, "") || "default"}`;
+        const itemMedal = document.createElement("img");
+        itemMedal.src = assetPath(supporter.medalPath);
+        itemMedal.alt = "";
+        const name = document.createElement("strong");
+        name.textContent = String(supporter.name || "-");
+        item.append(itemMedal, name);
+        copy.append(item);
+      });
+      return copy;
+    }
+
+    function render(payload) {
+      const supporters = Array.isArray(payload?.supporters) ? payload.supporters : [];
+      track.replaceChildren();
+      if (!supporters.length) return;
+      medal.src = assetPath(supporters[0].medalPath);
+      showcase.dataset.tier = String(supporters[0].tier || "default");
+      showcase.style.backgroundImage = `url("${assetPath(supporters[0].backgroundPath)}")`;
+      track.append(createCopy(supporters), createCopy(supporters));
+      track.style.setProperty("--supporters-marquee-duration", `${Math.max(14, supporters.length * 4.4)}s`);
+    }
+
+    function showTooltip(text, trigger) {
+      showcaseTooltip.textContent = text;
+      showcaseTooltip.classList.add("is-visible");
+      const triggerBounds = trigger.getBoundingClientRect();
+      const tooltipBounds = showcaseTooltip.getBoundingClientRect();
+      const margin = 8;
+      const gap = 7;
+      const center = triggerBounds.left + triggerBounds.width / 2;
+      const left = Math.max(
+        margin + tooltipBounds.width / 2,
+        Math.min(center, window.innerWidth - margin - tooltipBounds.width / 2)
+      );
+      showcaseTooltip.style.left = `${left}px`;
+      showcaseTooltip.style.top = `${Math.max(8, triggerBounds.top - gap)}px`;
+    }
+    function hideTooltip() {
+      showcaseTooltip.classList.remove("is-visible");
+    }
+    function setTutorialFocus(target) {
+      coffeeButton.classList.toggle("is-tutorial-focused", target === "coffee");
+      showcase.classList.toggle("is-tutorial-focused", target === "supporters");
+    }
+    coffeeButton.addEventListener("mouseenter", () => showTooltip("Buy me a coffee", coffeeButton));
+    coffeeButton.addEventListener("mouseleave", hideTooltip);
+    coffeeButton.addEventListener("focus", () => showTooltip("Buy me a coffee", coffeeButton));
+    coffeeButton.addEventListener("blur", hideTooltip);
+    showcase.addEventListener("mouseenter", () => showTooltip("Top apoiadores", showcase));
+    showcase.addEventListener("mouseleave", hideTooltip);
+    showcase.addEventListener("focus", () => showTooltip("Top apoiadores", showcase));
+    showcase.addEventListener("blur", hideTooltip);
+    coffeeButton.addEventListener("click", () => window.supportersShowcaseApi?.openCoffeePanel());
+    showcase.addEventListener("click", () => window.supportersShowcaseApi?.openPanel());
+    window.supportersShowcaseApi?.onRender(render);
+    window.supportersShowcaseApi?.onTutorialFocus(setTutorialFocus);
+  </script>
+</body>
+</html>

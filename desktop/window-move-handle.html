@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Mover Tibia Toolkit</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+      user-select: none;
+    }
+    body {
+      display: grid;
+      place-items: center;
+      padding: 3px;
+    }
+    #move-handle {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      padding: 4px;
+      border: 1px solid rgba(148, 163, 184, .25);
+      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(42, 48, 59, .98), rgba(30, 35, 44, .98));
+      box-shadow: none;
+      cursor: grab;
+      touch-action: none;
+    }
+    #move-handle:hover {
+      border-color: rgba(91, 232, 143, .72);
+      background: linear-gradient(180deg, rgba(50, 58, 69, .99), rgba(34, 40, 49, .99));
+      filter: brightness(1.06);
+    }
+    #move-handle.dragging {
+      cursor: grabbing;
+      border-color: #5be88f;
+      box-shadow: none;
+    }
+    #move-icon {
+      width: 31px;
+      height: 27px;
+      display: block;
+      object-fit: contain;
+      image-rendering: pixelated;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="move-handle" role="button" aria-label="Arraste para mover a janela do aplicativo">
+    <img id="move-icon" src="tibiatoolkit://app/assets/ui/window-controls/move-window-static.png" alt="">
+  </div>
+  <script>
+    const handle = document.querySelector("#move-handle");
+    const icon = document.querySelector("#move-icon");
+    const staticIcon = "tibiatoolkit://app/assets/ui/window-controls/move-window-static.png";
+    const grabIcon = "tibiatoolkit://app/assets/ui/window-controls/move-window-grab.png";
+    let dragging = false;
+    let activePointerId = null;
+    let pendingPoint = null;
+    let animationFrame = 0;
+
+    function sendPendingMove() {
+      animationFrame = 0;
+      if (!pendingPoint || !dragging) return;
+      window.windowMoveHandleApi?.moveDrag(pendingPoint);
+      pendingPoint = null;
+    }
+
+    function finishDrag() {
+      if (!dragging) return;
+      dragging = false;
+      activePointerId = null;
+      pendingPoint = null;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      handle.classList.remove("dragging");
+      window.windowMoveHandleApi?.endDrag();
+      if (handle.matches(":hover")) {
+        icon.src = staticIcon;
+        window.windowMoveHandleApi?.setHovering(true);
+      } else {
+        icon.src = staticIcon;
+      }
+    }
+
+    handle.addEventListener("pointerenter", () => {
+      // Hover changes only the tooltip and button styling, never the hand frame.
+      icon.src = staticIcon;
+      window.windowMoveHandleApi?.setHovering(true);
+    });
+    handle.addEventListener("pointerleave", () => {
+      if (!dragging) icon.src = staticIcon;
+      window.windowMoveHandleApi?.setHovering(false);
+    });
+    handle.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      dragging = true;
+      activePointerId = event.pointerId;
+      handle.classList.add("dragging");
+      // Freeze the GIF's second frame, which is the closed-hand grip, while
+      // the pointer is held so the handle never animates during a drag.
+      icon.src = grabIcon;
+      handle.setPointerCapture(event.pointerId);
+      window.windowMoveHandleApi?.setHovering(false);
+      window.windowMoveHandleApi?.startDrag({ screenX: event.screenX, screenY: event.screenY });
+      event.preventDefault();
+    });
+    handle.addEventListener("pointermove", (event) => {
+      if (!dragging || event.pointerId !== activePointerId) return;
+      pendingPoint = { screenX: event.screenX, screenY: event.screenY };
+      if (!animationFrame) animationFrame = requestAnimationFrame(sendPendingMove);
+    });
+    handle.addEventListener("pointerup", finishDrag);
+    handle.addEventListener("pointercancel", finishDrag);
+    handle.addEventListener("lostpointercapture", finishDrag);
+    window.addEventListener("blur", finishDrag);
+  </script>
+</body>
+</html>

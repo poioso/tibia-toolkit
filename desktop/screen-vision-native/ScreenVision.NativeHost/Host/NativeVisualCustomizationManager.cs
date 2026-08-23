@@ -41,6 +41,16 @@ internal sealed class NativeVisualCustomizationManager : IDisposable
             {
                 CloseCursorGlow();
             }
+
+            // The Toolkit controller uses a high always-on-top band. When it
+            // receives focus, an existing visual overlay can remain visible
+            // but fall behind that controller. Reassert only the native
+            // z-order, without activating, moving or recreating the overlay.
+            if (_isOverlayVisible)
+            {
+                _characterLocationWindow?.BringToFrontNoActivate();
+                _cursorGlowWindow?.BringToFrontNoActivate();
+            }
         });
     }
 

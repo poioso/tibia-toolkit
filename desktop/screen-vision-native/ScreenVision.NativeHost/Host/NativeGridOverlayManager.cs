@@ -11,8 +11,7 @@ internal sealed class NativeGridOverlayManager : IDisposable
     private bool _enabled;
     private int _gridSize = 32;
     private bool _visible = true;
-
-    internal async Task SetAsync(bool enabled, int gridSize, bool visible)
+    internal async Task SetAsync(bool enabled, int gridSize, bool visible, string sourceGame = "tibia")
     {
         _enabled = enabled;
         _gridSize = gridSize;
@@ -26,7 +25,7 @@ internal sealed class NativeGridOverlayManager : IDisposable
                 return;
             }
 
-            var tibiaInfo = WindowProbe.GetTibiaWindowInfo();
+            var tibiaInfo = WindowProbe.GetGameWindowInfo(sourceGame);
 
             if (tibiaInfo is null)
             {

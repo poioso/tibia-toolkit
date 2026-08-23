@@ -1,0 +1,17 @@
+* { box-sizing: border-box; }
+html, body, .selector { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { background: rgba(0,0,0,.70); cursor: crosshair; user-select: none; }
+.selector { position: relative; touch-action: none; }
+.instruction { position: fixed; left: 50%; top: 26px; z-index: 4; max-width: min(560px, calc(100vw - 48px)); transform: translateX(-50%); padding: 10px 15px; border: 1px solid rgba(255,255,255,.48); border-radius: 10px; background: rgba(16,20,28,.8); color: #fff; font: 700 16px/1.35 Segoe UI, sans-serif; text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,.32); pointer-events: none; }
+.selection { position:absolute; z-index:2; border:2px solid #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.46), inset 0 0 0 1px rgba(255,255,255,.18); cursor: move; }
+.selection i { position:absolute; z-index:3; width:10px; height:10px; background:#58c470; box-shadow:0 0 0 1px rgba(0,0,0,.75); }
+.selection i[data-handle="north"] { left:calc(50% - 5px); top:-6px; cursor:ns-resize; }.selection i[data-handle="south"] { left:calc(50% - 5px); bottom:-6px; cursor:ns-resize; }.selection i[data-handle="east"] { right:-6px; top:calc(50% - 5px); cursor:ew-resize; }.selection i[data-handle="west"] { left:-6px; top:calc(50% - 5px); cursor:ew-resize; }
+.selection i[data-handle="northwest"] { left:-6px; top:-6px; cursor:nwse-resize; }.selection i[data-handle="northeast"] { right:-6px; top:-6px; cursor:nesw-resize; }.selection i[data-handle="southeast"] { right:-6px; bottom:-6px; cursor:nwse-resize; }.selection i[data-handle="southwest"] { left:-6px; bottom:-6px; cursor:nesw-resize; }
+.size { position:absolute; z-index:4; padding:4px 9px; border:1px solid rgba(88,196,112,.55); border-radius:8px; background:rgba(31,38,49,.92); color:#fff; font:600 12px Segoe UI,sans-serif; pointer-events:none; }
+.magnifier { position:fixed; z-index:6; width:200px; height:200px; overflow:hidden; border:2px solid #58c470; border-radius:0; background:#1f2631; pointer-events:none; box-shadow:0 0 0 1px rgba(0,0,0,.75); }
+.magnifier canvas { display:block; width:196px; height:196px; image-rendering:pixelated; }
+.magnifier-cross { position:absolute; left:50%; top:50%; display:block; background:#fff; box-shadow:0 0 0 1px #000; transform:translate(-50%,-50%); }
+.magnifier-cross-horizontal { width:15px; height:3px; }
+.magnifier-cross-vertical { width:3px; height:15px; }
+.actions { position:absolute; z-index:5; display:flex; gap:8px; }
+.actions button { width:38px; height:38px; padding:0; border:0; background:transparent; cursor:pointer; }.actions img { display:block; width:38px; height:38px; image-rendering:pixelated; }.actions button:hover img { filter:brightness(1.14); transform:translateY(-1px); }

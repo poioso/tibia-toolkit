@@ -1,4 +1,5 @@
 using System.Windows;
+using ScreenVision.NativeHost.Interop;
 using ScreenVision.NativeHost.Views;
 
 namespace ScreenVision.NativeHost.Host;
@@ -153,6 +154,8 @@ internal sealed class SnapGroup : IDisposable
         var sourceHwnd = _windows
             .Select((window) => window.SourceHwnd)
             .FirstOrDefault((hwnd) => hwnd != IntPtr.Zero);
+        var highestMirrorHwnd = WindowStyleInterop.FindHighestWindowInZOrder(
+            _windows.Select((window) => window.WindowHandle));
 
         if (enabled || sourceHwnd == IntPtr.Zero)
         {
@@ -160,19 +163,28 @@ internal sealed class SnapGroup : IDisposable
             return;
         }
 
-        _unifiedBorderWindow.PlaceAboveSource(sourceHwnd);
+        // Keep the selector above every mirror in the group, but still in the
+        // normal z-order band below unrelated foreground applications.
+        _unifiedBorderWindow.PlaceAboveSource(
+            highestMirrorHwnd != IntPtr.Zero ? highestMirrorHwnd : sourceHwnd);
     }
 
     private void ShowUnifiedBorder()
     {
-        _unifiedBorderWindow ??= new SnapGroupBorderWindow();
-        SyncTopmostFromWindows();
+        var isObsGroup = _windows.Count > 0
+            && string.Equals(_windows[0].SourceType, "obs-window", StringComparison.OrdinalIgnoreCase);
+        _unifiedBorderWindow ??= new SnapGroupBorderWindow(isObsGroup);
         _unifiedBorderWindow.UpdateForGroup(GetGroupBounds());
 
         if (!_unifiedBorderWindow.IsVisible)
         {
             _unifiedBorderWindow.Show();
         }
+
+        // The native handle only exists after Show(). Applying z-order before
+        // that point is discarded by WPF initialization and can leave a Tibia
+        // group border incorrectly topmost over unrelated applications.
+        SyncTopmostFromWindows();
     }
 
     private void HideUnifiedBorder()
