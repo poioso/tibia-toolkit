@@ -1,8 +1,42 @@
 Tibia Toolkit 0.7.0
 
-- Reunido o runtime publico completo, incluindo ScreenshotToolkit, preloads, popups, Native Host e os contratos de atualizacao.
-- O atualizador agora expoe o resultado da verificacao inicial, mantem o download manual e tenta os dois origins antes de reportar erro.
-- Revalidados o instalador assistido, o Content Pack imutavel, os assets de tutorial, o QR local e a preservacao da instalacao 0.6.7.
+- Adicionada uma nova ferramenta, "ScreenshotToolkit", criada para ajudar a tirar screenshots precisas com escala de resolução PixelPerfect de até 20x em imagens do Tibia;
+- Aperfeiçoamentos e melhorias no Tibia Mirror;
+- Implementada a compatibilidade do Tibia Mirror com Medivia e RubinOT;
+- Implementada a função de lupa no Tibia Mirror;
+- Implementada uma nova função, "OBS Mirror", capaz de criar espelhos do OBS;
+- Adicionadas novas categorias de áudios de poções e comidas aos Alertas do Tibia Mirror;
+- Implementados benefícios aos apoiadores;
+- Implementada a escolha da pasta de instalação do programa;
+- Implementado um sistema de feedback, reports de bugs e sugestões;
+- Adicionado acervo de livros com localizações e traduções;
+- Adicionadas localizações a NPCs, Criaturas e Bosses;
+- Adicionados equipamentos sugeridos para o abate de criaturas;
+- Adicionadas rotas para encontro de bosses;
+- Reformulado o menu de configurações;
+- Adicionada tela de login/Minha Conta às configurações;
+- Adicionados botões para redes sociais;
+- Adicionado um filtro ao Stash para itens das Weekly Tasks;
+- Reformulado o carrossel de Top Apoiadores;
+- Adicionados anúncios ao uso gratuito;
+- Adicionado um botão externo para facilitar o arrasto do aplicativo;
+- Adicionada uma categoria à biblioteca com a lista de Magias;
+- Adicionados avisos de uso de processamento ao Tibia Mirror;
+- Adicionado um botão de atualização ao Mini World Changes;
+- Otimizados e aprimorados o carregamento dos preços do Stash;
+
+Correções:
+
+- Corrigido um problema em que o áudio do alerta do Tibia Mirror não disparava;
+- Corrigido um problema em que a mensagem de alerta do Tibia Mirror não disparava;
+- Melhorado o carregamento dos itens do Stash e das ferramentas;
+- Melhorado o carregamento inicial do aplicativo;
+- Corrigidos alguns tutoriais incompletos;
+- Melhorado o carregamento dos tutoriais;
+- Melhoradas as traduções gerais;
+- Corrigidos bugs no SQM Finder;
+- Corrigido um problema em que Boosted e Bosses não apareciam corretamente;
+- Corrigido um problema em que, às vezes, o Active Mini World Change não carregava corretamente.
 
 Versao anterior: 0.6.7
 
