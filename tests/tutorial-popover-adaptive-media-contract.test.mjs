@@ -17,7 +17,14 @@ test("every tutorial bullet uses the shared proportional media layout", () => {
   assert.match(popover, /card\.scrollHeight\s*\+\s*verticalPadding/);
   assert.match(popover, /result\?\.constrained/);
 
-  const inlineScript = popover.match(/<script\b[^>]*>([\s\S]*?)<\/script\s*>/i)?.[1] || "";
+  const lowerPopover = popover.toLowerCase();
+  const openingScriptStart = lowerPopover.indexOf("<script");
+  const openingScriptEnd = openingScriptStart >= 0 ? lowerPopover.indexOf(">", openingScriptStart) : -1;
+  const closingScriptStart = openingScriptEnd >= 0 ? lowerPopover.indexOf("</script", openingScriptEnd + 1) : -1;
+  const closingScriptEnd = closingScriptStart >= 0 ? lowerPopover.indexOf(">", closingScriptStart) : -1;
+  const inlineScript = openingScriptEnd >= 0 && closingScriptStart >= 0 && closingScriptEnd >= 0
+    ? popover.slice(openingScriptEnd + 1, closingScriptStart)
+    : "";
   assert.ok(inlineScript, "tutorial popover inline script must exist");
   assert.doesNotThrow(() => new Function(inlineScript));
 
