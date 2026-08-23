@@ -9,9 +9,12 @@ internal sealed class NativeMirrorManager : IDisposable
     private readonly NativeHostEventQueue _eventQueue;
     private readonly Dictionary<string, RegionMirrorWindow> _windows = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<int, List<CountdownHotkeyBinding>> _countdownHotkeys = [];
+    private readonly HashSet<(int KeyCode, int Modifiers)> _alertHotkeys = [];
     private readonly GlobalHotkeyListener _hotkeyListener;
     private bool _mirrorsVisible = true;
+    private bool _obsMirrorsVisible = true;
     private bool _mirrorsAlwaysOnTop = true;
+    private bool _obsMirrorsAlwaysOnTop;
     private string _snapTopologySignature = "";
 
     internal NativeMirrorManager(NativeHostEventQueue eventQueue)
@@ -26,7 +29,6 @@ internal sealed class NativeMirrorManager : IDisposable
     {
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            var tibiaInfo = Interop.WindowProbe.GetTibiaWindowInfo();
             var visibleIds = new HashSet<string>(mirrors.Select((entry) => entry.Id), StringComparer.OrdinalIgnoreCase);
             var existingIds = _windows.Keys.OrderBy((entry) => entry, StringComparer.OrdinalIgnoreCase).ToArray();
             var incomingIds = visibleIds.OrderBy((entry) => entry, StringComparer.OrdinalIgnoreCase).ToArray();
@@ -41,6 +43,7 @@ internal sealed class NativeMirrorManager : IDisposable
 
             foreach (var mirror in mirrors)
             {
+                var sourceInfo = ResolveSourceInfo(mirror);
                 if (!_windows.TryGetValue(mirror.Id, out var window))
                 {
                     Console.Error.WriteLine($"mirror-sync action=create id={mirror.Id}");
@@ -55,9 +58,16 @@ internal sealed class NativeMirrorManager : IDisposable
                     Console.Error.WriteLine($"mirror-sync action=reuse id={mirror.Id}");
                 }
 
-                window.ApplySpec(mirror, tibiaInfo);
-                window.SetAlwaysOnTop(_mirrorsAlwaysOnTop);
-                window.SetMirrorsVisible(_mirrorsVisible, tibiaInfo);
+                window.ApplySpec(mirror, sourceInfo);
+                window.SetAlwaysOnTop(
+                    string.Equals(mirror.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase)
+                        ? _obsMirrorsAlwaysOnTop
+                        : _mirrorsAlwaysOnTop);
+                window.SetMirrorsVisible(
+                    string.Equals(mirror.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase)
+                        ? _obsMirrorsVisible
+                        : _mirrorsVisible,
+                    sourceInfo);
             }
 
             var nextSnapTopologySignature = BuildSnapTopologySignature();
@@ -74,17 +84,69 @@ internal sealed class NativeMirrorManager : IDisposable
         });
     }
 
+    internal async Task SetAlertHotkeysAsync(IReadOnlyList<(int KeyCode, int Modifiers)> bindings)
+    {
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            _alertHotkeys.Clear();
+            foreach (var binding in bindings)
+            {
+                if (binding.KeyCode > 0)
+                {
+                    _alertHotkeys.Add((binding.KeyCode, binding.Modifiers & 15));
+                }
+            }
+
+            RefreshPolledHotkeys();
+            LogHotkey($"alert-bindings count={_alertHotkeys.Count}");
+        });
+    }
+
+    private static TibiaWindowInfo? ResolveSourceInfo(MirrorWindowSpec mirror)
+    {
+        if (!string.Equals(mirror.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase))
+        {
+            return Interop.WindowProbe.GetGameWindowInfo(
+                mirror.SourceGame,
+                mirror.SourceHwnd,
+                0,
+                mirror.SourceWindowTitle);
+        }
+
+        return Interop.WindowProbe.ResolveSourceWindow(
+            mirror.SourceHwnd,
+            mirror.SourceWindowTitle,
+            mirror.SourceProcessName);
+    }
+
     internal async Task SetMirrorsVisibleAsync(bool visible)
     {
         _mirrorsVisible = visible;
 
         await Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            var tibiaInfo = Interop.WindowProbe.GetTibiaWindowInfo();
-
             foreach (var window in _windows.Values)
             {
-                window.SetMirrorsVisible(visible, tibiaInfo);
+                if (!string.Equals(window.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase))
+                {
+                    window.SetMirrorsVisible(visible, Interop.WindowProbe.GetGameWindowInfo(window.SourceGame));
+                }
+            }
+        });
+    }
+
+    internal async Task SetObsMirrorsVisibleAsync(bool visible)
+    {
+        _obsMirrorsVisible = visible;
+
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            foreach (var window in _windows.Values)
+            {
+                if (string.Equals(window.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase))
+                {
+                    window.SetMirrorsVisible(visible, null);
+                }
             }
         });
     }
@@ -97,7 +159,32 @@ internal sealed class NativeMirrorManager : IDisposable
         {
             foreach (var window in _windows.Values)
             {
-                window.SetAlwaysOnTop(enabled);
+                if (!string.Equals(window.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase))
+                {
+                    window.SetAlwaysOnTop(enabled);
+                }
+            }
+        });
+    }
+
+    internal async Task SetObsMirrorsTopmostAsync(bool enabled)
+    {
+        _obsMirrorsAlwaysOnTop = enabled;
+
+        await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            foreach (var window in _windows.Values)
+            {
+                if (string.Equals(window.SourceType, "obs-window", StringComparison.OrdinalIgnoreCase))
+                {
+                    window.SetAlwaysOnTop(enabled);
+                    if (enabled)
+                    {
+                        // Reassert the OBS mirror above a DirectX client that
+                        // has just raised itself, without stealing focus.
+                        window.PromoteForInteraction();
+                    }
+                }
             }
         });
     }
@@ -268,6 +355,25 @@ internal sealed class NativeMirrorManager : IDisposable
 
             LogHotkey($"bind region={mirror.Id} keyCode={parsed.Value.keyCode} modifiers={parsed.Value.modifiers} label={mirror.Countdown.Hotkey}");
         }
+
+        RefreshPolledHotkeys();
+    }
+
+    private void RefreshPolledHotkeys()
+    {
+        var bindings = new HashSet<(int KeyCode, int Modifiers)>(_alertHotkeys);
+        foreach (var pair in _countdownHotkeys)
+        {
+            foreach (var countdown in pair.Value)
+            {
+                foreach (var keyCode in countdown.KeyCodes)
+                {
+                    bindings.Add((keyCode, pair.Key));
+                }
+            }
+        }
+
+        _hotkeyListener.SetPolledBindings(bindings);
     }
 
     private void RestoreSnapGroups()
@@ -302,6 +408,11 @@ internal sealed class NativeMirrorManager : IDisposable
                 foreach (var candidate in windows)
                 {
                     if (visited.Contains(candidate) || candidate == current)
+                    {
+                        continue;
+                    }
+
+                    if (!string.Equals(candidate.SourceType, current.SourceType, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }

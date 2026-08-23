@@ -8,6 +8,7 @@ namespace ScreenVision.NativeHost.Interop;
 internal static class WindowProbe
 {
     private delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lParam);
+    private static readonly Dictionary<string, TibiaWindowInfo> LastVerifiedGameWindows = new(StringComparer.OrdinalIgnoreCase);
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct RectNative
@@ -115,6 +116,183 @@ internal static class WindowProbe
         return bestHwnd;
     }
 
+    internal static TibiaWindowInfo? GetGameWindowInfo(string? sourceGame, long knownHwnd = 0, int knownProcessId = 0, string? knownTitle = null)
+    {
+        var game = NormalizeSourceGame(sourceGame);
+        if (game == "tibia")
+        {
+            return GetTibiaWindowInfo();
+        }
+
+        // RubinOT's protected DirectX window can be deliberately omitted from
+        // EnumWindows. When the player is actively using it, the foreground
+        // HWND remains an OS-provided, directly verifiable source. Do not
+        // guess or fall back to a screenshot if this proof is unavailable.
+        if (game == "rubinot")
+        {
+            var foregroundInfo = GetWindowInfo(GetForegroundWindow());
+            if (foregroundInfo is not null && IsGameCandidate(game, foregroundInfo))
+            {
+                RememberVerifiedGameWindow(game, foregroundInfo);
+                return foregroundInfo;
+            }
+        }
+
+        TibiaWindowInfo? best = null;
+        var bestScore = int.MinValue;
+        EnumWindows((hwnd, _) =>
+        {
+            if (!IsWindowVisible(hwnd))
+            {
+                return true;
+            }
+
+            var info = GetWindowInfo(hwnd);
+            if (info is null || !IsGameCandidate(game, info))
+            {
+                return true;
+            }
+
+            var score = (info.IsForeground ? 1_000 : 0)
+                + (info.IsMaximized ? 100 : 0)
+                + Math.Max(0, info.Bounds.Width * info.Bounds.Height / 100_000);
+            if (score > bestScore)
+            {
+                best = info;
+                bestScore = score;
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        if (best is not null)
+        {
+            RememberVerifiedGameWindow(game, best);
+            return best;
+        }
+
+        // The main process only supplies this hint after this exact window
+        // was verified by this session. This keeps RubinOT usable after a
+        // Native Host restart without weakening the strict executable/title
+        // proof into a process-name guess.
+        var restoredKnownWindow = TryRestoreKnownGameWindow(game, knownHwnd, knownProcessId, knownTitle);
+        if (restoredKnownWindow is not null)
+        {
+            RememberVerifiedGameWindow(game, restoredKnownWindow);
+            return restoredKnownWindow;
+        }
+
+        // Some protected RubinOT windows intentionally disappear from
+        // enumeration once the Toolkit receives focus. A previously verified
+        // HWND remains safe to use only while it is still a visible,
+        // non-minimized window; it is never guessed from a process name.
+        return TryGetLastVerifiedGameWindow(game);
+    }
+
+    internal static void ObserveForegroundGameWindow()
+    {
+        var info = GetWindowInfo(GetForegroundWindow());
+        if (info is null)
+        {
+            return;
+        }
+
+        foreach (var game in new[] { "medivia", "rubinot" })
+        {
+            if (IsGameCandidate(game, info))
+            {
+                RememberVerifiedGameWindow(game, info);
+                return;
+            }
+        }
+    }
+
+    private static void RememberVerifiedGameWindow(string game, TibiaWindowInfo info)
+    {
+        LastVerifiedGameWindows[game] = info;
+    }
+
+    private static TibiaWindowInfo? TryGetLastVerifiedGameWindow(string game)
+    {
+        if (!LastVerifiedGameWindows.TryGetValue(game, out var known) || known.Hwnd == 0)
+        {
+            return null;
+        }
+
+        var refreshed = GetWindowInfo(new IntPtr(known.Hwnd));
+        if (refreshed is null || !refreshed.IsVisible || refreshed.IsMinimized)
+        {
+            LastVerifiedGameWindows.Remove(game);
+            return null;
+        }
+
+        if (IsGameCandidate(game, refreshed))
+        {
+            RememberVerifiedGameWindow(game, refreshed);
+            return refreshed;
+        }
+
+        // Protected RubinOT can withhold title/process metadata after losing
+        // foreground. The HWND itself was already verified against the strict
+        // title and executable rule above, so preserve that proof for this
+        // host session while the same window remains usable.
+        if (game == "rubinot")
+        {
+            return new TibiaWindowInfo
+            {
+                Hwnd = refreshed.Hwnd,
+                Title = known.Title,
+                ProcessName = known.ProcessName,
+                IsVisible = refreshed.IsVisible,
+                IsForeground = refreshed.IsForeground,
+                IsMinimized = refreshed.IsMinimized,
+                IsMaximized = refreshed.IsMaximized,
+                Bounds = refreshed.Bounds,
+                ClientBounds = refreshed.ClientBounds
+            };
+        }
+
+        LastVerifiedGameWindows.Remove(game);
+        return null;
+    }
+
+    private static TibiaWindowInfo? TryRestoreKnownGameWindow(string game, long knownHwnd, int knownProcessId, string? knownTitle)
+    {
+        if (game != "rubinot" || knownHwnd == 0 || knownProcessId <= 0
+            || String.IsNullOrWhiteSpace(knownTitle)
+            || !(knownTitle.Equals("RubinOT Client", StringComparison.OrdinalIgnoreCase)
+                || knownTitle.StartsWith("RubinOT Client - ", StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+        var refreshed = GetWindowInfo(new IntPtr(knownHwnd));
+        if (refreshed is null || !refreshed.IsVisible || refreshed.IsMinimized)
+        {
+            return null;
+        }
+
+        GetWindowThreadProcessId(new IntPtr(knownHwnd), out var processId);
+        if (processId != knownProcessId)
+        {
+            return null;
+        }
+
+        return new TibiaWindowInfo
+        {
+            Hwnd = refreshed.Hwnd,
+            ProcessId = (int)processId,
+            Title = knownTitle ?? "",
+            ProcessName = "rubinot_dx",
+            IsVisible = refreshed.IsVisible,
+            IsForeground = refreshed.IsForeground,
+            IsMinimized = refreshed.IsMinimized,
+            IsMaximized = refreshed.IsMaximized,
+            Bounds = refreshed.Bounds,
+            ClientBounds = refreshed.ClientBounds
+        };
+    }
+
     internal static TibiaWindowInfo? GetTibiaWindowInfo()
     {
         var hwnd = FindTibiaWindow();
@@ -146,9 +324,117 @@ internal static class WindowProbe
         GetWindowThreadProcessId(hwnd, out var processId);
         var processName = ResolveProcessName(processId);
 
+        return BuildWindowInfo(hwnd, title, processName, rect, clientBounds, isForeground, isMinimized, isMaximized);
+    }
+
+    internal static IReadOnlyList<TibiaWindowInfo> GetObsWindowInfos()
+    {
+        var windows = new List<TibiaWindowInfo>();
+
+        EnumWindows((hwnd, _) =>
+        {
+            if (!IsWindowVisible(hwnd))
+            {
+                return true;
+            }
+
+            var title = ReadWindowTitle(hwnd);
+            if (!IsObsCandidate(hwnd, title))
+            {
+                return true;
+            }
+
+            var info = GetWindowInfo(hwnd);
+            if (info is not null)
+            {
+                windows.Add(info);
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        return windows
+            .OrderByDescending((entry) => entry.IsForeground)
+            .ThenByDescending((entry) => entry.IsMaximized)
+            .ThenBy((entry) => entry.Title, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    internal static TibiaWindowInfo? ResolveSourceWindow(long hwndValue, string title, string processName)
+    {
+        var preferred = hwndValue == 0 ? IntPtr.Zero : new IntPtr(hwndValue);
+        if (preferred != IntPtr.Zero && IsWindowVisible(preferred))
+        {
+            var current = GetWindowInfo(preferred);
+            if (current is not null && MatchesExactSource(current, title, processName))
+            {
+                return current;
+            }
+        }
+
+        var candidates = new List<TibiaWindowInfo>();
+        EnumWindows((candidate, _) =>
+        {
+            if (!IsWindowVisible(candidate))
+            {
+                return true;
+            }
+
+            var info = GetWindowInfo(candidate);
+            if (info is not null && IsObsCandidate(candidate, info.Title))
+            {
+                candidates.Add(info);
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        // OBS, its preview and its projectors all run inside the same process.
+        // Prefer the exact persisted title before using the process as a last
+        // resort, otherwise a restarted mirror may attach to the wrong OBS
+        // window merely because it was enumerated first.
+        var titleMatch = candidates.FirstOrDefault((candidate) =>
+            !string.IsNullOrWhiteSpace(title)
+            && string.Equals(candidate.Title, title, StringComparison.OrdinalIgnoreCase));
+        if (titleMatch is not null)
+        {
+            return titleMatch;
+        }
+
+        return candidates.FirstOrDefault((candidate) =>
+            !string.IsNullOrWhiteSpace(processName)
+            && string.Equals(candidate.ProcessName, processName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static TibiaWindowInfo? GetWindowInfo(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero || !GetWindowRect(hwnd, out var rect))
+        {
+            return null;
+        }
+
+        var placement = new WindowPlacement { Length = Marshal.SizeOf<WindowPlacement>() };
+        var isMinimized = GetWindowPlacement(hwnd, ref placement) && placement.ShowCommand == ShowMinimized;
+        var isMaximized = !isMinimized && IsZoomed(hwnd);
+        GetWindowThreadProcessId(hwnd, out var processId);
+        return BuildWindowInfo(
+            hwnd,
+            ReadWindowTitle(hwnd),
+            ResolveProcessName(processId),
+            rect,
+            ResolveClientBounds(hwnd),
+            GetForegroundWindow() == hwnd,
+            isMinimized,
+            isMaximized);
+    }
+
+    private static TibiaWindowInfo BuildWindowInfo(IntPtr hwnd, string title, string processName, RectNative rect, RectInfo clientBounds, bool isForeground, bool isMinimized, bool isMaximized)
+    {
+        GetWindowThreadProcessId(hwnd, out var processId);
         return new TibiaWindowInfo
         {
             Hwnd = hwnd.ToInt64(),
+            ProcessId = (int)processId,
             Title = title,
             ProcessName = processName,
             IsVisible = IsWindowVisible(hwnd),
@@ -166,6 +452,40 @@ internal static class WindowProbe
         };
     }
 
+    private static bool MatchesExactSource(TibiaWindowInfo info, string title, string processName)
+    {
+        var titleMatches = !string.IsNullOrWhiteSpace(title)
+            && string.Equals(info.Title, title, StringComparison.OrdinalIgnoreCase);
+        var processMatches = !string.IsNullOrWhiteSpace(processName)
+            && string.Equals(info.ProcessName, processName, StringComparison.OrdinalIgnoreCase);
+        return titleMatches || (string.IsNullOrWhiteSpace(title)
+            && processMatches
+            && IsObsCandidate(new IntPtr(info.Hwnd), info.Title));
+    }
+
+    private static bool IsObsCandidate(IntPtr hwnd, string title)
+    {
+        if (string.IsNullOrWhiteSpace(title)
+            || title.Contains("TibiaToolkit Mirror", StringComparison.OrdinalIgnoreCase)
+            || IsTibiaTitle(title))
+        {
+            return false;
+        }
+
+        GetWindowThreadProcessId(hwnd, out var processId);
+        var processName = ResolveProcessName(processId);
+        if (!string.Equals(processName, "obs64", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(processName, "obs", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        var text = $"{title} {processName}";
+        return text.Contains("obs", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("projector", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("preview", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("program", StringComparison.OrdinalIgnoreCase);
+    }
+
     internal static IntPtr GetTopLevelWindowFromScreenPoint(int x, int y)
     {
         var point = new PointNative
@@ -178,6 +498,11 @@ internal static class WindowProbe
     }
 
     internal static bool IsTibiaDirectlyBehindControllers(IEnumerable<long> controllerHwnds, IEnumerable<int>? allowedProcessIds = null)
+    {
+        return IsGameDirectlyBehindControllers("tibia", controllerHwnds, allowedProcessIds);
+    }
+
+    internal static bool IsGameDirectlyBehindControllers(string? sourceGame, IEnumerable<long> controllerHwnds, IEnumerable<int>? allowedProcessIds = null)
     {
         var normalizedControllers = controllerHwnds
             .Select((value) => NormalizeTopLevelWindow(new IntPtr(value)))
@@ -194,7 +519,8 @@ internal static class WindowProbe
             return false;
         }
 
-        var tibiaHwnd = NormalizeTopLevelWindow(FindTibiaWindow());
+        var gameInfo = GetGameWindowInfo(sourceGame);
+        var tibiaHwnd = NormalizeTopLevelWindow(new IntPtr(gameInfo?.Hwnd ?? 0));
 
         if (tibiaHwnd == IntPtr.Zero)
         {
@@ -490,6 +816,37 @@ internal static class WindowProbe
             && !title.Contains("www.", StringComparison.OrdinalIgnoreCase)
             && !title.Contains(".com", StringComparison.OrdinalIgnoreCase)
             && !title.Contains("http", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeSourceGame(string? sourceGame)
+    {
+        var game = sourceGame?.Trim().ToLowerInvariant();
+        return game is "rubinot" or "medivia" ? game : "tibia";
+    }
+
+    private static bool IsGameCandidate(string game, TibiaWindowInfo info)
+    {
+        if (game == "medivia")
+        {
+            return string.Equals(info.ProcessName, "Medivia", StringComparison.OrdinalIgnoreCase)
+                && info.Title.StartsWith("Medivia - ", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (game == "rubinot")
+        {
+            // RubinOT's protected DirectX child can deny process metadata, so
+            // retain an exact process proof while it is foreground even when
+            // the protected window withholds its title. Once verified, the
+            // same HWND is cached for use after focus returns to the Toolkit.
+            var exactProcess = string.Equals(info.ProcessName, "rubinot_dx", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(info.ProcessName, "RubinOT", StringComparison.OrdinalIgnoreCase);
+            var exactTitle = info.Title.Equals("RubinOT Client", StringComparison.OrdinalIgnoreCase)
+                || info.Title.StartsWith("RubinOT Client - ", StringComparison.OrdinalIgnoreCase);
+            return (exactTitle && (string.IsNullOrWhiteSpace(info.ProcessName) || exactProcess))
+                || (info.IsForeground && exactProcess && info.Bounds.Width > 0 && info.Bounds.Height > 0);
+        }
+
+        return IsTibiaTitle(info.Title);
     }
 
     private static string ResolveProcessName(uint processId)

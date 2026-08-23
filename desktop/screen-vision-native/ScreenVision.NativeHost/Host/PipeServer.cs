@@ -18,6 +18,7 @@ internal sealed class PipeServer : IDisposable
     private readonly CancellationTokenSource _cancellation = new();
     private readonly NativeMirrorManager _mirrorManager;
     private readonly NativeSelectionManager _selectionManager;
+    private readonly NativeCursorMagnifierManager _cursorMagnifierManager;
     private readonly NativeGridOverlayManager _gridOverlayManager;
     private readonly NativeVisualCustomizationManager _visualCustomizationManager;
     private readonly NativeAlertAudioPlayer _alertAudioPlayer;
@@ -27,6 +28,7 @@ internal sealed class PipeServer : IDisposable
     internal PipeServer(
         NativeMirrorManager mirrorManager,
         NativeSelectionManager selectionManager,
+        NativeCursorMagnifierManager cursorMagnifierManager,
         NativeGridOverlayManager gridOverlayManager,
         NativeVisualCustomizationManager visualCustomizationManager,
         NativeAlertAudioPlayer alertAudioPlayer,
@@ -34,6 +36,7 @@ internal sealed class PipeServer : IDisposable
     {
         _mirrorManager = mirrorManager;
         _selectionManager = selectionManager;
+        _cursorMagnifierManager = cursorMagnifierManager;
         _gridOverlayManager = gridOverlayManager;
         _visualCustomizationManager = visualCustomizationManager;
         _alertAudioPlayer = alertAudioPlayer;
@@ -126,7 +129,20 @@ internal sealed class PipeServer : IDisposable
             return command switch
             {
                 "ping" => JsonSerializer.Serialize(new { ok = true, command, data = new { status = "alive" } }),
+                "getCapabilities" => JsonSerializer.Serialize(new
+                {
+                    ok = true,
+                    command,
+                    data = new
+                    {
+                        obsMirror = true,
+                        obsWindowSelection = true,
+                        obsSourceVisibility = true,
+                        obsSourceTopmost = true
+                    }
+                }),
                 "getTibiaWindow" => JsonSerializer.Serialize(new { ok = true, command, data = WindowProbe.GetTibiaWindowInfo() }),
+                "getObsWindows" => JsonSerializer.Serialize(new { ok = true, command, data = new { count = WindowProbe.GetObsWindowInfos().Count } }),
                 "getForegroundProcess" => await GetForegroundContextAsync(command).ConfigureAwait(false),
                 "setWindowRoundedCorners" => SetWindowRoundedCorners(root, command),
                 "isAnyControllerFocused" => JsonSerializer.Serialize(new { ok = true, command, data = new { focused = IsAnyControllerFocused(root) } }),
@@ -137,12 +153,19 @@ internal sealed class PipeServer : IDisposable
                 "stopCountdown" => await StopCountdownAsync(root, command).ConfigureAwait(false),
                 "unsnapMirror" => await UnsnapMirrorAsync(root, command).ConfigureAwait(false),
                 "setMirrorsVisible" => await SetMirrorsVisibleAsync(root, command).ConfigureAwait(false),
+                "setObsMirrorsVisible" => await SetObsMirrorsVisibleAsync(root, command).ConfigureAwait(false),
                 "setMirrorsTopmost" => await SetMirrorsTopmostAsync(root, command).ConfigureAwait(false),
+                "setObsMirrorsTopmost" => await SetObsMirrorsTopmostAsync(root, command).ConfigureAwait(false),
                 "setGridOverlay" => await SetGridOverlayAsync(root, command).ConfigureAwait(false),
                 "syncVisualCustomization" => await SyncVisualCustomizationAsync(root, command).ConfigureAwait(false),
+                "setAlertHotkeys" => await SetAlertHotkeysAsync(root, command).ConfigureAwait(false),
                 "playAlertSound" => PlayAlertSound(root, command),
                 "clearMirrors" => await ClearMirrorsAsync(command).ConfigureAwait(false),
+                "getGameWindow" => GetGameWindow(root, command),
                 "selectRegion" => await SelectRegionAsync(root, command).ConfigureAwait(false),
+                "selectObsRegion" => await SelectObsRegionAsync(command).ConfigureAwait(false),
+                "setCursorMagnifier" => await SetCursorMagnifierAsync(root, command).ConfigureAwait(false),
+                "getCursorMagnifier" => await GetCursorMagnifierAsync(command).ConfigureAwait(false),
                 "drainEvents" => DrainEvents(command),
                 _ => JsonSerializer.Serialize(new { ok = false, command, error = "unknown-command" })
             };
@@ -155,9 +178,14 @@ internal sealed class PipeServer : IDisposable
 
     private static string SetWindowRoundedCorners(JsonElement root, string command)
     {
-        var hwnd = root.TryGetProperty("hwnd", out var hwndElement) && hwndElement.TryGetInt64(out var hwndValue)
-            ? new IntPtr(hwndValue)
-            : IntPtr.Zero;
+        // Electron serializes 64-bit window handles as strings so JavaScript
+        // never rounds them through Number. Accept both wire formats.
+        var hwndValue = 0L;
+        var hasHandle = root.TryGetProperty("hwnd", out var hwndElement)
+            && (hwndElement.TryGetInt64(out hwndValue)
+                || (hwndElement.ValueKind == JsonValueKind.String
+                    && long.TryParse(hwndElement.GetString(), out hwndValue)));
+        var hwnd = hasHandle ? new IntPtr(hwndValue) : IntPtr.Zero;
         var applied = WindowStyleInterop.SetWindowRoundedCorners(hwnd);
 
         return JsonSerializer.Serialize(new { ok = applied, command });
@@ -165,6 +193,7 @@ internal sealed class PipeServer : IDisposable
 
     private async Task<string> GetForegroundContextAsync(string command)
     {
+        WindowProbe.ObserveForegroundGameWindow();
         var mirrorInteractionActive = await _mirrorManager.HasActiveInteractionAsync().ConfigureAwait(false);
         return JsonSerializer.Serialize(new
         {
@@ -220,7 +249,10 @@ internal sealed class PipeServer : IDisposable
             }
         }
 
-        return WindowProbe.IsTibiaDirectlyBehindControllers(handles, allowedProcessIds);
+        var sourceGame = root.TryGetProperty("sourceGame", out var sourceGameElement)
+            ? sourceGameElement.GetString() ?? "tibia"
+            : "tibia";
+        return WindowProbe.IsGameDirectlyBehindControllers(sourceGame, handles, allowedProcessIds);
     }
 
     private static bool IsAnyControllerFocused(JsonElement root)
@@ -292,6 +324,32 @@ internal sealed class PipeServer : IDisposable
         return JsonSerializer.Serialize(new { ok = true, command, data = new { enabled } });
     }
 
+    private async Task<string> SetObsMirrorsVisibleAsync(JsonElement root, string command)
+    {
+        var visible = true;
+
+        if (root.TryGetProperty("visible", out var visibleElement))
+        {
+            visible = visibleElement.ValueKind != JsonValueKind.False;
+        }
+
+        await _mirrorManager.SetObsMirrorsVisibleAsync(visible).ConfigureAwait(false);
+        return JsonSerializer.Serialize(new { ok = true, command, data = new { visible } });
+    }
+
+    private async Task<string> SetObsMirrorsTopmostAsync(JsonElement root, string command)
+    {
+        var enabled = true;
+
+        if (root.TryGetProperty("enabled", out var enabledElement))
+        {
+            enabled = enabledElement.ValueKind != JsonValueKind.False;
+        }
+
+        await _mirrorManager.SetObsMirrorsTopmostAsync(enabled).ConfigureAwait(false);
+        return JsonSerializer.Serialize(new { ok = true, command, data = new { enabled } });
+    }
+
     private async Task<string> PreviewOpacityAsync(JsonElement root, string command)
     {
         var regionId = root.TryGetProperty("regionId", out var regionIdElement)
@@ -332,6 +390,34 @@ internal sealed class PipeServer : IDisposable
 
         _alertAudioPlayer.QueueSound(filePath, volume);
         return JsonSerializer.Serialize(new { ok = true, command, data = new { queued = true } });
+    }
+
+    private async Task<string> SetAlertHotkeysAsync(JsonElement root, string command)
+    {
+        var bindings = new List<(int KeyCode, int Modifiers)>();
+        if (root.TryGetProperty("bindings", out var bindingsElement)
+            && bindingsElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var bindingElement in bindingsElement.EnumerateArray())
+            {
+                if (bindingElement.ValueKind != JsonValueKind.Object
+                    || !bindingElement.TryGetProperty("keyCode", out var keyCodeElement)
+                    || !keyCodeElement.TryGetInt32(out var keyCode)
+                    || keyCode <= 0)
+                {
+                    continue;
+                }
+
+                var modifiers = bindingElement.TryGetProperty("modifiers", out var modifiersElement)
+                    && modifiersElement.TryGetInt32(out var parsedModifiers)
+                    ? parsedModifiers & 15
+                    : 0;
+                bindings.Add((keyCode, modifiers));
+            }
+        }
+
+        await _mirrorManager.SetAlertHotkeysAsync(bindings).ConfigureAwait(false);
+        return JsonSerializer.Serialize(new { ok = true, command, data = new { count = bindings.Count } });
     }
 
     private async Task<string> StartCountdownAsync(JsonElement root, string command)
@@ -392,6 +478,9 @@ internal sealed class PipeServer : IDisposable
             ? modeElement.GetString() ?? "standard"
             : "standard";
         int? fixedSize = null;
+        var sourceGame = root.TryGetProperty("sourceGame", out var sourceGameElement)
+            ? sourceGameElement.GetString() ?? "tibia"
+            : "tibia";
 
         if (root.TryGetProperty("initialCaptureBounds", out var initialBoundsElement)
             && initialBoundsElement.ValueKind == JsonValueKind.Object)
@@ -406,7 +495,7 @@ internal sealed class PipeServer : IDisposable
             fixedSize = parsedFixedSize;
         }
 
-        var selection = await _selectionManager.SelectRegionAsync(initialCaptureBounds, mode, fixedSize).ConfigureAwait(false);
+        var selection = await _selectionManager.SelectRegionAsync(initialCaptureBounds, mode, fixedSize, sourceGame).ConfigureAwait(false);
         return JsonSerializer.Serialize(new
         {
             ok = true,
@@ -414,9 +503,85 @@ internal sealed class PipeServer : IDisposable
             data = new
             {
                 cancelled = selection is null,
-                captureBounds = selection?.CaptureBounds
+                captureBounds = selection?.CaptureBounds,
+                sourceType = selection?.SourceType,
+                sourceGame = selection?.SourceGame,
+                sourceHwnd = selection?.SourceHwnd,
+                sourceWindowTitle = selection?.SourceWindowTitle,
+                sourceProcessName = selection?.SourceProcessName,
+                sourceBounds = selection?.SourceBounds
             }
         });
+    }
+
+    private static string GetGameWindow(JsonElement root, string command)
+    {
+        var sourceGame = root.TryGetProperty("sourceGame", out var sourceGameElement)
+            ? sourceGameElement.GetString() ?? "tibia"
+            : "tibia";
+        var knownHwnd = root.TryGetProperty("knownHwnd", out var knownHwndElement) && knownHwndElement.TryGetInt64(out var parsedKnownHwnd)
+            ? parsedKnownHwnd
+            : 0;
+        var knownProcessId = root.TryGetProperty("knownProcessId", out var knownProcessIdElement) && knownProcessIdElement.TryGetInt32(out var parsedKnownProcessId)
+            ? parsedKnownProcessId
+            : 0;
+        var knownTitle = root.TryGetProperty("knownTitle", out var knownTitleElement)
+            ? knownTitleElement.GetString()
+            : null;
+        var info = Interop.WindowProbe.GetGameWindowInfo(sourceGame, knownHwnd, knownProcessId, knownTitle);
+        return JsonSerializer.Serialize(new { ok = true, command, data = info });
+    }
+
+    private async Task<string> SelectObsRegionAsync(string command)
+    {
+        var selection = await _selectionManager.SelectObsRegionAsync().ConfigureAwait(false);
+        return JsonSerializer.Serialize(new
+        {
+            ok = true,
+            command,
+            data = new
+            {
+                cancelled = selection is null,
+                captureBounds = selection?.CaptureBounds,
+                sourceType = selection?.SourceType,
+                sourceHwnd = selection?.SourceHwnd,
+                sourceWindowTitle = selection?.SourceWindowTitle,
+                sourceProcessName = selection?.SourceProcessName,
+                sourceBounds = selection?.SourceBounds
+            }
+        });
+    }
+
+    private async Task<string> SetCursorMagnifierAsync(JsonElement root, string command)
+    {
+        var enabled = root.TryGetProperty("enabled", out var enabledElement)
+            && enabledElement.ValueKind != JsonValueKind.False;
+        var sourceGame = root.TryGetProperty("sourceGame", out var sourceGameElement)
+            ? sourceGameElement.GetString() ?? "tibia"
+            : "tibia";
+        var knownHwnd = root.TryGetProperty("knownHwnd", out var knownHwndElement) && knownHwndElement.TryGetInt64(out var parsedKnownHwnd)
+            ? parsedKnownHwnd
+            : 0;
+        var knownProcessId = root.TryGetProperty("knownProcessId", out var knownProcessIdElement) && knownProcessIdElement.TryGetInt32(out var parsedKnownProcessId)
+            ? parsedKnownProcessId
+            : 0;
+        var knownTitle = root.TryGetProperty("knownTitle", out var knownTitleElement)
+            ? knownTitleElement.GetString()
+            : null;
+        var applied = await _cursorMagnifierManager.SetEnabledAsync(
+            enabled,
+            sourceGame,
+            knownHwnd,
+            knownProcessId,
+            knownTitle
+        ).ConfigureAwait(false);
+        return JsonSerializer.Serialize(new { ok = true, command, data = new { enabled = applied, sourceGame } });
+    }
+
+    private async Task<string> GetCursorMagnifierAsync(string command)
+    {
+        var enabled = await _cursorMagnifierManager.GetEnabledAsync().ConfigureAwait(false);
+        return JsonSerializer.Serialize(new { ok = true, command, data = new { enabled } });
     }
 
     private async Task<string> SetGridOverlayAsync(JsonElement root, string command)
@@ -428,9 +593,12 @@ internal sealed class PipeServer : IDisposable
         var gridSize = root.TryGetProperty("gridSize", out var sizeElement) && sizeElement.TryGetInt32(out var parsedSize)
             ? parsedSize
             : 32;
+        var sourceGame = root.TryGetProperty("sourceGame", out var sourceGameElement)
+            ? sourceGameElement.GetString() ?? "tibia"
+            : "tibia";
 
-        await _gridOverlayManager.SetAsync(enabled, gridSize, visible).ConfigureAwait(false);
-        return JsonSerializer.Serialize(new { ok = true, command, data = new { enabled, gridSize, visible } });
+        await _gridOverlayManager.SetAsync(enabled, gridSize, visible, sourceGame).ConfigureAwait(false);
+        return JsonSerializer.Serialize(new { ok = true, command, data = new { enabled, gridSize, visible, sourceGame } });
     }
 
     private async Task<string> SyncVisualCustomizationAsync(JsonElement root, string command)

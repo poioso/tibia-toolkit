@@ -2,8 +2,10 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import AdmZip from "adm-zip";
+import { getContentPackChunkGroup } from "../lib/content-pack/chunk-groups.js";
 
 const MANIFEST_FILE = "content-manifest.json";
+const PENDING_UPDATE_FILE = "pending-update.json";
 const REMOTE_REQUEST_TIMEOUT_MS = 30_000;
 const DOWNLOAD_ATTEMPTS_PER_SOURCE = 3;
 const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
@@ -52,11 +54,15 @@ function normalizeUrlList(values = []) {
 
 async function fetchWithResponseTimeout(url, options = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REMOTE_REQUEST_TIMEOUT_MS);
+  const timeoutMs = Number.isFinite(Number(options.timeoutMs))
+    ? Math.max(500, Number(options.timeoutMs))
+    : REMOTE_REQUEST_TIMEOUT_MS;
+  const { timeoutMs: _timeoutMs, ...fetchOptions } = options;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     return await fetch(url, {
-      ...options,
+      ...fetchOptions,
       cache: "no-store",
       signal: controller.signal
     });
@@ -71,6 +77,35 @@ function getAllowedAssetExtension(assetPath) {
     return baseName;
   }
   return path.extname(assetPath).toLowerCase();
+}
+
+function normalizeChunk(raw, sourceUrl) {
+  const id = String(raw?.id || "").trim();
+  const archiveUrl = String(raw?.archiveUrl || raw?.url || "").trim();
+  const sha256 = String(raw?.sha256 || "").trim().toLowerCase();
+  const bytes = Number(raw?.bytes || 0);
+  const unpackedBytes = Number(raw?.unpackedBytes || 0);
+
+  if (
+    !/^[a-z0-9][a-z0-9-]{1,80}$/i.test(id)
+    || !/^https:\/\//i.test(archiveUrl)
+    || !/^[a-f0-9]{64}$/.test(sha256)
+    || !Number.isFinite(bytes)
+    || bytes <= 0
+    || bytes > MAX_ARCHIVE_BYTES
+  ) {
+    throw contentError("CONTENT_MANIFEST_INVALID", "manifest", `Grupo de conteudo invalido: ${sourceUrl}`);
+  }
+
+  return {
+    id,
+    archiveUrl,
+    sha256,
+    bytes: Math.round(bytes),
+    unpackedBytes: Number.isFinite(unpackedBytes) && unpackedBytes > 0
+      ? Math.round(unpackedBytes)
+      : null
+  };
 }
 
 function normalizeManifest(raw, sourceUrl) {
@@ -91,6 +126,17 @@ function normalizeManifest(raw, sourceUrl) {
     throw contentError("CONTENT_MANIFEST_INVALID", "manifest", `Manifesto de conteudo invalido: ${sourceUrl}`);
   }
 
+  const chunks = Array.isArray(raw?.chunks)
+    ? raw.chunks.map((chunk) => normalizeChunk(chunk, sourceUrl))
+    : [];
+  const seenChunkIds = new Set();
+  for (const chunk of chunks) {
+    if (seenChunkIds.has(chunk.id)) {
+      throw contentError("CONTENT_MANIFEST_INVALID", "manifest", `Grupo de conteudo duplicado: ${sourceUrl}`);
+    }
+    seenChunkIds.add(chunk.id);
+  }
+
   return {
     version,
     archiveUrl,
@@ -100,6 +146,7 @@ function normalizeManifest(raw, sourceUrl) {
       ? Math.round(unpackedBytes)
       : null,
     notes: String(raw?.notes || "").trim(),
+    chunks,
     sourceUrl
   };
 }
@@ -112,13 +159,13 @@ async function readJson(filePath) {
   }
 }
 
-async function fetchManifestCandidates(urls, onDiagnostic) {
+async function fetchManifestCandidates(urls, onDiagnostic, options = {}) {
   const manifests = [];
   let lastError = null;
 
   for (const url of normalizeUrlList(urls)) {
     try {
-      const response = await fetchWithResponseTimeout(url);
+      const response = await fetchWithResponseTimeout(url, { timeoutMs: options.timeoutMs });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -288,7 +335,7 @@ async function downloadArchive(manifest, archivePath, onProgress) {
   }
 }
 
-async function extractArchive(archivePath, destination) {
+async function extractArchive(archivePath, destination, { expectedChunkId = null } = {}) {
   let archive;
   try {
     archive = new AdmZip(archivePath);
@@ -317,6 +364,9 @@ async function extractArchive(archivePath, destination) {
         || (!entry.isDirectory && !normalizedName.startsWith("assets/"))
       ) {
         throw new Error("O pacote possui um caminho invalido.");
+      }
+      if (!entry.isDirectory && expectedChunkId && getContentPackChunkGroup(normalizedName) !== expectedChunkId) {
+        throw new Error(`O grupo ${expectedChunkId} possui um arquivo fora do seu escopo.`);
       }
 
       const outputPath = path.resolve(destination, normalizedName);
@@ -349,6 +399,89 @@ async function extractArchive(archivePath, destination) {
   }
 }
 
+async function listFiles(root) {
+  const files = [];
+  async function walk(directory) {
+    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) await walk(absolute);
+      else if (entry.isFile()) files.push(absolute);
+    }
+  }
+  await walk(root);
+  return files;
+}
+
+async function overlayVerifiedChunk(stageRoot, currentRoot, rollbackRoot, applied = []) {
+  const stagedAssets = path.join(stageRoot, "assets");
+  const targetAssets = path.join(currentRoot, "assets");
+  const files = await listFiles(stagedAssets);
+  for (const source of files) {
+    const relative = path.relative(stagedAssets, source);
+    const target = path.resolve(targetAssets, relative);
+    const allowedRoot = path.resolve(targetAssets);
+    if (!target.startsWith(`${allowedRoot}${path.sep}`)) throw new Error("O grupo tentou sair dos recursos permitidos.");
+
+    const backup = path.join(rollbackRoot, relative);
+    const existed = await fs.stat(target).then((entry) => entry.isFile()).catch(() => false);
+    if (existed) {
+      await fs.mkdir(path.dirname(backup), { recursive: true });
+      await fs.copyFile(target, backup);
+    }
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.copyFile(source, target);
+    applied.push({ target, backup, existed });
+  }
+  return applied;
+}
+
+async function rollbackOverlay(applied) {
+  for (const entry of [...applied].reverse()) {
+    if (entry.existed) await fs.copyFile(entry.backup, entry.target).catch(() => {});
+    else await fs.rm(entry.target, { force: true }).catch(() => {});
+  }
+}
+
+function changedChunks(installedManifest, nextManifest) {
+  if (!Array.isArray(installedManifest?.chunks) || !Array.isArray(nextManifest?.chunks)) return null;
+  const previous = new Map(installedManifest.chunks.map((chunk) => [String(chunk?.id || ""), String(chunk?.sha256 || "").toLowerCase()]));
+  return nextManifest.chunks.filter((chunk) => previous.get(chunk.id) !== chunk.sha256);
+}
+
+async function applyPendingChunkUpdate({ packRoot, currentRoot, installedManifest, pending, onStatus, onProgress }) {
+  const nextManifest = normalizeManifest(pending?.manifest, "pending-local");
+  const chunks = changedChunks(installedManifest, nextManifest);
+  if (!chunks || chunks.length === 0) return false;
+
+  const pendingRoot = path.join(packRoot, "pending");
+  const transactionRoot = path.join(packRoot, `transaction-${Date.now()}`);
+  const rollbackRoot = path.join(transactionRoot, "rollback");
+  const applied = [];
+  await fs.mkdir(transactionRoot, { recursive: true });
+
+  try {
+    for (const chunk of chunks) {
+      const archivePath = path.join(pendingRoot, `${chunk.sha256}.zip`);
+      const stat = await fs.stat(archivePath).catch(() => null);
+      if (!stat || stat.size !== chunk.bytes) throw new Error(`Grupo pendente ausente ou incompleto: ${chunk.id}`);
+      const stageRoot = path.join(transactionRoot, "stage", chunk.id);
+      onStatus?.({ phase: "verifying" });
+      await extractArchive(archivePath, stageRoot, { expectedChunkId: chunk.id });
+      await overlayVerifiedChunk(stageRoot, currentRoot, path.join(rollbackRoot, chunk.id), applied);
+      onProgress?.({ phase: "apply", received: chunk.bytes, total: chunk.bytes });
+    }
+    await fs.writeFile(path.join(currentRoot, MANIFEST_FILE), JSON.stringify(nextManifest, null, 2), "utf8");
+    await fs.rm(path.join(packRoot, PENDING_UPDATE_FILE), { force: true });
+    await fs.rm(pendingRoot, { recursive: true, force: true });
+    return true;
+  } catch (error) {
+    await rollbackOverlay(applied);
+    throw contentError("CONTENT_ACTIVATE", "activate", "Nao foi possivel ativar a atualizacao pendente.", error);
+  } finally {
+    await fs.rm(transactionRoot, { recursive: true, force: true });
+  }
+}
+
 function waitBeforeRetry(attempt) {
   return new Promise((resolve) => setTimeout(resolve, attempt * 1_000));
 }
@@ -375,6 +508,28 @@ export async function ensureContentPack({
     .stat(installedAssetsRoot)
     .then((entry) => entry.isDirectory())
     .catch(() => false);
+  const pending = await readJson(path.join(packRoot, PENDING_UPDATE_FILE));
+  if (installed?.version && installed?.sha256 && hasInstalledAssets && pending?.manifest) {
+    const applied = await applyPendingChunkUpdate({
+      packRoot,
+      currentRoot,
+      installedManifest: installed,
+      pending,
+      onStatus,
+      onProgress
+    });
+    if (applied) {
+      const updated = await readJson(installedManifestPath);
+      return { assetsRoot: installedAssetsRoot, source: "pending-update", version: String(updated?.version || installed.version) };
+    }
+  }
+  // A previously verified pack is enough to open immediately. Remote checks are
+  // deliberately moved out of the critical path so a slow CDN cannot delay a
+  // working installed app.
+  if (installed?.version && installed?.sha256 && hasInstalledAssets) {
+    return { assetsRoot: installedAssetsRoot, source: "cache", version: String(installed.version) };
+  }
+
   let manifests = [];
 
   try {
@@ -476,4 +631,66 @@ export async function ensureContentPack({
   }
 
   return { assetsRoot: installedAssetsRoot, source: "download", version: downloadedManifest.version };
+}
+
+// This function is deliberately used only after the renderer is ready. It
+// downloads and verifies the delta in the background, but never changes the
+// active files. `ensureContentPack` applies the saved delta on the following
+// launch before any window receives assets.
+export async function prepareContentPackChunkUpdate({ manifestUrls = [], userDataPath, installedManifest = null, onDiagnostic, onProgress } = {}) {
+  const manifests = await fetchManifestCandidates(manifestUrls, onDiagnostic, { timeoutMs: 5_000 });
+  const target = manifests.find((manifest) => (
+    manifest.version !== String(installedManifest?.version || "")
+    || manifest.sha256 !== String(installedManifest?.sha256 || "").toLowerCase()
+  ));
+  if (!target) return { prepared: false, reason: "up-to-date", chunks: [] };
+
+  const chunks = changedChunks(installedManifest, target);
+  if (!chunks || chunks.length === 0) {
+    return { prepared: false, reason: "legacy-or-full-update", chunks: [] };
+  }
+
+  const packRoot = path.join(userDataPath, "content-pack");
+  const pendingRoot = path.join(packRoot, "pending");
+  await fs.rm(pendingRoot, { recursive: true, force: true });
+  await fs.mkdir(pendingRoot, { recursive: true });
+
+  try {
+    for (let index = 0; index < chunks.length; index += 1) {
+      const chunk = chunks[index];
+      const archivePath = path.join(pendingRoot, `${chunk.sha256}.zip`);
+      await downloadArchive(chunk, archivePath, (progress) => onProgress?.({ ...progress, chunk: chunk.id, index, count: chunks.length }));
+    }
+    await fs.writeFile(path.join(packRoot, PENDING_UPDATE_FILE), JSON.stringify({ manifest: target, preparedAt: new Date().toISOString() }, null, 2), "utf8");
+    return { prepared: true, reason: "pending-restart", chunks: chunks.map((chunk) => ({ id: chunk.id, bytes: chunk.bytes })) };
+  } catch (error) {
+    await fs.rm(pendingRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+export async function inspectContentPackUpdate({ manifestUrls = [], installedManifest = null, onDiagnostic } = {}) {
+  const manifests = await fetchManifestCandidates(manifestUrls, onDiagnostic, { timeoutMs: 5_000 });
+  const installedVersion = String(installedManifest?.version || "").trim();
+  const installedChecksum = String(installedManifest?.sha256 || "").trim().toLowerCase();
+  const current = manifests.find((manifest) => (
+    manifest.version === installedVersion && manifest.sha256 === installedChecksum
+  ));
+
+  const installedChunks = new Map(
+    Array.isArray(installedManifest?.chunks)
+      ? installedManifest.chunks.map((chunk) => [String(chunk?.id || ""), String(chunk?.sha256 || "").toLowerCase()])
+      : []
+  );
+
+  return {
+    upToDate: Boolean(current),
+    available: manifests.map((manifest) => ({
+      version: manifest.version,
+      sourceUrl: manifest.sourceUrl,
+      changedChunks: manifest.chunks
+        .filter((chunk) => installedChunks.get(chunk.id) !== chunk.sha256)
+        .map((chunk) => ({ id: chunk.id, bytes: chunk.bytes }))
+    }))
+  };
 }

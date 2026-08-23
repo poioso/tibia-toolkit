@@ -4,6 +4,8 @@ public sealed class TibiaWindowInfo
 {
     public long Hwnd { get; init; }
 
+    public int ProcessId { get; init; }
+
     public string Title { get; init; } = "";
 
     public string ProcessName { get; init; } = "";

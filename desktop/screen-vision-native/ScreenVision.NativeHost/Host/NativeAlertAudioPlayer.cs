@@ -4,6 +4,7 @@ using System.Media;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
+using NAudio.CoreAudioApi;
 using NAudio.Vorbis;
 using NAudio.Wave;
 
@@ -92,6 +93,7 @@ internal sealed class NativeAlertAudioPlayer : IDisposable
                 }
 
                 player.Play();
+                ApplyWindowsAudioSessionIdentity();
                 StartFallbackTimer();
                 return;
             }
@@ -145,6 +147,7 @@ internal sealed class NativeAlertAudioPlayer : IDisposable
                 OnSoundCompleted();
             };
             output.Play();
+            ApplyWindowsAudioSessionIdentity();
             Log($"play-ogg-naudio {path}");
             return true;
         }
@@ -203,6 +206,7 @@ internal sealed class NativeAlertAudioPlayer : IDisposable
                             _currentPlayer.MediaEnded += OnMediaEnded;
                             _currentPlayer.MediaFailed += OnMediaFailed;
                             _currentPlayer.Play();
+                            ApplyWindowsAudioSessionIdentity();
                             Log($"play-mediaplayer {path}");
                         }
                         catch (Exception ex)
@@ -333,6 +337,36 @@ internal sealed class NativeAlertAudioPlayer : IDisposable
         }
 
         return Math.Clamp(volume, 0.0, 1.0);
+    }
+
+    private static void ApplyWindowsAudioSessionIdentity()
+    {
+        try
+        {
+            using var enumerator = new MMDeviceEnumerator();
+            using var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+            var sessions = device.AudioSessionManager.Sessions;
+            var iconPath = Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "desktop", "build", "icon.ico"));
+
+            for (var index = 0; index < sessions.Count; index++)
+            {
+                using var session = sessions[index];
+                if (session.GetProcessID != (uint)Environment.ProcessId)
+                {
+                    continue;
+                }
+
+                session.DisplayName = "Tibia Toolkit";
+                if (File.Exists(iconPath))
+                {
+                    session.IconPath = iconPath;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"session-identity-failed {ex.Message}");
+        }
     }
 
     private static void Log(string message)

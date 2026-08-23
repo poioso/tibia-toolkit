@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Anúncios</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { width:100%; height:100%; margin:0; overflow:hidden; background:transparent; user-select:none; }
+    body { padding:2px; font:700 11px/1.2 "Trebuchet MS","Segoe UI",sans-serif; color:#eef4ff; opacity:0; transition:opacity 180ms ease; }
+    body.is-ready { opacity:1; }
+    #ads { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:center; gap:6px; width:100%; height:100%; }
+    .ad { position:relative; display:block; width:100%; height:auto; aspect-ratio:16 / 9; min-width:0; min-height:0; overflow:hidden; border:1px solid rgba(148,163,184,.34); border-radius:8px; background:rgba(23,29,38,.98); box-shadow:0 8px 18px rgba(0,0,0,.3); cursor:pointer; }
+    .ad:hover { border-color:rgba(91,232,143,.78); filter:brightness(1.06); transform:translateY(-1px); }
+    .ad::after { content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(180deg,rgba(255,255,255,.08),transparent 35%,rgba(0,0,0,.12)); }
+    .ad img, .ad video { display:block; width:100%; height:100%; object-fit:cover; background:#080d13; }
+    .ad img { object-position:center; }
+    .ad .ad-fallback { position:absolute; inset:0; z-index:1; }
+    .ad video { position:relative; z-index:2; visibility:hidden; }
+    .ad-label { position:absolute; z-index:2; left:6px; bottom:5px; padding:3px 6px; border-radius:4px; background:rgba(5,9,14,.72); color:#fff; font-size:10px; }
+    .ad.is-loading { visibility:hidden; }
+  </style>
+</head>
+<body>
+  <main id="ads" aria-label="Anúncios">
+    <a id="daniel" class="ad is-loading" href="#" aria-label="Daniel Hatano"><img alt="Daniel Hatano"></a>
+    <a id="spytools" class="ad is-loading" href="#" aria-label="SpyTools"></a>
+    <a id="new-campaign" class="ad is-loading" href="#" aria-label="Anuncie aqui"></a>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+  <script>
+    const root = document.body;
+    const daniel = document.querySelector("#daniel");
+    const danielImage = daniel.querySelector("img");
+    const spytools = document.querySelector("#spytools");
+    const newCampaign = document.querySelector("#new-campaign");
+    let manifest = null;
+    let readySent = false;
+    let danielLoaded = false;
+    let spytoolsLoaded = false;
+    let newCampaignLoaded = false;
+    const videoRuntimes = new Map();
+    const maybeReady = () => {
+      if (!danielLoaded || !spytoolsLoaded || !newCampaignLoaded || readySent) return;
+      root.classList.add("is-ready");
+      readySent = true;
+      window.desktopAdsApi?.ready();
+    };
+    const openAd = (event, url) => {
+      event.preventDefault();
+      window.desktopAdsApi?.open(url);
+    };
+    const bindHover = (card, text) => {
+      const getTooltipRect = () => {
+        const rect = card.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+          screenLeft: window.screenX + rect.left,
+          screenTop: window.screenY + rect.top
+        };
+      };
+      card.addEventListener("mouseenter", () => window.desktopAdsApi?.hover(text, getTooltipRect()));
+      card.addEventListener("mouseleave", () => window.desktopAdsApi?.leave());
+      card.addEventListener("focus", () => window.desktopAdsApi?.hover(text, getTooltipRect()));
+      card.addEventListener("blur", () => window.desktopAdsApi?.leave());
+    };
+    daniel.addEventListener("click", (event) => openAd(event, manifest?.daniel?.href));
+    spytools.addEventListener("click", (event) => openAd(event, manifest?.secondary?.[0]?.href || manifest?.contactUrl));
+    newCampaign.addEventListener("click", (event) => openAd(event, manifest?.secondary?.[1]?.href || manifest?.contactUrl));
+
+    function showVideoCard(card, item, onLoaded) {
+      if (!item?.mediaUrl) return;
+      videoRuntimes.get(card)?.destroy?.();
+      card.replaceChildren();
+      card.setAttribute("aria-label", item.label);
+      card.href = item.href || manifest.contactUrl;
+      const tooltipText = item.id === "spytools"
+        ? "Chat GPT, Envato, Magnific(freepik), Flow, Elevenlabs e muito mais ferramentas, pelo preço de apenas uma."
+        : item.label;
+      bindHover(card, tooltipText);
+      const isHls = /\.m3u8(?:$|\?)/i.test(item.mediaUrl);
+      const fallback = document.createElement("img");
+      fallback.className = "ad-fallback";
+      fallback.alt = item.label;
+      if (item.posterUrl) fallback.src = item.posterUrl;
+      const video = document.createElement("video");
+      video.autoplay = true; video.muted = true; video.playsInline = true; video.preload = "auto"; video.loop = true;
+      if (item.posterUrl) video.poster = item.posterUrl;
+      let loadedOnce = false;
+      let hls = null;
+      const runtime = {
+        isHls,
+        video,
+        fallback,
+        destroy() {
+          hls?.destroy?.();
+          hls = null;
+          video.pause();
+        },
+        showFallback() {
+          fallback.hidden = false;
+          video.style.visibility = "hidden";
+        },
+        attach() {
+          if (isHls && window.Hls?.isSupported()) {
+            hls = new window.Hls({ enableWorker: true });
+            hls.loadSource(item.mediaUrl);
+            hls.attachMedia(video);
+          } else {
+            video.src = item.mediaUrl;
+          }
+          void video.play().catch(() => undefined);
+        },
+        recover() {
+          if (!isHls) return;
+          runtime.showFallback();
+          hls?.destroy?.();
+          hls = null;
+          video.pause();
+          video.removeAttribute("src");
+          video.load();
+          runtime.attach();
+        }
+      };
+      videoRuntimes.set(card, runtime);
+      const markLoaded = () => {
+        fallback.hidden = true;
+        video.style.visibility = "visible";
+        if (!loadedOnce) {
+          loadedOnce = true;
+          onLoaded();
+        }
+      };
+      video.addEventListener("canplay", markLoaded);
+      video.addEventListener("error", runtime.showFallback);
+      card.append(fallback, video);
+      runtime.attach();
+    }
+
+    function recoverHlsVideos() {
+      if (document.visibilityState === "hidden") return;
+      for (const runtime of videoRuntimes.values()) runtime.recover?.();
+    }
+
+    function render(payload) {
+      if (!payload?.daniel?.mediaUrl || !Array.isArray(payload.secondary) || payload.secondary.length < 2) return;
+      manifest = payload;
+      daniel.href = payload.daniel.href || payload.contactUrl;
+      bindHover(daniel, payload.daniel.tooltip || payload.daniel.label || "Daniel Hatano");
+      danielImage.src = payload.daniel.mediaUrl;
+      danielImage.onload = () => {
+        danielLoaded = true;
+        daniel.classList.remove("is-loading");
+        showVideoCard(spytools, manifest.secondary[0], () => {
+          spytoolsLoaded = true;
+          spytools.classList.remove("is-loading");
+          maybeReady();
+        });
+        showVideoCard(newCampaign, manifest.secondary[1], () => {
+          newCampaignLoaded = true;
+          newCampaign.classList.remove("is-loading");
+          maybeReady();
+        });
+        maybeReady();
+      };
+      danielImage.onerror = () => { root.classList.remove("is-ready"); };
+    }
+    window.addEventListener("pageshow", recoverHlsVideos);
+    document.addEventListener("visibilitychange", recoverHlsVideos);
+    window.desktopAdsApi?.onResume(recoverHlsVideos);
+    window.desktopAdsApi?.onRender(render);
+  </script>
+</body>
+</html>

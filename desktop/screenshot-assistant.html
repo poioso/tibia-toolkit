@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Screenshots</title>
+    <link rel="stylesheet" href="screenshot-assistant.css">
+  </head>
+  <body>
+    <main class="screenshot-assistant is-disabled" aria-label="Assistência de screenshots">
+      <header class="screenshot-assistant-header">
+        <div class="screenshot-assistant-heading">
+          <span id="assistant-state"><i id="assistant-state-dot" aria-hidden="true"></i><span id="assistant-state-label">Recorte automático inativo</span></span>
+        </div>
+        <label id="toggle-enabled" class="slide-switch screenshot-assistant-switch" data-tooltip="Ativar ScreenshotToolkit">
+          <input id="toggle-enabled-input" type="checkbox" aria-label="Ativar ScreenshotToolkit">
+          <span class="slide-track" aria-hidden="true"></span>
+        </label>
+        <button id="close" class="screenshot-assistant-close" type="button" aria-label="Fechar assistência" data-tooltip="Fechar assistência de screenshots"><img src="../assets/ui/Cross.png" alt=""></button>
+      </header>
+      <div class="screenshot-assistant-actions">
+        <button id="open-folder" class="screenshot-assistant-action" type="button" aria-label="Abrir pasta de screenshots" data-tooltip="Abrir pasta de screenshots"><img src="../assets/ui/tutorial/folder-inactive.png" alt=""><em id="open-folder-count" class="screenshot-assistant-count" hidden aria-hidden="true"></em></button>
+        <button id="reselect-area" class="screenshot-assistant-action" type="button" aria-label="Selecionar nova área" data-tooltip="Selecionar nova área da screenshot"><img src="../assets/ui/tutorial/polaroid.gif" alt=""></button>
+        <button id="toggle-delete-original" class="screenshot-assistant-action" type="button" aria-label="Apagar imagem original" aria-pressed="false" data-tooltip="Apagar imagem original"><img src="../assets/ui/tutorial/Dustbin.gif" alt=""></button>
+        <button id="show-help" class="screenshot-assistant-action" type="button" aria-label="Ajuda das screenshots" data-tooltip="Ajuda das screenshots"><img src="../assets/ui/tutorial/balao-interrogacao.gif" alt=""></button>
+      </div>
+      <p id="status" class="screenshot-assistant-status" hidden></p>
+    </main>
+    <div id="tooltip" class="screenshot-assistant-tooltip" role="tooltip" aria-hidden="true"></div>
+    <script src="screenshot-assistant.js"></script>
+  </body>
+</html>

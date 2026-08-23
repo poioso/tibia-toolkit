@@ -10,19 +10,28 @@
     <div class="selector-shell">
       <div id="interaction-layer" class="interaction-layer"></div>
       <div class="selector-hud">
-        <strong>Selecionar area</strong>
-        <span>Clique e arraste para desenhar. Ajuste pelos pontos laranja e confirme no check.</span>
+        <strong>Selecionar área do OBS</strong>
+        <span>Clique e arraste para desenhar. Ajuste pelas alças e confirme.</span>
       </div>
 
       <div id="selection-size" class="selection-size hidden"></div>
-      <button id="selection-confirm" class="selection-confirm hidden" type="button" aria-label="Confirmar area" data-tooltip="Salvar esta area selecionada.">
-        ✓
-      </button>
+      <div id="selection-actions" class="selection-actions hidden">
+        <button id="selection-cancel" class="selection-action selection-cancel" type="button" aria-label="Cancelar seleção" data-tooltip="Cancelar seleção.">
+          <img src="../../assets/ui/Cross.png" alt="">
+        </button>
+        <button id="selection-confirm" class="selection-action selection-confirm" type="button" aria-label="Confirmar área" data-tooltip="Salvar esta área selecionada.">
+          <img src="../../assets/ui/Tick.png" alt="">
+        </button>
+      </div>
       <div id="selection-box" class="selection-box hidden">
         <span class="selection-handle north" data-handle="north"></span>
+        <span class="selection-handle north-east" data-handle="north-east"></span>
         <span class="selection-handle south" data-handle="south"></span>
+        <span class="selection-handle south-east" data-handle="south-east"></span>
         <span class="selection-handle east" data-handle="east"></span>
+        <span class="selection-handle south-west" data-handle="south-west"></span>
         <span class="selection-handle west" data-handle="west"></span>
+        <span class="selection-handle north-west" data-handle="north-west"></span>
       </div>
     </div>
 

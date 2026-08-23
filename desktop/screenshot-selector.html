@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Selecionar screenshot</title>
+    <link rel="stylesheet" href="screenshot-selector.css">
+  </head>
+  <body>
+    <main id="selector" class="selector" aria-label="Selecionar área da screenshot">
+      <div id="instruction" class="instruction">Clique e arraste para selecionar a área. ESC cancela.</div>
+      <div id="size" class="size" hidden></div>
+      <div id="magnifier" class="magnifier" hidden aria-hidden="true">
+        <canvas id="magnifier-canvas" width="200" height="200"></canvas>
+        <i class="magnifier-cross magnifier-cross-horizontal"></i>
+        <i class="magnifier-cross magnifier-cross-vertical"></i>
+      </div>
+      <section id="selection" class="selection" hidden>
+        <i data-handle="north"></i><i data-handle="south"></i><i data-handle="east"></i><i data-handle="west"></i>
+        <i data-handle="northwest"></i><i data-handle="northeast"></i><i data-handle="southeast"></i><i data-handle="southwest"></i>
+      </section>
+      <div id="actions" class="actions" hidden>
+        <button id="cancel" type="button" aria-label="Cancelar seleção" data-tooltip="Cancelar seleção"><img src="tibiatoolkit://app/desktop/screen-vision-native/ScreenVision.NativeHost/Assets/selector/cancel-off.png" alt=""></button>
+        <button id="confirm" type="button" aria-label="Confirmar seleção" data-tooltip="Confirmar seleção"><img src="tibiatoolkit://app/desktop/screen-vision-native/ScreenVision.NativeHost/Assets/selector/check-off.png" alt=""></button>
+      </div>
+    </main>
+    <script type="module" src="screenshot-selector.js"></script>
+  </body>
+</html>

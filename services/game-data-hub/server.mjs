@@ -58,6 +58,7 @@ const DEFAULT_HEADERS = {
   "Accept-Language": "en-US,en;q=0.9"
 };
 const NEWS_ARCHIVE_KEY = "td-news-archive";
+const NEWS_TICKER_ARCHIVE_KEY = "td-news-ticker-archive";
 const NEWS_ARCHIVE_SEED_COUNT = 15;
 const NEWS_ARCHIVE_TRANSLATION_MODEL = "gpt-5-mini";
 const NEWS_ARCHIVE_INITIAL_IDS = new Set([
@@ -119,7 +120,7 @@ export async function createGameDataHubServer(overrides = {}) {
   server.headersTimeout = server.requestTimeout + 5_000;
   server.keepAliveTimeout = 5_000;
 
-  async function start() {
+  async function start({ initialRefresh = true } = {}) {
     await new Promise((resolve, reject) => {
       server.once("error", reject);
       server.listen(config.port, config.host, () => {
@@ -132,7 +133,13 @@ export async function createGameDataHubServer(overrides = {}) {
       void schedulerTick({ config, runtime, state, scheduledModules });
     }, config.tickMs);
     runtime.schedulerTimer.unref?.();
-    void schedulerTick({ config, runtime, state, scheduledModules });
+    // Production performs an immediate refresh so a restart does not wait for
+    // the first interval. Isolated HTTP tests can explicitly skip that network
+    // work and exercise a persisted snapshot without leaving upstream fetches
+    // alive after the test server closes.
+    if (initialRefresh) {
+      void schedulerTick({ config, runtime, state, scheduledModules });
+    }
 
     return {
       host: config.host,
@@ -448,10 +455,37 @@ async function handleRequest({ request, response, config, runtime, state, schedu
         config,
         runtime,
         archive: payload.data,
-        locale
+        locale,
+        translatePending: false
       });
       sendJson(response, 200, {
         data: { news: presentNewsArchive(archive, locale) },
+        meta: payload.meta
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/game/tibiadata/news-ticker/archive") {
+      const locale = normalizeNewsLocale(url.searchParams.get("locale"));
+      const payload = await ensureSnapshot({
+        config,
+        runtime,
+        state,
+        key: NEWS_TICKER_ARCHIVE_KEY,
+        refreshMs: config.refresh.tibiaDataNewsMs,
+        sourceUrl: `${TIBIA_DATA_BASE}/v4/news/archive/180`,
+        fetcher: () => collectPersistentTickerArchive(config)
+      });
+      const archive = await ensureNewsArchiveTranslations({
+        config,
+        runtime,
+        archive: payload.data,
+        locale,
+        archiveKey: NEWS_TICKER_ARCHIVE_KEY,
+        translatePending: false
+      });
+      sendJson(response, 200, {
+        data: { news: presentNewsArchive(archive, locale, "ticker") },
         meta: payload.meta
       });
       return;
@@ -735,13 +769,13 @@ async function schedulerTick({ config, runtime, state, scheduledModules }) {
       fetcher: module.fetcher
     }).catch(() => {});
 
-    if (module.key === NEWS_ARCHIVE_KEY && refreshed?.data) {
+    if ((module.key === NEWS_ARCHIVE_KEY || module.key === NEWS_TICKER_ARCHIVE_KEY) && refreshed?.data) {
       // Warm and persist both public translations as part of the collector
       // cycle. Cached source hashes guarantee that an unchanged article is
       // never sent to the translation API again.
       await Promise.all([
-        ensureNewsArchiveTranslations({ config, runtime, archive: refreshed.data, locale: "pt-BR" }),
-        ensureNewsArchiveTranslations({ config, runtime, archive: refreshed.data, locale: "de" })
+        ensureNewsArchiveTranslations({ config, runtime, archive: refreshed.data, locale: "pt-BR", archiveKey: module.key }),
+        ensureNewsArchiveTranslations({ config, runtime, archive: refreshed.data, locale: "de", archiveKey: module.key })
       ]).catch(() => {});
     }
   }
@@ -1025,19 +1059,19 @@ async function getCombinedBoosted({ config, runtime, state }) {
       config,
       runtime,
       state,
-      key: "ts-boosted-creature",
+      key: "td-boosted-creature",
       refreshMs: config.refresh.boostedMs,
-      sourceUrl: `${TIBIA_STATISTIC_BASE}/boosted-creature`,
-      fetcher: fetchBoostedCreature
+      sourceUrl: `${TIBIA_DATA_BASE}/v4/creatures`,
+      fetcher: fetchTibiaDataBoostedCreature
     }),
     ensureSnapshot({
       config,
       runtime,
       state,
-      key: "ts-boosted-boss",
+      key: "td-boosted-boss",
       refreshMs: config.refresh.boostedMs,
-      sourceUrl: `${TIBIA_STATISTIC_BASE}/boosted-boss`,
-      fetcher: fetchBoostedBoss
+      sourceUrl: `${TIBIA_DATA_BASE}/v4/boostablebosses`,
+      fetcher: fetchTibiaDataBoostedBoss
     })
   ]);
 
@@ -1215,16 +1249,16 @@ function buildScheduledModules(config) {
       fetcher: fetchTibiaStatisticWorldActiveLevels
     },
     {
-      key: "ts-boosted-creature",
+      key: "td-boosted-creature",
       refreshMs: config.refresh.boostedMs,
-      sourceUrl: `${TIBIA_STATISTIC_BASE}/boosted-creature`,
-      fetcher: fetchBoostedCreature
+      sourceUrl: `${TIBIA_DATA_BASE}/v4/creatures`,
+      fetcher: fetchTibiaDataBoostedCreature
     },
     {
-      key: "ts-boosted-boss",
+      key: "td-boosted-boss",
       refreshMs: config.refresh.boostedMs,
-      sourceUrl: `${TIBIA_STATISTIC_BASE}/boosted-boss`,
-      fetcher: fetchBoostedBoss
+      sourceUrl: `${TIBIA_DATA_BASE}/v4/boostablebosses`,
+      fetcher: fetchTibiaDataBoostedBoss
     },
     {
       key: "td-worlds",
@@ -1243,6 +1277,12 @@ function buildScheduledModules(config) {
       refreshMs: config.refresh.tibiaDataNewsMs,
       sourceUrl: `${TIBIA_DATA_BASE}/v4/news/archive/30`,
       fetcher: () => collectPersistentNewsArchive(config)
+    },
+    {
+      key: NEWS_TICKER_ARCHIVE_KEY,
+      refreshMs: config.refresh.tibiaDataNewsMs,
+      sourceUrl: `${TIBIA_DATA_BASE}/v4/news/archive/180`,
+      fetcher: () => collectPersistentTickerArchive(config)
     },
     {
       key: "bazaar-current:currentpage=1&filter_levelrangefrom=0&filter_levelrangeto=0&filter_profession=0&filter_skillid=&filter_skillrangefrom=0&filter_skillrangeto=0&filter_world=&filter_worldbattleyestate=0&filter_worldpvptype=9&order_column=101&order_direction=1&searchstring=&searchtype=1",
@@ -1564,14 +1604,39 @@ async function fetchTibiaStatisticWorldActiveLevels() {
   return fetchJson(`${TIBIA_STATISTIC_BASE}/statistics/worlds/active-levels`);
 }
 
-async function fetchBoostedCreature() {
-  const html = await fetchText(`${TIBIA_STATISTIC_BASE}/boosted-creature`);
-  return parseBoostedPage(html, "creature");
+async function fetchTibiaDataBoostedCreature() {
+  const payload = await fetchJson(`${TIBIA_DATA_BASE}/v4/creatures`);
+  return normalizeTibiaDataBoostedEntry(
+    payload?.creatures?.boosted,
+    payload?.information?.timestamp,
+    "creature"
+  );
 }
 
-async function fetchBoostedBoss() {
-  const html = await fetchText(`${TIBIA_STATISTIC_BASE}/boosted-boss`);
-  return parseBoostedPage(html, "boss");
+async function fetchTibiaDataBoostedBoss() {
+  const payload = await fetchJson(`${TIBIA_DATA_BASE}/v4/boostablebosses`);
+  return normalizeTibiaDataBoostedEntry(
+    payload?.boostable_bosses?.boosted,
+    payload?.information?.timestamp,
+    "boss"
+  );
+}
+
+function normalizeTibiaDataBoostedEntry(entry, timestamp, type) {
+  if (!entry?.name) {
+    throw new Error(`TibiaData returned an incomplete boosted ${type} entry.`);
+  }
+
+  return {
+    type,
+    current: {
+      name: String(entry.name),
+      image: typeof entry.image_url === "string" ? entry.image_url : null,
+      lastUpdated: typeof timestamp === "string" ? timestamp : null,
+      recentOccurrences: 0
+    },
+    recent: []
+  };
 }
 
 export async function fetchTibiaDataWorlds() {
@@ -1650,10 +1715,43 @@ function normalizeFullNewsItem(item) {
   };
 }
 
+function normalizeFullTickerItem(item, sourceOrder) {
+  if (
+    !item ||
+    typeof item.id !== "number" ||
+    typeof item.date !== "string" ||
+    typeof item.news !== "string" ||
+    typeof item.url !== "string" ||
+    item.type !== "ticker"
+  ) {
+    return null;
+  }
+
+  return {
+    id: item.id,
+    date: item.date,
+    title: item.news,
+    category: typeof item.category === "string" ? item.category : "other",
+    type: "ticker",
+    url: item.url,
+    sourceOrder
+  };
+}
+
 function sortNewsNewestFirst(items) {
   return items.sort((left, right) => {
     const byDate = Date.parse(`${right.date}T12:00:00Z`) - Date.parse(`${left.date}T12:00:00Z`);
     return byDate || right.id - left.id;
+  });
+}
+
+export function sortTickerInOfficialOrder(items) {
+  return items.sort((left, right) => {
+    const byDate = Date.parse(`${right.date}T12:00:00Z`) - Date.parse(`${left.date}T12:00:00Z`);
+    if (byDate) return byDate;
+    const leftOrder = Number.isInteger(left.sourceOrder) ? left.sourceOrder : Number.MAX_SAFE_INTEGER;
+    const rightOrder = Number.isInteger(right.sourceOrder) ? right.sourceOrder : Number.MAX_SAFE_INTEGER;
+    return leftOrder - rightOrder || right.id - left.id;
   });
 }
 
@@ -1726,6 +1824,57 @@ async function collectPersistentNewsArchive(config) {
     updatedAt: new Date().toISOString(),
     articles
   };
+}
+
+// The ticker has its own snapshot key and source hash. It can never be
+// merged into the regular official-news archive, even though both use the
+// same TibiaData source and translation safeguards.
+async function collectPersistentTickerArchive(config) {
+  const previousArchive = await readSnapshot(config, NEWS_TICKER_ARCHIVE_KEY);
+  const previousItems = Array.isArray(previousArchive?.articles) ? previousArchive.articles : [];
+  const sourcePayload = await fetchTibiaDataNews(180, 200);
+  const candidates = (Array.isArray(sourcePayload?.news) ? sourcePayload.news : [])
+    .map((item, sourceOrder) => normalizeFullTickerItem(item, sourceOrder))
+    .filter(Boolean);
+  const byId = new Map(previousItems.map((article) => [article.id, article]));
+  for (const candidate of candidates) {
+    const existing = byId.get(candidate.id);
+    if (existing) Object.assign(existing, candidate);
+    else byId.set(candidate.id, candidate);
+  }
+  // Tibia.com/TibiaData already provides the canonical newest-first order.
+  // IDs are not chronological within a day, so sourceOrder is the required
+  // tie-breaker for ticker entries sharing the same date.
+  const articles = sortTickerInOfficialOrder([...byId.values()]);
+  const pendingDetails = articles.filter((article) => !article.original);
+  const workers = Array.from({ length: Math.min(3, pendingDetails.length) }, async () => {
+    while (pendingDetails.length > 0) {
+      const article = pendingDetails.shift();
+      if (!article) return;
+      try {
+        const payload = await fetchTibiaDataNewsDetail(article.id);
+        const detail = payload?.news;
+        if (!detail) continue;
+        const title = typeof detail.title === "string" ? detail.title : article.title;
+        const contentHtml = typeof detail.content_html === "string" ? detail.content_html : "";
+        article.date = typeof detail.date === "string" ? detail.date : article.date;
+        article.title = title;
+        article.category = typeof detail.category === "string" ? detail.category : article.category;
+        article.url = typeof detail.url === "string" ? detail.url : article.url;
+        article.original = {
+          title,
+          content: typeof detail.content === "string" ? detail.content : "",
+          contentHtml,
+          sourceHash: calculateNewsSourceHash(title, contentHtml),
+          savedAt: new Date().toISOString()
+        };
+      } catch {
+        // Preserve this isolated ticker entry and retry during the next cycle.
+      }
+    }
+  });
+  await Promise.all(workers);
+  return { version: 1, seededAt: previousArchive?.seededAt || new Date().toISOString(), updatedAt: new Date().toISOString(), articles };
 }
 
 function protectNewsBrandTerms(value, protectWholeValue = false) {
@@ -1970,12 +2119,22 @@ async function translateNewsArticle(original, locale) {
   };
 }
 
-async function ensureNewsArchiveTranslations({ config, runtime, archive, locale }) {
+async function ensureNewsArchiveTranslations({
+  config,
+  runtime,
+  archive,
+  locale,
+  archiveKey = NEWS_ARCHIVE_KEY,
+  translatePending = true
+}) {
   if (locale === "en" || !process.env.OPENAI_API_KEY?.trim() || !Array.isArray(archive?.articles)) {
     return archive;
   }
 
-  const key = `${NEWS_ARCHIVE_KEY}:translation:${locale}`;
+  // Public reads must never join the background translation promise. A
+  // collector cycle can spend several seconds translating the next pending
+  // entry; readers only repair/present translations that are already stored.
+  const key = `${archiveKey}:translation:${locale}:${translatePending ? "write" : "read"}`;
   if (runtime.inFlight.has(key)) return runtime.inFlight.get(key);
 
   const task = (async () => {
@@ -1998,11 +2157,17 @@ async function ensureNewsArchiveTranslations({ config, runtime, archive, locale 
     // A API só entra para a notícia que acabou de chegar. As anteriores são
     // preservadas como arquivo local e recebem revisão/manual translation fora
     // deste ciclo, evitando custo e retraduções em massa.
-    const newestArticle = sortNewsNewestFirst([...archive.articles])[0];
-    for (const article of newestArticle ? [newestArticle] : []) {
+    const orderedArticles = translatePending && (archiveKey === NEWS_TICKER_ARCHIVE_KEY
+      ? sortTickerInOfficialOrder([...archive.articles])
+      : sortNewsNewestFirst([...archive.articles]));
+    const nextPendingArticle = orderedArticles && orderedArticles.find((article) => {
       const original = article.original;
       const cached = article.translations?.[locale];
-      if (!original || cached?.sourceHash === original.sourceHash) continue;
+      return original && cached?.sourceHash !== original.sourceHash;
+    });
+    for (const article of nextPendingArticle ? [nextPendingArticle] : []) {
+      const original = article.original;
+      if (!original) continue;
 
       try {
         const translation = await translateNewsArticle(original, locale);
@@ -2019,7 +2184,7 @@ async function ensureNewsArchiveTranslations({ config, runtime, archive, locale 
       }
     }
 
-    if (changed) await writeSnapshot(config, NEWS_ARCHIVE_KEY, archive);
+    if (changed) await writeSnapshot(config, archiveKey, archive);
     return archive;
   })();
 
@@ -2031,7 +2196,7 @@ async function ensureNewsArchiveTranslations({ config, runtime, archive, locale 
   }
 }
 
-function presentNewsArchive(archive, locale) {
+function presentNewsArchive(archive, locale, type = "news") {
   return (Array.isArray(archive?.articles) ? archive.articles : []).map((article) => {
     const content = locale === "en" ? article.original : article.translations?.[locale] || article.original;
     const contentHtml = locale === "en"
@@ -2042,7 +2207,7 @@ function presentNewsArchive(archive, locale) {
       date: article.date,
       title: content?.title || article.title,
       category: article.category,
-      type: "news",
+      type,
       url: article.url,
       content: plainTextFromNewsHtml(contentHtml) || content?.content || "",
       contentHtml
@@ -2161,36 +2326,6 @@ function normalizeRookiePayload(json) {
   }
 
   return json;
-}
-
-function parseBoostedPage(html, type) {
-  const normalizedType = type === "boss" ? "boss" : "creature";
-  const currentMatch = html.match(
-    normalizedType === "boss"
-      ? /Today&#x27;s boosted boss:\s*([^<]+)</i
-      : /Today&#x27;s boosted creature:\s*([^<]+)</i
-  );
-  const updatedMatch = html.match(/Last updated\s+([0-9:-]+\s+[0-9:]+\s+UTC)\.\s+Seen\s+(\d+)\s+time/i);
-  const currentName = decodeHtml(currentMatch?.[1] || "");
-  const rows = [...html.matchAll(/<tr>\s*<td>(\d{4}-\d{2}-\d{2})<\/td>\s*<td>\s*<img[^>]+src="([^"]+)"[\s\S]*?\/>\s*([^<]+)\s*<\/td>\s*<td>([^<]+)<\/td>\s*<td[^>]*>(\d+)<\/td>\s*<\/tr>/gi)]
-    .map((match) => ({
-      date: match[1],
-      image: match[2],
-      name: decodeHtml(match[3]),
-      entryType: decodeHtml(match[4]),
-      recentOccurrences: Number(match[5]) || 0
-    }));
-
-  return {
-    type: normalizedType,
-    current: {
-      name: currentName,
-      image: rows[0]?.image || null,
-      lastUpdated: normalizeUtcText(updatedMatch?.[1] || ""),
-      recentOccurrences: Number(updatedMatch?.[2]) || 0
-    },
-    recent: rows
-  };
 }
 
 function parseBossWorldPage(html, worldSlug) {

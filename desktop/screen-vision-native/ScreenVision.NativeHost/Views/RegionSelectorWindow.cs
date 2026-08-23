@@ -48,9 +48,15 @@ internal sealed class RegionSelectorWindow : Window
     private Point _selectionDragStart;
     private Rect _rectStart;
     private readonly RectInfo _overlayBounds;
-    private readonly int? _fixedSelectionSize;
+    private int? _fixedSelectionSize;
     private readonly bool _showBackdrop;
     private readonly bool _showInstructions;
+    private readonly IntPtr _sourceHwnd;
+    private readonly bool _showMagnifier;
+    private readonly bool _showCenterMarker;
+    private readonly bool _allowFixedSizeWheel;
+    private readonly bool _confirmFixedSelectionOnClick;
+    private CropMagnifierWindow? _magnifier;
 
     internal RectInfo? SelectedCaptureBounds { get; private set; }
 
@@ -59,12 +65,22 @@ internal sealed class RegionSelectorWindow : Window
         RectInfo? initialCaptureBounds = null,
         int? fixedSelectionSize = null,
         bool showBackdrop = true,
-        bool showInstructions = true)
+        bool showInstructions = true,
+        IntPtr sourceHwnd = default,
+        bool showMagnifier = false,
+        bool showCenterMarker = false,
+        bool allowFixedSizeWheel = false,
+        bool confirmFixedSelectionOnClick = false)
     {
         _overlayBounds = overlayBounds;
         _fixedSelectionSize = fixedSelectionSize;
         _showBackdrop = showBackdrop;
         _showInstructions = showInstructions;
+        _sourceHwnd = sourceHwnd;
+        _showMagnifier = showMagnifier;
+        _showCenterMarker = showCenterMarker;
+        _allowFixedSizeWheel = allowFixedSizeWheel;
+        _confirmFixedSelectionOnClick = confirmFixedSelectionOnClick;
 
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
@@ -196,6 +212,7 @@ internal sealed class RegionSelectorWindow : Window
         MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
         MouseMove += Overlay_MouseMove;
         MouseLeftButtonUp += Overlay_MouseLeftButtonUp;
+        MouseWheel += Overlay_MouseWheel;
 
         if (initialCaptureBounds is not null)
         {
@@ -217,7 +234,24 @@ internal sealed class RegionSelectorWindow : Window
 
         if (_fixedSelectionSize is not null && !_selectionReady)
         {
-            InstructionsSet("Mova o cursor, clique para posicionar o recorte rapido e confirme.");
+            InstructionsSet(_allowFixedSizeWheel
+                ? $"Mova o cursor. Use a roda para ajustar ({_fixedSelectionSize}px) e clique para criar."
+                : "Mova o cursor, clique para posicionar o recorte rapido e confirme.");
+        }
+
+        // For an OBS source, show the magnifier as soon as the window picker
+        // has been confirmed. Previously it was only created after the first
+        // drag/mouse move inside the selection overlay.
+        if (_showMagnifier && _sourceHwnd != IntPtr.Zero)
+        {
+            var cursor = Mouse.GetPosition(_overlayCanvas);
+            if (cursor.X >= 0
+                && cursor.Y >= 0
+                && cursor.X <= _overlayCanvas.ActualWidth
+                && cursor.Y <= _overlayCanvas.ActualHeight)
+            {
+                UpdateMagnifier(GetCursorMagnifierRect(cursor), cursor);
+            }
         }
     }
 
@@ -267,7 +301,16 @@ internal sealed class RegionSelectorWindow : Window
 
         if (_fixedSelectionSize is not null && !_selectionReady)
         {
-            ApplySelection(GetFixedSelectionRect(position));
+            var fixedSelection = GetFixedSelectionRect(position);
+            ApplySelection(fixedSelection);
+            HideMagnifier();
+
+            if (_confirmFixedSelectionOnClick)
+            {
+                ConfirmSelection();
+                return;
+            }
+
             InstructionsSet("Arraste para ajustar, redimensione pelos pontos e confirme.");
             UpdateSelectionMetadata();
             return;
@@ -287,30 +330,59 @@ internal sealed class RegionSelectorWindow : Window
     {
         if (_isDraggingHandle)
         {
-            UpdateHandleDrag(e.GetPosition(_overlayCanvas));
+            var cursor = e.GetPosition(_overlayCanvas);
+            UpdateHandleDrag(cursor);
             return;
         }
 
         if (_isDraggingSelection)
         {
-            UpdateSelectionDrag(e.GetPosition(_overlayCanvas));
+            var cursor = e.GetPosition(_overlayCanvas);
+            UpdateSelectionDrag(cursor);
             return;
         }
 
         if (_fixedSelectionSize is not null && !_selectionReady && !_isSelecting)
         {
-            DrawSelection(GetFixedSelectionRect(e.GetPosition(_overlayCanvas)));
+            var cursor = e.GetPosition(_overlayCanvas);
+            var selection = GetFixedSelectionRect(cursor);
+            DrawSelection(selection);
             UpdateSizeBadge(false);
+            UpdateMagnifier(selection, cursor);
             return;
         }
 
         if (!_isSelecting)
         {
+            if (_showMagnifier && !_selectionReady && _fixedSelectionSize is null)
+            {
+                var cursor = e.GetPosition(_overlayCanvas);
+                UpdateMagnifier(GetCursorMagnifierRect(cursor), cursor);
+            }
+
             return;
         }
 
         _endPoint = e.GetPosition(_overlayCanvas);
         UpdateSelectionRectangle();
+        UpdateMagnifier(GetCurrentSelectionRect(), _endPoint);
+    }
+
+    private void Overlay_MouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (!_allowFixedSizeWheel || _fixedSelectionSize is null || _selectionReady)
+        {
+            return;
+        }
+
+        var delta = e.Delta > 0 ? 4 : -4;
+        _fixedSelectionSize = Math.Clamp(_fixedSelectionSize.Value + delta, (int)MinimumSelectionSize, 256);
+        var cursor = e.GetPosition(_overlayCanvas);
+        var selection = GetFixedSelectionRect(cursor);
+        DrawSelection(selection);
+        UpdateMagnifier(selection, cursor);
+        InstructionsSet($"Mova o cursor. Use a roda para ajustar ({_fixedSelectionSize}px) e clique para criar.");
+        e.Handled = true;
     }
 
     private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -325,6 +397,7 @@ internal sealed class RegionSelectorWindow : Window
             _isDraggingHandle = false;
             _activeHandle = "";
             ReleaseMouseCapture();
+            HideMagnifier();
             UpdateSelectionMetadata();
             return;
         }
@@ -333,6 +406,7 @@ internal sealed class RegionSelectorWindow : Window
         {
             _isDraggingSelection = false;
             ReleaseMouseCapture();
+            HideMagnifier();
             UpdateSelectionMetadata();
             return;
         }
@@ -350,6 +424,7 @@ internal sealed class RegionSelectorWindow : Window
         if (selection.Width >= MinimumSelectionSize && selection.Height >= MinimumSelectionSize)
         {
             ApplySelection(selection);
+            HideMagnifier();
             InstructionsSet("Ajuste pelos pontos e confirme ou cancele.");
             return;
         }
@@ -437,6 +512,7 @@ internal sealed class RegionSelectorWindow : Window
         }
 
         DrawSelection(nextRect);
+        UpdateMagnifier(nextRect, currentPosition);
         UpdateSelectionMetadata();
     }
 
@@ -529,6 +605,7 @@ internal sealed class RegionSelectorWindow : Window
             _rectStart.Height);
 
         DrawSelection(nextRect);
+        UpdateMagnifier(nextRect, currentPosition);
         UpdateSelectionMetadata();
     }
 
@@ -798,6 +875,74 @@ internal sealed class RegionSelectorWindow : Window
         var x = Clamp(position.X - (size / 2.0), 0, Math.Max(0, ActualWidth - size));
         var y = Clamp(position.Y - (size / 2.0), 0, Math.Max(0, ActualHeight - size));
         return new Rect(x, y, size, size);
+    }
+
+    private Rect GetCursorMagnifierRect(Point position)
+    {
+        const double size = 32;
+        var x = Clamp(position.X - (size / 2.0), 0, Math.Max(0, ActualWidth - size));
+        var y = Clamp(position.Y - (size / 2.0), 0, Math.Max(0, ActualHeight - size));
+        return new Rect(x, y, size, size);
+    }
+
+    private void UpdateMagnifier(Rect selection, Point cursor)
+    {
+        if (!_showMagnifier || _sourceHwnd == IntPtr.Zero)
+        {
+            return;
+        }
+
+        try
+        {
+            _magnifier ??= new CropMagnifierWindow(_sourceHwnd)
+            {
+                Owner = this
+            };
+            var previewSelection = _fixedSelectionSize is null
+                ? GetCursorMagnifierRect(cursor)
+                : selection;
+            var cursorScreen = PointToScreen(cursor);
+            var selectionScreenTopLeft = PointToScreen(new Point(previewSelection.X, previewSelection.Y));
+            _magnifier.ShowRegionPreview(
+                new RectInfo
+                {
+                    X = (int)Math.Round(selectionScreenTopLeft.X),
+                    Y = (int)Math.Round(selectionScreenTopLeft.Y),
+                    Width = Math.Max(1, (int)Math.Round(previewSelection.Width)),
+                    Height = Math.Max(1, (int)Math.Round(previewSelection.Height))
+                },
+                cursorScreen,
+                showCursorCenterMarker: _showCenterMarker);
+        }
+        catch
+        {
+            _magnifier = null;
+        }
+    }
+
+    private void HideMagnifier()
+    {
+        try
+        {
+            _magnifier?.HidePreview();
+        }
+        catch
+        {
+        }
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        try
+        {
+            _magnifier?.Close();
+        }
+        catch
+        {
+        }
+
+        _magnifier = null;
+        base.OnClosed(e);
     }
 
     private static double Clamp(double value, double min, double max)

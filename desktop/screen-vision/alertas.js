@@ -3,15 +3,15 @@ import {
   createDefaultOverlayToolsState,
   OVERLAY_TOOLS_STORAGE_KEY,
   normalizeOverlayToolsState
-} from "../../lib/overlay-tools-state.js";
+} from "../../lib/overlay/overlay-tools-state.js";
 import {
   createOverlayTimerEntryFromDraft,
   formatOverlayTimerDuration,
   normalizeOverlayTimerEntry
-} from "../../lib/overlay-timers.js";
-import { bootstrapRendererLocale } from "../../lib/renderer-locale.js";
-import { getAppLocale, t } from "../../lib/app-i18n.js";
-import { translateObjectTextFields } from "../../lib/phrase-translations.js";
+} from "../../lib/overlay/overlay-timers.js";
+import { bootstrapRendererLocale } from "../../lib/i18n/renderer-locale.js";
+import { getAppLocale, t } from "../../lib/i18n/app-i18n.js";
+import { translateObjectTextFields } from "../../lib/i18n/phrase-translations.js";
 
 const COLOR_OPTIONS = ["#ff8a00", "#ffffff", "#ffe24a", "#69df72", "#ff4444", "#0088ff"];
 const FONT_SIZE_OPTIONS = [

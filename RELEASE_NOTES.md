@@ -1,4 +1,10 @@
-Tibia Toolkit 0.6.7
+Tibia Toolkit 0.7.0
+
+- Reunido o runtime publico completo, incluindo ScreenshotToolkit, preloads, popups, Native Host e os contratos de atualizacao.
+- O atualizador agora expoe o resultado da verificacao inicial, mantem o download manual e tenta os dois origins antes de reportar erro.
+- Revalidados o instalador assistido, o Content Pack imutavel, os assets de tutorial, o QR local e a preservacao da instalacao 0.6.7.
+
+Versao anterior: 0.6.7
 
 - Corrected the installed Windows window so native rounded corners are applied without clipping the interface.
 - Revalidated the installer and immutable content package together, including runtime icons, tutorial media and local catalogs.

@@ -5,7 +5,7 @@ import {
   formatRelativeTimeFromNow,
   formatNpcPrice,
   slugifyItemInput
-} from "./lib/formatters.js";
+} from "./lib/i18n/formatters.js";
 import {
   closeDesktopOverlay,
   fetchBossTracker,
@@ -30,26 +30,27 @@ import {
   fetchStashItems,
   fetchBooksDocuments,
   fetchStashMarketValues,
+  fetchStashMarketRefreshStatus,
+  reserveStashMarketRefresh,
   isDesktopOverlayApp,
   localStorageGet,
   localStorageSet,
   minimizeDesktopOverlay,
   openDesktopExternalLink,
-  openDesktopMapWindow,
   openDesktopScreenVisionWindow,
   notifyDesktopReadyToShow,
   setDataLocale,
   setDesktopOverlayOpacity,
   setDesktopSplashProgress,
   setDesktopSplashStatus
-} from "./lib/runtime-api.js";
-import { bootstrapRendererLocale } from "./lib/renderer-locale.js";
-import { t } from "./lib/app-i18n.js";
+} from "./lib/data/runtime-api.js";
+import { bootstrapRendererLocale } from "./lib/i18n/renderer-locale.js";
+import { t } from "./lib/i18n/app-i18n.js";
 import {
   loadPhraseTranslationMap,
   registerProtectedPhrases,
   translatePhraseSync
-} from "./lib/phrase-translations.js";
+} from "./lib/i18n/phrase-translations.js";
 import {
   ALL_IMBUEMENT_INGREDIENT_NAMES,
   IMBUEMENT_CATEGORY_LABELS,
@@ -57,19 +58,21 @@ import {
   IMBUEMENT_FEES,
   IMBUEMENTS,
   IMBUEMENTS_BY_KEY
-} from "./lib/imbuements-data.js";
+} from "./lib/data/imbuements-data.js";
 import {
   cloneOverlayToolsStateForSave,
   createDefaultOverlayToolsState,
   OVERLAY_TOOLS_STORAGE_KEY,
   normalizeOverlayToolsState
-} from "./lib/overlay-tools-state.js";
+} from "./lib/overlay/overlay-tools-state.js";
 import {
   createDefaultOverlayTimerDraft,
   createOverlayTimerEntryFromDraft,
   formatOverlayTimerDuration,
   getOverlayTimerSummary
-} from "./lib/overlay-timers.js";
+} from "./lib/overlay/overlay-timers.js";
+import { getFixedGridVirtualWindow } from "./lib/ui/fixed-grid-virtualization.js";
+import { createCatalogFilterCache } from "./lib/ui/catalog-filter-cache.js";
 
 const RECENT_ITEMS_KEY = "recentItems";
 const LAST_WORLD_KEY = "lastWorldSlug";
@@ -77,28 +80,56 @@ const LOOT_ANALYZER_DRAFTS_KEY = "lootAnalyzerDrafts";
 const LOOT_ANALYZER_DRAFTS_FALLBACK_KEY = "poioso:lootAnalyzerDrafts";
 const MAX_RECENT_ITEMS = 8;
 const NAVIGATION_HISTORY_LIMIT = 30;
+const MONSTER_DETAIL_MEMORY_CACHE_LIMIT = 12;
 const INITIAL_SPLASH_MIN_VISIBLE_MS = 900;
-const STASH_MARKET_REFRESH_COOLDOWN_MS = 1000 * 60;
+const STASH_GRID_FALLBACK_CELL_SIZE = 42;
+const STASH_GRID_FALLBACK_GAP = 4;
+// Tela maxima: 19 colunas x 13 linhas visiveis, mais uma linha antes/depois.
+// Assim o DOM do Stash fica limitado a aproximadamente 19 x 15 = 285 cards.
+const STASH_GRID_TARGET_RENDERED_ROWS = 15;
+// Retorno de emergencia: false restaura a renderizacao integral sem mudar
+// dados, ordenacao, cache ou qualquer consulta de Market.
+const STASH_GRID_VIRTUALIZATION_ENABLED = true;
+// Retorno de emergencia: false restaura a reabertura integral da ficha em
+// cada passo do tutorial Bosstiary. O dado do Boss Tracker continua intacto.
+const BOSSTIARY_TUTORIAL_REUSE_OPEN_DETAIL_ENABLED = true;
+const LIBRARY_RENDER_METRIC_THROTTLE_MS = 750;
+const ITEM_SUGGESTIONS_PAGE_SIZE = 60;
+const ITEM_SUGGESTIONS_LOAD_AHEAD_PX = 80;
 const DEFAULT_IMBUEMENT_KEY = "vampirism";
 const DEFAULT_IMBUEMENT_TIER = "powerful";
-const GOLD_ICON_PATH = "assets/ui/Crystal_Coin.gif";
-const TIBIA_COIN_CTA_ICON_PATH = "assets/ui/Tibia_Coin_Icon.gif";
-const CRYSTAL_COIN_STATIC_ICON_PATH = "assets/ui/crystal-coin.webp";
-const MARKET_ICON_PATH = "assets/ui/The_Market_(Object).gif";
-const SHRINE_ICON_PATH = "assets/ui/Imbuing_Shrine.gif";
-const DESKTOP_SETTINGS_DISCORD_URL = "https://discord.gg/geKX9ewCy";
+// Deduplicate concurrent ingredient metadata hydration from the calculator,
+// tier/picker controls, creature gear and the background warm-up.  The
+// promise is intentionally separate from the Market request: local sprites
+// and indexed metadata must never wait for, or restart, Market loading.
+let ingredientMetadataPromise = null;
+let ingredientMetadataPromiseNames = new Set();
+let ingredientMetadataPromiseWorldSlug = "";
+const GOLD_ICON_PATH = "assets/ui/economy/Crystal_Coin.gif";
+const TIBIA_COINS_CURRENCY_ICON_PATH = "assets/data/items/sprites/5113.png";
+const GOLD_TOKEN_CURRENCY_ICON_PATH = "assets/data/items/sprites/4239.png";
+const TIBIA_COIN_CTA_ICON_PATH = "assets/ui/economy/Tibia_Coin_Icon.gif";
+const CRYSTAL_COIN_STATIC_ICON_PATH = "assets/ui/economy/crystal-coin.webp";
+const MARKET_ICON_PATH = "assets/ui/economy/The_Market_(Object).gif";
+const SHRINE_ICON_PATH = "assets/ui/tools/Imbuing_Shrine.gif";
+const DESKTOP_SETTINGS_DISCORD_URL = "https://discord.gg/2AFRsc2jmp";
 const DESKTOP_SETTINGS_YOUTUBE_URL = "https://www.youtube.com/@poioso?sub_confirmation=1";
+const DESKTOP_SETTINGS_INSTAGRAM_URL = "https://www.instagram.com/poioso_joga/";
+const DESKTOP_SETTINGS_TWITCH_URL = "https://www.twitch.tv/poios0";
+const DESKTOP_SETTINGS_WEBSITE_URL = "https://tibiatoolkit.com/?utm_source=tibia_toolkit_app&utm_medium=desktop&utm_campaign=settings";
 const DESKTOP_SETTINGS_ASSETS = {
   discord: "assets/ui/tools/tibia-eye/settings/discord-button.png",
   youtube: "assets/ui/tools/tibia-eye/settings/youtube-button.png",
+  instagram: "assets/ui/tools/tibia-eye/settings/instagram-button.png",
+  twitch: "assets/ui/tools/tibia-eye/settings/twitch-button.png",
   authenticator: "assets/ui/tools/tibia-eye/settings/authenticator-button.png",
   tutorial: "assets/ui/tools/tibia-eye/settings/tutorial-button.png",
   website: "assets/ui/tools/tibia-eye/settings/website-button.png"
 };
-const BATTLEYE_GREEN_ICON_PATH = "assets/ui/icon_battleyeinitial.gif";
-const BATTLEYE_YELLOW_ICON_PATH = "assets/ui/icon_battleye.gif";
-const NPC_WES_FALLBACK_ICON_PATH = "assets/ui/Wes_The_Blacksmith.gif";
-const NPC_HIRELING_FALLBACK_ICON_PATH = "assets/ui/Hireling_(Trader).gif";
+const BATTLEYE_GREEN_ICON_PATH = "assets/ui/world-status/icon_battleyeinitial.gif";
+const BATTLEYE_YELLOW_ICON_PATH = "assets/ui/world-status/icon_battleye.gif";
+const NPC_WES_FALLBACK_ICON_PATH = "assets/ui/npcs/Wes_The_Blacksmith.gif";
+const NPC_HIRELING_FALLBACK_ICON_PATH = "assets/ui/npcs/Hireling_(Trader).gif";
 const CREATURE_GEAR_RECOMMENDATIONS_DIR = "assets/data/hakai/creature-gear-recommendations";
 const CREATURE_GEAR_VOCATIONS = [
   { key: "knight", label: "Knight", icon: "assets/ui/vocations/knight-male.png" },
@@ -108,6 +139,8 @@ const CREATURE_GEAR_VOCATIONS = [
   { key: "monk", label: "Monk", icon: "assets/ui/vocations/monk-male.png" }
 ];
 const CREATURE_GEAR_WEAPON_STYLES = ["1H", "2H"];
+const libraryRenderMetricAt = new Map();
+const bossTrackerInFlightRequests = new Map();
 const CREATURE_GEAR_WEAPON_STYLE_ICONS = {
   "1H": "assets/ui/skill-weapons/one-hand.png",
   "2H": "assets/ui/skill-weapons/two-hands.png"
@@ -232,6 +265,10 @@ const SUPPORTER_SHOWCASE_LIMITS = {
 const SUPPORTERS_STORAGE_CACHE_KEY = "supporters-data-cache";
 const SUPPORTERS_RANKING_RATES_CACHE_KEY = "supporters-ranking-rates-cache";
 const SUPPORTERS_FETCH_TIMEOUT_MS = 12000;
+// Supporters are useful startup content, but never a reason to leave the
+// application hidden when a remote source is slow. The request itself keeps
+// running after this gate and applies its payload as soon as it settles.
+const SUPPORTERS_STARTUP_BLOCK_MAX_MS = 10000;
 const SUPPORTERS_RANKING_RATES_CACHE_MS = 30 * 60 * 1000;
 const DEFAULT_SUPPORTER_RANKING_RATES = Object.freeze({
   usdToBrl: 5,
@@ -277,53 +314,53 @@ const SUPPORTER_MOCK_SEEDS = [
   }
 ];
 const CREATURE_STAT_ICONS = {
-  HP: "assets/ui/Hearthp.png",
-  XP: "assets/ui/Xpbestiary.png",
-  Velocidade: "assets/ui/Haste_Icon.gif",
-  Armadura: "assets/ui/Armor_Icon.gif",
-  "Mitigação": "assets/ui/12px-Mitigation_Icon_Wheel.gif",
-  Charms: "assets/ui/Charm.gif"
+  HP: "assets/ui/bestiary/Hearthp.png",
+  XP: "assets/ui/bestiary/Xpbestiary.png",
+  Velocidade: "assets/ui/combat-status/Haste_Icon.gif",
+  Armadura: "assets/ui/bestiary/Armor_Icon.gif",
+  "Mitigação": "assets/ui/combat-status/12px-Mitigation_Icon_Wheel.gif",
+  Charms: "assets/ui/combat-status/Charm.gif"
 };
 const CREATURE_ABILITY_GROUP_ICONS = {
-  velocidade: "assets/ui/Haste_Icon.gif",
-  speed: "assets/ui/Haste_Icon.gif",
-  haste: "assets/ui/Haste_Icon.gif",
-  invoca: "assets/ui/Summon_icon.png",
-  summon: "assets/ui/Summon_icon.png",
-  summons: "assets/ui/Summon_icon.png",
-  paralyze: "assets/ui/Slowed_Icon.gif",
-  debuff: "assets/ui/Weakened_Icon.png",
-  invisibilidade: "assets/ui/Invisible_Icon.gif",
-  invisibility: "assets/ui/Invisible_Icon.gif",
-  drunk: "assets/ui/Weakened_Icon.png",
-  drowning: "assets/ui/Life_Drain_Icone.gif",
+  velocidade: "assets/ui/combat-status/Haste_Icon.gif",
+  speed: "assets/ui/combat-status/Haste_Icon.gif",
+  haste: "assets/ui/combat-status/Haste_Icon.gif",
+  invoca: "assets/ui/combat-status/Summon_icon.png",
+  summon: "assets/ui/combat-status/Summon_icon.png",
+  summons: "assets/ui/combat-status/Summon_icon.png",
+  paralyze: "assets/ui/combat-status/Slowed_Icon.gif",
+  debuff: "assets/ui/combat-status/Weakened_Icon.png",
+  invisibilidade: "assets/ui/combat-status/Invisible_Icon.gif",
+  invisibility: "assets/ui/combat-status/Invisible_Icon.gif",
+  drunk: "assets/ui/combat-status/Weakened_Icon.png",
+  drowning: "assets/ui/combat-status/Life_Drain_Icone.gif",
   "anti-trap": "assets/ui/Cross.png"
 };
 const CREATURE_DIFFICULTY_ICONS = {
-  harmless: "assets/ui/Bestiario_Inofensivo.gif",
-  inofensivo: "assets/ui/Bestiario_Inofensivo.gif",
-  trivial: "assets/ui/Bestiario_Trivial.gif",
-  easy: "assets/ui/Bestiario_Facil.gif",
-  facil: "assets/ui/Bestiario_Facil.gif",
-  medium: "assets/ui/Bestiario_Medio_(3).gif",
-  medio: "assets/ui/Bestiario_Medio_(3).gif",
-  hard: "assets/ui/Bestiario_Dificil.gif",
-  dificil: "assets/ui/Bestiario_Dificil.gif"
+  harmless: "assets/ui/bestiary/Bestiario_Inofensivo.gif",
+  inofensivo: "assets/ui/bestiary/Bestiario_Inofensivo.gif",
+  trivial: "assets/ui/bestiary/Bestiario_Trivial.gif",
+  easy: "assets/ui/bestiary/Bestiario_Facil.gif",
+  facil: "assets/ui/bestiary/Bestiario_Facil.gif",
+  medium: "assets/ui/bestiary/Bestiario_Medio_(3).gif",
+  medio: "assets/ui/bestiary/Bestiario_Medio_(3).gif",
+  hard: "assets/ui/bestiary/Bestiario_Dificil.gif",
+  dificil: "assets/ui/bestiary/Bestiario_Dificil.gif"
 };
 const CREATURE_OCCURRENCE_ICONS = {
-  common: "assets/ui/comum.png",
-  comum: "assets/ui/comum.png",
-  uncommon: "assets/ui/Incomum.png",
-  incomum: "assets/ui/Incomum.png",
-  rare: "assets/ui/Raro.png",
-  raro: "assets/ui/Raro.png",
-  "very rare": "assets/ui/muito_raro.png",
-  "muito raro": "assets/ui/muito_raro.png"
+  common: "assets/ui/bestiary/comum.png",
+  comum: "assets/ui/bestiary/comum.png",
+  uncommon: "assets/ui/bestiary/Incomum.png",
+  incomum: "assets/ui/bestiary/Incomum.png",
+  rare: "assets/ui/bestiary/Raro.png",
+  raro: "assets/ui/bestiary/Raro.png",
+  "very rare": "assets/ui/bestiary/muito_raro.png",
+  "muito raro": "assets/ui/bestiary/muito_raro.png"
 };
 const BOSSTIARY_ICONS = {
-  archfoe: "assets/ui/Bosstiary_Archfoe.png",
-  bane: "assets/ui/Bosstiary_Bane.png",
-  nemesis: "assets/ui/Bosstiary_Nemesis.png"
+  archfoe: "assets/ui/bestiary/Bosstiary_Archfoe.png",
+  bane: "assets/ui/bestiary/Bosstiary_Bane.png",
+  nemesis: "assets/ui/bestiary/Bosstiary_Nemesis.png"
 };
 const BOSSTIARY_TOOLTIPS = {
   archfoe: ["1 estrela: 5 mortes - 10 pontos", "2 estrelas: 20 mortes - 30 pontos", "3 estrelas: 60 mortes - 60 pontos"],
@@ -331,34 +368,34 @@ const BOSSTIARY_TOOLTIPS = {
   nemesis: ["1 estrela: 1 morte - 10 pontos", "2 estrelas: 3 mortes - 30 pontos", "3 estrelas: 5 mortes - 60 pontos"]
 };
 const ELEMENT_ICONS = {
-  Fisico: "assets/ui/Fisico.png",
-  "Físico": "assets/ui/Fisico.png",
-  Physical: "assets/ui/Fisico.png",
-  physical: "assets/ui/Fisico.png",
-  Terra: "assets/ui/Poisoned_Icon.gif",
-  Earth: "assets/ui/Poisoned_Icon.gif",
-  earth: "assets/ui/Poisoned_Icon.gif",
-  Poison: "assets/ui/Poisoned_Icon.gif",
-  Fogo: "assets/ui/Burning_Icon.gif",
-  Fire: "assets/ui/Burning_Icon.gif",
-  fire: "assets/ui/Burning_Icon.gif",
-  Morte: "assets/ui/Cursed_Icon.gif",
-  Death: "assets/ui/Cursed_Icon.gif",
-  death: "assets/ui/Cursed_Icon.gif",
-  Energia: "assets/ui/Electrified_Icon.gif",
-  Energy: "assets/ui/Electrified_Icon.gif",
-  energy: "assets/ui/Electrified_Icon.gif",
-  Sagrado: "assets/ui/Dazzled_Icon.gif",
-  Holy: "assets/ui/Dazzled_Icon.gif",
-  holy: "assets/ui/Dazzled_Icon.gif",
-  Gelo: "assets/ui/Freezing_Icon.gif",
-  Ice: "assets/ui/Freezing_Icon.gif",
-  ice: "assets/ui/Freezing_Icon.gif",
-  Cura: "assets/ui/Heal_Icon.png",
-  Healing: "assets/ui/Heal_Icon.png",
-  healing: "assets/ui/Heal_Icon.png",
-  "Life Drain": "assets/ui/Life_Drain_Icone.gif",
-  "Mana Drain": "assets/ui/Life_Drain_Icone.gif"
+  Fisico: "assets/ui/combat-status/Fisico.png",
+  "Físico": "assets/ui/combat-status/Fisico.png",
+  Physical: "assets/ui/combat-status/Fisico.png",
+  physical: "assets/ui/combat-status/Fisico.png",
+  Terra: "assets/ui/combat-status/Poisoned_Icon.gif",
+  Earth: "assets/ui/combat-status/Poisoned_Icon.gif",
+  earth: "assets/ui/combat-status/Poisoned_Icon.gif",
+  Poison: "assets/ui/combat-status/Poisoned_Icon.gif",
+  Fogo: "assets/ui/combat-status/Burning_Icon.gif",
+  Fire: "assets/ui/combat-status/Burning_Icon.gif",
+  fire: "assets/ui/combat-status/Burning_Icon.gif",
+  Morte: "assets/ui/combat-status/Cursed_Icon.gif",
+  Death: "assets/ui/combat-status/Cursed_Icon.gif",
+  death: "assets/ui/combat-status/Cursed_Icon.gif",
+  Energia: "assets/ui/combat-status/Electrified_Icon.gif",
+  Energy: "assets/ui/combat-status/Electrified_Icon.gif",
+  energy: "assets/ui/combat-status/Electrified_Icon.gif",
+  Sagrado: "assets/ui/combat-status/Dazzled_Icon.gif",
+  Holy: "assets/ui/combat-status/Dazzled_Icon.gif",
+  holy: "assets/ui/combat-status/Dazzled_Icon.gif",
+  Gelo: "assets/ui/combat-status/Freezing_Icon.gif",
+  Ice: "assets/ui/combat-status/Freezing_Icon.gif",
+  ice: "assets/ui/combat-status/Freezing_Icon.gif",
+  Cura: "assets/ui/combat-status/Heal_Icon.png",
+  Healing: "assets/ui/combat-status/Heal_Icon.png",
+  healing: "assets/ui/combat-status/Heal_Icon.png",
+  "Life Drain": "assets/ui/combat-status/Life_Drain_Icone.gif",
+  "Mana Drain": "assets/ui/combat-status/Life_Drain_Icone.gif"
 };
 const ELEMENT_DISPLAY_NAMES = {
   Fisico: "Físico",
@@ -458,11 +495,11 @@ const IMBUEMENT_EFFECT_META = {
 };
 
 const SKILL_TYPES = {
-  sword: { label: "Sword/Axe/Club", family: "melee", base: 50, weapon: "sword", icon: "assets/ui/skill-melee.gif", unitsPerCharge: 7.2 },
-  distance: { label: "Distance", family: "distance", base: 30, weapon: "bow", icon: "assets/ui/skill-distance.gif", unitsPerCharge: 4.32 },
-  magic: { label: "Magic Level", family: "magic", base: 1600, weapon: "rod", icon: "assets/ui/skill-magic.gif", unitsPerCharge: 600 },
-  shielding: { label: "Shielding", family: "shielding", base: 50, weapon: "shield", icon: "assets/ui/skill-shielding.gif", unitsPerCharge: 14.4 },
-  fist: { label: "Fist", family: "fist", base: 50, weapon: "wraps", icon: "assets/ui/skill-fist.gif", unitsPerCharge: 7.2 }
+  sword: { label: "Sword/Axe/Club", family: "melee", base: 50, weapon: "sword", icon: "assets/ui/tools/skill-melee.gif", unitsPerCharge: 7.2 },
+  distance: { label: "Distance", family: "distance", base: 30, weapon: "bow", icon: "assets/ui/tools/skill-distance.gif", unitsPerCharge: 4.32 },
+  magic: { label: "Magic Level", family: "magic", base: 1600, weapon: "rod", icon: "assets/ui/tools/skill-magic.gif", unitsPerCharge: 600 },
+  shielding: { label: "Shielding", family: "shielding", base: 50, weapon: "shield", icon: "assets/ui/tools/skill-shielding.gif", unitsPerCharge: 14.4 },
+  fist: { label: "Fist", family: "fist", base: 50, weapon: "wraps", icon: "assets/ui/tools/skill-fist.gif", unitsPerCharge: 7.2 }
 };
 
 const SKILL_VOCATION_FACTORS = {
@@ -538,12 +575,46 @@ const state = {
   supporterNarrowMedalIndex: 0,
   supporterNarrowMedalTimer: null,
   supporterProfilesRequestId: 0,
+  supporterShowcaseSignature: "",
   supporterShowcaseTimerIds: [],
   supportersDataUrl: "",
   supportersDataUrls: [],
   supporterRankingRates: { ...DEFAULT_SUPPORTER_RANKING_RATES },
   coffeeConfig: createDefaultSupporterCoffeeConfig(),
+  desktopAccountConnected: false,
+  desktopAccountEntitlements: [],
+  desktopAccountBenefits: [],
+  desktopAccountProfile: null,
+  desktopAccountSummary: { openReports: 0, unreadMessages: 0 },
+  desktopReportKind: "suggestion",
+  desktopReportSelectedElements: [],
+  desktopReportPickerCleanup: null,
+  desktopCampaignDestination: "",
+  desktopSupportDestination: "",
+  desktopSocialLinks: {
+    discord: DESKTOP_SETTINGS_DISCORD_URL,
+    youtube: DESKTOP_SETTINGS_YOUTUBE_URL,
+    instagram: DESKTOP_SETTINGS_INSTAGRAM_URL,
+    twitch: DESKTOP_SETTINGS_TWITCH_URL
+  },
+  desktopAccountLoading: false,
+  desktopAccountEntitlementRefreshTimer: null,
+  desktopScreenshotSettings: null,
+  desktopScreenshotExpanded: false,
+  desktopScreenshotCapturingHotkey: false,
+  desktopScreenshotActionBusy: false,
+  desktopScreenshotDiscoveryState: "searching",
+  desktopScreenshotAvailabilityPromise: null,
+  desktopScreenshotAvailabilityRequestId: 0,
+  desktopScreenshotTibiaOpen: false,
+  desktopScreenshotSourceAvailable: false,
+  desktopScreenshotNeedsSelection: false,
+  desktopScreenshotNeedsTibia: false,
+  desktopScreenshotSourceDirectory: "",
+  desktopScreenshotNewCount: 0,
+  desktopScreenshotStatus: "",
   requestedDockedPanelKey: "",
+  desktopDockedPanelReturnKey: "",
   dockedToolPanelState: {
     open: false,
     panelKey: "",
@@ -568,6 +639,7 @@ const state = {
   currencyRatesRequestId: 0,
   currencyRatesLoading: false,
   currencyRatesLastAttemptAt: 0,
+  activeToolLiveDataTimer: null,
   currencyIconMap: {
     gold: GOLD_ICON_PATH,
     tc: GOLD_ICON_PATH,
@@ -601,6 +673,9 @@ const state = {
   npcTab: "buy",
   itemSuggestions: [],
   itemSuggestionsOpen: false,
+  itemSuggestionsShowAll: false,
+  itemSuggestionsHasMore: false,
+  itemSuggestionsLoadingMore: false,
   activeItemSuggestionIndex: -1,
   selectedItemSuggestion: null,
   itemSuggestionRequestId: 0,
@@ -609,7 +684,11 @@ const state = {
   itemSearchGlobalLoadingRequestId: 0,
   itemCacheWarmupTimer: null,
   itemCacheWarmupRequestId: 0,
+  tutorialPreloadPromise: null,
+  tutorialPreloadReady: false,
+  tutorialItemSuggestions: [],
   itemViewMode: "list",
+  spells: { loaded: false, records: [], query: "", sort: "name-asc", vocations: new Set(["knight", "paladin", "druid", "sorcerer", "monk"]), categories: new Set(["ataque", "suporte"]), wheelOnly: false },
   booksDocuments: {
     query: "",
     location: "",
@@ -626,12 +705,19 @@ const state = {
   },
   overlayTools: createDefaultOverlayToolsState(),
   stashItems: [],
+  stashItemBySlug: new Map(),
   stashCategories: [],
   stashTraders: [],
   stashMarketById: {},
+  stashMarketRevision: 0,
+  stashFilteredItemsCache: [],
+  stashFilteredItemsCacheSignature: "",
+  stashFilteredItemsCacheSource: null,
   stashLoaded: false,
+  stashLoadPromise: null,
   stashLoadingMarket: false,
   stashQuery: "",
+  stashWeeklyOnly: false,
   stashCategory: "",
   stashTrader: "",
   stashSort: "name-asc",
@@ -639,14 +725,22 @@ const state = {
   stashMarketTimer: null,
   stashMarketRequestId: 0,
   stashMarketLoadedSignature: "",
+  stashMarketFreshIds: {},
+  stashMarketBackgroundTimer: null,
+  stashMarketBackgroundRequestId: 0,
+  stashMarketBackgroundLoading: false,
+  stashMarketBackgroundPreferSnapshot: false,
   stashWorldMarketLoadedSlug: "",
   stashWorldMarketLoading: false,
-  stashMarketRefreshCooldownUntil: 0,
+  stashMarketRefreshCooldownDeadline: 0,
   stashMarketRefreshCooldownTimer: null,
   stashMarketRefreshWarningTimer: null,
+  stashMarketRefreshSyncing: false,
   stashPreviewRequestId: 0,
   lastPreviewedStashSlug: null,
   stashPreviewVisible: false,
+  stashRenderSignature: "",
+  stashVirtualRenderFrame: null,
   localeRefreshRequestId: 0,
   phraseTranslationMap: {},
   entityViewMode: "npcs",
@@ -654,6 +748,8 @@ const state = {
   npcCities: [],
   npcJobs: [],
   npcQuery: "",
+  npcCatalogLimit: 60,
+  npcCatalogFilterCache: createCatalogFilterCache(),
   npcCity: "",
   npcJob: "",
   npcTrade: "",
@@ -664,6 +760,8 @@ const state = {
   monsterClasses: [],
   monsterTypes: [],
   monsterQuery: "",
+  monsterCatalogLimit: 60,
+  monsterCatalogFilterCache: createCatalogFilterCache(),
   monsterCategory: "",
   monsterClass: "",
   monsterType: "",
@@ -673,6 +771,8 @@ const state = {
   creatureWeaknessIndexLoading: false,
   creatureWeaknessIndexPromise: null,
   bossQuery: "",
+  bossCatalogLimit: 60,
+  bossCatalogFilterCache: createCatalogFilterCache(),
   bossFilters: {
     bane: true,
     archfoe: true,
@@ -681,12 +781,14 @@ const state = {
   monstersLoaded: false,
   monsterDetailRequestId: 0,
   currentMonsterDetail: null,
+  monsterDetailMemoryCache: new Map(),
   currentBossTracker: null,
   bossProbabilityChartMode: "days",
   bossProbabilityChartZoom: 2,
   bossRespawnHistoryLimit: 10,
   creatureGearRecommendations: {},
   creatureGearRecommendationPromises: {},
+  creatureGearRecommendationMissingSlugs: new Set(),
   creatureGearEntry: null,
   creatureGearVocation: "knight",
   creatureGearWeaponStyle: "1H",
@@ -793,6 +895,10 @@ const state = {
   globalLoadingAction: null,
   globalLoadingCount: 0,
   appUpdate: { phase: "idle", info: null },
+  appUpdateRequestPending: false,
+  libraryContent: { phase: "idle", pendingChanges: 0, error: null },
+  libraryContentNeedsViewRefresh: false,
+  libraryContentActivationPending: false,
   localeController: null
 };
 
@@ -802,6 +908,7 @@ const els = {
   desktopToolbar: document.querySelector("#desktop-toolbar"),
   desktopToolbarBrand: document.querySelector("#desktop-toolbar-brand"),
   desktopUpdateButton: document.querySelector("#desktop-update-button"),
+  desktopLibraryContentUpdateButton: document.querySelector("#desktop-library-content-update-button"),
   appVersionMicro: document.querySelector("#app-version-micro"),
   desktopOpacityInput: document.querySelector("#desktop-opacity-input"),
   desktopOpacityValue: document.querySelector("#desktop-opacity-value"),
@@ -853,6 +960,7 @@ const els = {
   itemListView: document.querySelector("#item-list-view"),
   itemStashView: document.querySelector("#item-stash-view"),
   itemBooksView: document.querySelector("#item-books-view"),
+  itemSpellsView: document.querySelector("#item-spells-view"),
   itemDetailView: null,
   booksSearchInput: document.querySelector("#books-search-input"),
   booksClearSearch: document.querySelector("#books-clear-search"),
@@ -864,8 +972,18 @@ const els = {
   booksStatus: document.querySelector("#books-status"),
   booksPagination: document.querySelector("#books-pagination"),
   booksDetail: document.querySelector("#books-detail"),
+  spellsSearchInput: document.querySelector("#spells-search-input"),
+  spellsSortFilter: document.querySelector("#spells-sort-filter"),
+  spellsStatus: document.querySelector("#spells-status"),
+  spellsGrid: document.querySelector("#spells-grid"),
+  spellsDetail: document.querySelector("#spells-detail"),
+  spellVocationFilters: document.querySelectorAll("[data-spell-vocation]"),
+  spellCategoryFilters: document.querySelectorAll("[data-spell-category]"),
+  spellWheelFilter: document.querySelector("[data-spell-wheel]"),
+  spellFilterLabels: document.querySelectorAll("[data-spell-filter-label]"),
   stashSearchInput: document.querySelector("#stash-search-input"),
   stashClearSearch: document.querySelector("#stash-clear-search"),
+  stashWeeklyFilter: document.querySelector("#stash-weekly-filter"),
   stashCategoryFilter: document.querySelector("#stash-category-filter"),
   stashTraderFilter: document.querySelector("#stash-trader-filter"),
   stashSortFilter: document.querySelector("#stash-sort-filter"),
@@ -907,6 +1025,7 @@ const els = {
   miniWorldChangesToday: document.querySelector("#mini-world-changes-today"),
   miniWorldChangesRefreshButton: document.querySelector("#mini-world-changes-refresh-button"),
   miniWorldChangesRefreshCountdown: document.querySelector("#mini-world-changes-refresh-countdown"),
+  findPartyRefreshButton: document.querySelector("#find-party-refresh-button"),
   miniWorldChangesActive: document.querySelector("#mini-world-changes-active"),
   miniWorldChangesCount: document.querySelector("#mini-world-changes-count"),
   miniWorldChangesCatalog: document.querySelector("#mini-world-changes-catalog"),
@@ -1070,9 +1189,16 @@ const els = {
   itemImage: document.querySelector("#item-image"),
   itemCategory: document.querySelector("#item-category"),
   itemName: document.querySelector("#item-name"),
+  itemTechnicalDescription: document.querySelector("#item-technical-description"),
   itemDescription: document.querySelector("#item-description"),
   itemDroppedBy: document.querySelector("#item-dropped-by"),
-  itemExtraDetails: document.querySelector("#item-extra-details"),
+  itemDetails: document.querySelector("#item-details"),
+  itemFood: document.querySelector("#item-food"),
+  itemProficiency: document.querySelector("#item-proficiency"),
+  itemDamageTable: document.querySelector("#item-damage-table"),
+  itemLocation: document.querySelector("#item-location"),
+  itemNotes: document.querySelector("#item-notes"),
+  itemTables: document.querySelector("#item-tables"),
   itemOpenWiki: document.querySelector("#item-open-wiki"),
   itemStoreNote: document.querySelector("#item-store-note"),
   itemMarketDisabledNote: document.querySelector("#item-market-disabled-note"),
@@ -1095,6 +1221,7 @@ const els = {
   itemMarketCard: document.querySelector("#item-market-card"),
   marketMetrics: document.querySelector("#market-metrics"),
   marketEmpty: document.querySelector("#market-empty"),
+  npcCard: document.querySelector(".npc-card"),
   npcBuyList: document.querySelector("#npc-buy-list"),
   npcSellList: document.querySelector("#npc-sell-list"),
   relatedItems: document.querySelector("#related-items"),
@@ -1135,7 +1262,18 @@ async function boot() {
   markBootStage("static-ui-ready");
   positionItemViewLayout();
   bindEvents();
+  bindTemporaryUiPerformanceDiagnostics();
+  markBootStage("event-bindings-ready");
+  if (isDesktopOverlayApp()) {
+    // Restore the encrypted device session before the first settings/account
+    // panel can be rendered.  Previously this ran in the background, so the
+    // panel could retain the old LOGIN image even when the stored session was
+    // valid a moment later.
+    await refreshDesktopAccountState();
+  }
+  markBootStage("account-state-ready");
   void initializeDesktopUpdateUi();
+  void initializeLibraryContentUi();
   bindImbuementPickerResize();
   renderImbuementOptions();
   syncManualTokenState();
@@ -1156,6 +1294,12 @@ async function boot() {
       bootstrap.supportersDataUrl
     );
     state.supportersDataUrl = state.supportersDataUrls[0] || "";
+    const supportersLoadStartedAt = performance.now();
+    const supportersLoadPromise = loadSupportersData({
+      supportersDataUrls: state.supportersDataUrls
+    }).catch((error) => {
+      console.warn("[startup] supporters-load-failed", error);
+    });
     state.recentItems = await runInitialSplashTask(30, 36, () => loadRecentItems());
     await runInitialSplashTask(36, 40, () => loadLootAnalyzerDrafts());
     await runInitialSplashTask(40, 44, () => loadOverlayToolsState());
@@ -1203,15 +1347,18 @@ async function boot() {
       updateInitialSplashProgress(92);
     }
 
-    await runInitialSplashTask(92, 97, () => loadSupportersData({
-      supportersDataUrls: state.supportersDataUrls
-    }));
-    markBootStage("supporters-ready");
+    const supportersReadyBeforeOpening = await runInitialSplashTask(92, 97, () => (
+      waitForStartupTaskDeadline(
+        supportersLoadPromise,
+        supportersLoadStartedAt,
+        SUPPORTERS_STARTUP_BLOCK_MAX_MS
+      )
+    ));
+    markBootStage(supportersReadyBeforeOpening ? "supporters-ready" : "supporters-deferred");
     await runInitialSplashTask(97, 98, () => saveLastWorldSlug(state.currentWorldSlug));
     runInitialSplashTask(98, 99, () => {
-      scheduleWarmItemCache();
-      void refreshImbuementWorldData();
-      void loadMiniWorldChanges({ force: true });
+      // Startup stays local-first. Live data is requested by the surface that
+      // actually needs it (item, Stash Market, tools or Mini World Changes).
       void loadToolbarWorldStatus();
     });
     updateInitialSplashProgress(100);
@@ -1256,9 +1403,11 @@ async function initializeDesktopUpdateUi() {
 
 function renderDesktopUpdateUi() {
   const phase = String(state.appUpdate?.phase || "idle");
-  const showUpdate = phase === "available" || phase === "downloading" || phase === "downloaded";
+  const showUpdate = phase === "available" || phase === "prompting" || phase === "downloading" || phase === "downloaded";
   const tooltip = phase === "available"
     ? t("updater.availableTooltip")
+    : phase === "prompting"
+      ? t("updater.availableTooltip")
     : phase === "downloading"
       ? t("updater.downloadNow")
       : phase === "downloaded"
@@ -1268,9 +1417,115 @@ function renderDesktopUpdateUi() {
   els.desktopToolbarBrand?.classList.toggle("has-update", showUpdate);
   if (els.desktopUpdateButton) {
     els.desktopUpdateButton.hidden = !showUpdate;
-    els.desktopUpdateButton.disabled = phase !== "available";
+    els.desktopUpdateButton.disabled = phase !== "available" || state.appUpdateRequestPending;
     els.desktopUpdateButton.dataset.tooltip = tooltip;
     els.desktopUpdateButton.setAttribute("aria-label", tooltip || "Tibia Toolkit");
+  }
+}
+
+async function initializeLibraryContentUi() {
+  if (!isDesktopOverlayApp()) return;
+  const applyState = (nextState) => {
+    state.libraryContent = nextState && typeof nextState === "object"
+      ? nextState
+      : { phase: "idle", pendingChanges: 0, error: null };
+    renderLibraryContentUpdateUi();
+  };
+  applyState(await window.desktopApi?.libraryContent?.getState?.().catch(() => null));
+  window.desktopApi?.libraryContent?.onChanged?.(applyState);
+}
+
+function renderLibraryContentUpdateUi() {
+  const phase = String(state.libraryContent?.phase || "idle");
+  const pendingChanges = Math.max(0, Number(state.libraryContent?.pendingChanges) || 0);
+  const ready = phase === "ready" && pendingChanges > 0;
+  const tooltip = ready
+    ? t("libraryContent.readyTooltip", { count: pendingChanges })
+    : phase === "checking"
+      ? t("libraryContent.checking")
+      : phase === "activating"
+        ? t("libraryContent.activating")
+        : "";
+  if (els.desktopLibraryContentUpdateButton) {
+    els.desktopLibraryContentUpdateButton.hidden = !ready;
+    els.desktopLibraryContentUpdateButton.disabled = state.libraryContentActivationPending;
+    els.desktopLibraryContentUpdateButton.dataset.tooltip = tooltip;
+    els.desktopLibraryContentUpdateButton.setAttribute("aria-label", tooltip || "Tibia Toolkit");
+  }
+}
+
+async function activateLibraryContentAtSafePoint() {
+  if (!isDesktopOverlayApp() || state.libraryContentActivationPending || state.libraryContent?.phase !== "ready") {
+    return false;
+  }
+  state.libraryContentActivationPending = true;
+  renderLibraryContentUpdateUi();
+  try {
+    const nextState = await window.desktopApi?.libraryContent?.activate?.();
+    if (nextState && typeof nextState === "object") state.libraryContent = nextState;
+    invalidateLibraryViewsAfterContentActivation();
+    void refreshLibraryViewAfterContentActivation();
+    return true;
+  } catch {
+    return false;
+  } finally {
+    state.libraryContentActivationPending = false;
+    renderLibraryContentUpdateUi();
+  }
+}
+
+function invalidateLibraryViewsAfterContentActivation() {
+  // The new snapshot is now active in the main process. Keep the current DOM
+  // stable, but make every Library entry point obtain fresh data next time it
+  // is opened instead of showing a mixed old/new catalogue.
+  state.npcLoaded = false;
+  state.monstersLoaded = false;
+  state.npcIndex = [];
+  state.monsterIndex = [];
+  state.npcCities = [];
+  state.npcJobs = [];
+  state.monsterCategories = [];
+  state.monsterClasses = [];
+  state.monsterTypes = [];
+  state.booksDocuments.listing = null;
+  state.booksDocuments.detail = null;
+  state.stashLoaded = false;
+  state.stashItems = [];
+  state.stashItemBySlug = new Map();
+  state.libraryContentNeedsViewRefresh = true;
+}
+
+async function refreshLibraryViewAfterContentActivation() {
+  if (!state.libraryContentNeedsViewRefresh) return;
+  state.libraryContentNeedsViewRefresh = false;
+
+  if (state.selectedSection === "npcs") {
+    await ensureActiveEntityCatalogLoaded().catch(() => {});
+    return;
+  }
+
+  if (state.selectedSection !== "item-prices") return;
+
+  if (state.itemViewMode === "books") {
+    await loadBooksDocuments().catch(() => {});
+    return;
+  }
+
+  if (state.itemViewMode === "stash") {
+    await ensureStashLoaded().then(() => {
+      renderStashFilters();
+      renderStashGrid();
+    }).catch(() => {});
+    return;
+  }
+
+  if (state.itemViewMode === "list") {
+    state.itemSuggestions = [];
+    state.selectedItemSuggestion = null;
+    closeItemSuggestions();
+    if (state.currentItem && els.itemInput?.value.trim()) {
+      await handleItemSearch(true).catch(() => {});
+    }
   }
 }
 
@@ -1279,8 +1534,8 @@ function exposeTutorialApi() {
     switchSection(section) {
       switchSection(section);
     },
-    async setItemViewMode(mode) {
-      await setItemViewMode(mode);
+    async setItemViewMode(mode, options = {}) {
+      await setItemViewMode(mode, options);
     },
     async typeItemSearch(value, options = {}) {
       const text = String(value || "");
@@ -1288,13 +1543,26 @@ function exposeTutorialApi() {
       state.selectedItemSuggestion = null;
       state.itemSuggestions = [];
       state.itemSuggestionsOpen = false;
+      if (
+        !options.showAll &&
+        slugifyItemInput(text) === "plate-armor" &&
+        state.tutorialItemSuggestions.length > 0
+      ) {
+        state.itemSuggestions = [...state.tutorialItemSuggestions];
+        state.activeItemSuggestionIndex = 0;
+        state.itemSuggestionsOpen = true;
+        renderItemSuggestions();
+        return;
+      }
       await updateItemSuggestions({ showAll: Boolean(options.showAll) });
     },
     async selectItemByName(name) {
       const wantedName = slugifyItemInput(name || "");
       let suggestion =
         state.itemSuggestions.find((entry) => slugifyItemInput(entry.name || "") === wantedName) ||
-        state.itemSuggestions.find((entry) => slugifyItemInput(entry.name || "").includes(wantedName));
+        state.itemSuggestions.find((entry) => slugifyItemInput(entry.name || "").includes(wantedName)) ||
+        state.tutorialItemSuggestions.find((entry) => slugifyItemInput(entry.name || "") === wantedName) ||
+        state.tutorialItemSuggestions.find((entry) => slugifyItemInput(entry.name || "").includes(wantedName));
 
       if (!suggestion) {
         els.itemInput.value = String(name || "");
@@ -1446,7 +1714,14 @@ function exposeTutorialApi() {
     },
     configureLootAnalyzerTour(options = {}) {
       setToolTab("loot-splitter", { skipHistory: true });
-      setLootMode(options.mode === "solo" ? "solo" : "party");
+      const nextMode = options.mode === "solo" ? "solo" : "party";
+      const hasText = typeof options.text === "string";
+      const nextText = hasText ? options.text : null;
+      const currentTextForNextMode = nextMode === "solo"
+        ? state.lootSoloAnalyzerText
+        : state.lootPartyAnalyzerText;
+      const modeChanged = state.lootMode !== nextMode;
+      const textChanged = hasText && nextText !== currentTextForNextMode;
 
       if (typeof options.characterName === "string") {
         state.lootSoloCharacterName = options.characterName.trim();
@@ -1455,13 +1730,34 @@ function exposeTutorialApi() {
         }
       }
 
-      if (typeof options.text === "string") {
-        setActiveLootAnalyzerText(options.text);
-        if (els.lootInput) {
-          els.lootInput.value = options.text;
+      // O tutorial passa por vários passos da mesma ferramenta. Reconfigurar
+      // o mesmo modo limpava a análise e disparava novamente perfil,
+      // criaturas e todos os itens, mesmo quando o passo apenas destacava
+      // outro controle. Ao trocar de modo, grave o texto antes para que
+      // setLootMode faça uma única análise do estado final.
+      if (modeChanged) {
+        if (hasText) {
+          if (nextMode === "solo") {
+            state.lootSoloAnalyzerText = nextText;
+          } else {
+            state.lootPartyAnalyzerText = nextText;
+          }
         }
+        setLootMode(nextMode);
+      } else if (textChanged) {
+        setActiveLootAnalyzerText(nextText);
+        if (els.lootInput) {
+          els.lootInput.value = nextText;
+        }
+        // Cancela visualmente qualquer hidratação anterior antes de iniciar
+        // a nova análise. As requisições já enviadas podem terminar na rede,
+        // mas não podem redesenhar o tutorial atual.
+        state.lootProfileRequestId += 1;
+        state.lootItemHydrationRequestId += 1;
+        state.lootMonsterHydrationRequestId += 1;
         parseAndRenderLootSplitter();
       }
+
     },
     async prepareSoloAnalyzerEventsTutorial() {
       document.body.classList.add("tt-solo-events-tutorial");
@@ -1513,7 +1809,6 @@ function exposeTutorialApi() {
       state.lootSoloDoubleLoot = Boolean(snapshot.soloDoubleLoot);
       setToolTab("loot-splitter", { skipHistory: true });
       setLootMode(options.endMode === "solo" ? "solo" : "party");
-      parseAndRenderLootSplitter();
     },
     getFindPartyTourState() {
       return {
@@ -1844,6 +2139,9 @@ function exposeTutorialApi() {
     async configureBossiaryTour(options = {}) {
       switchSection("npcs", { skipHistory: true });
       await setEntityViewMode("bosses", { skipHistory: true });
+      // Aquecer uma unica consulta nos primeiros passos impede que Mapa e
+      // Como chegar dependam de uma nova chamada lenta no momento do foco.
+      void warmBossiaryTourBossTracker();
 
       state.bossQuery = String(options.query || "").trim();
       state.bossFilters = {
@@ -1863,7 +2161,15 @@ function exposeTutorialApi() {
       renderBossCatalog();
 
       if (options.openBoss) {
-        await openMonsterDetail(options.openBoss, { skipHistory: true });
+        const requestedBoss = normalizeSearchText(options.openBoss);
+        const isRequestedBossAlreadyOpen =
+          BOSSTIARY_TUTORIAL_REUSE_OPEN_DETAIL_ENABLED &&
+          normalizeSearchText(state.currentMonsterDetail?.name) === requestedBoss &&
+          Boolean(els.entityDetailContent?.querySelector('[data-tutorial-focus="creature-summary"]'));
+
+        if (!isRequestedBossAlreadyOpen) {
+          await openMonsterDetail(options.openBoss, { skipHistory: true });
+        }
       }
 
       if (options.openMap) {
@@ -1943,7 +2249,7 @@ function exposeTutorialApi() {
           id: "tutorial-example",
           name: "Bank Robbery",
           representative: {
-            localPath: "assets/ui/world-board.gif",
+            localPath: "assets/ui/navigation/world-board.gif",
             label: "Bank Robbery"
           }
         };
@@ -2037,13 +2343,51 @@ function isLocaleMenuOpen() {
   return els.localeSwitcherMenu && !els.localeSwitcherMenu.classList.contains("hidden");
 }
 
+function ensureLocaleMenuPortal() {
+  if (!els.localeSwitcherMenu) {
+    return;
+  }
+
+  if (els.localeSwitcherMenu.parentElement !== document.body) {
+    document.body.appendChild(els.localeSwitcherMenu);
+  }
+
+  els.localeSwitcherMenu.classList.add("locale-switcher-menu-portal");
+}
+
+function positionLocaleMenu() {
+  if (!els.localeSwitcherMenu || !els.localeSwitcherButton || !isLocaleMenuOpen()) {
+    return;
+  }
+
+  const viewportMargin = 8;
+  const menuGap = 8;
+  const buttonRect = els.localeSwitcherButton.getBoundingClientRect();
+  const menuRect = els.localeSwitcherMenu.getBoundingClientRect();
+  const maxLeft = Math.max(viewportMargin, window.innerWidth - menuRect.width - viewportMargin);
+  const left = Math.max(viewportMargin, Math.min(buttonRect.right - menuRect.width, maxLeft));
+  const preferredTop = buttonRect.bottom + menuGap;
+  const top = preferredTop + menuRect.height <= window.innerHeight - viewportMargin
+    ? preferredTop
+    : Math.max(viewportMargin, buttonRect.top - menuRect.height - menuGap);
+
+  els.localeSwitcherMenu.style.left = `${Math.round(left)}px`;
+  els.localeSwitcherMenu.style.top = `${Math.round(top)}px`;
+}
+
 function setLocaleMenuOpen(open) {
   if (!els.localeSwitcherMenu || !els.localeSwitcherButton) {
     return;
   }
 
+  ensureLocaleMenuPortal();
   els.localeSwitcherMenu.classList.toggle("hidden", !open);
   els.localeSwitcherButton.setAttribute("aria-expanded", open ? "true" : "false");
+
+  if (open) {
+    positionLocaleMenu();
+    window.requestAnimationFrame(positionLocaleMenu);
+  }
 }
 
 function updateLocaleSwitcher() {
@@ -2087,6 +2431,7 @@ function renderLocaleSwitcher() {
     return;
   }
 
+  ensureLocaleMenuPortal();
   els.localeSwitcherMenu.innerHTML = LOCALE_SWITCHER_OPTIONS.map((option) => `
     <button
       type="button"
@@ -2129,13 +2474,33 @@ async function refreshLocaleSensitiveContent(locale) {
     renderStashGrid();
   }
   if (state.booksDocuments.listing) {
-    renderBooksFilters();
-    renderBooksGrid();
-    renderBookDetail();
+    const openBookSlug = state.booksDocuments.detail?.slug || "";
+    await loadBooksDocuments().catch(() => {});
+    if (openBookSlug && requestId === state.localeRefreshRequestId) {
+      await selectBookDocument(openBookSlug, { scrollIntoView: false }).catch(() => {});
+    }
+  }
+
+  // Detailed spell records are a local bundle rather than a runtime request.
+  // Re-read them after a locale switch so their reviewed factual text cannot
+  // remain in the language that was active when the tab first opened.
+  if (state.spells.loaded) {
+    state.spells.loaded = false;
+    if (state.itemViewMode === "spells") {
+      await loadSpellsCatalog().catch(() => {});
+    }
   }
 
   if (getActiveLootAnalyzerText().trim()) {
     parseAndRenderLootSplitter();
+  }
+
+  // The active Library detail is already backed by the local canonical
+  // snapshot. Refresh it immediately from that snapshot instead of routing a
+  // locale switch through the full item/market request. The heavier catalog
+  // refresh below must not block the visible language change.
+  if (state.currentItem) {
+    void refreshCurrentItemLocale(state.currentItem, requestId);
   }
 
   const catalogReloads = [];
@@ -2151,14 +2516,6 @@ async function refreshLocaleSensitiveContent(locale) {
   }
 
   await Promise.allSettled(catalogReloads);
-
-  if (requestId !== state.localeRefreshRequestId) {
-    return;
-  }
-
-  if (state.currentItem) {
-    await handleItemSearch(true).catch(() => {});
-  }
 
   if (requestId !== state.localeRefreshRequestId) {
     return;
@@ -2183,6 +2540,35 @@ async function refreshLocaleSensitiveContent(locale) {
     renderSupporterToolbar();
     renderMiniWorldChanges();
   }
+}
+
+async function refreshCurrentItemLocale(previousPayload, requestId) {
+  const itemSlug = String(previousPayload?.item?.slug || "").trim();
+  if (!itemSlug || requestId !== state.localeRefreshRequestId) return;
+
+  const localizedPayload = await fetchItemStatic({
+    itemSlug,
+    worldSlug: state.currentWorldSlug
+  }).catch(() => null);
+
+  if (!localizedPayload || requestId !== state.localeRefreshRequestId || state.currentItem?.item?.slug !== itemSlug) return;
+
+  // Static data already contains the locally cached market snapshot. Keep the
+  // previous dynamic fields as a guard against a cache miss during a locale
+  // switch, while replacing the complete locale-sensitive Library document.
+  state.currentItem = {
+    ...previousPayload,
+    ...localizedPayload,
+    market: localizedPayload.market ?? previousPayload.market,
+    selectedWorld: localizedPayload.selectedWorld || previousPayload.selectedWorld,
+    availableWorlds: localizedPayload.availableWorlds?.length
+      ? localizedPayload.availableWorlds
+      : previousPayload.availableWorlds,
+    relatedItems: localizedPayload.relatedItems?.length
+      ? localizedPayload.relatedItems
+      : previousPayload.relatedItems
+  };
+  renderItem();
 }
 
 function bindEvents() {
@@ -2240,7 +2626,8 @@ function bindEvents() {
     if (
       isLocaleMenuOpen() &&
       target !== els.localeSwitcherButton &&
-      !els.localeSwitcher?.contains(target)
+      !els.localeSwitcher?.contains(target) &&
+      !els.localeSwitcherMenu?.contains(target)
     ) {
       setLocaleMenuOpen(false);
     }
@@ -2257,11 +2644,13 @@ function bindEvents() {
   });
 
   els.navButtons.forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       const section = button.dataset.section;
       if (section) {
+        await activateLibraryContentAtSafePoint();
         switchSection(section);
         updateMainNavScrollButtons();
+        void window.desktopApi?.libraryContent?.check?.().catch(() => {});
       }
     });
   });
@@ -2308,6 +2697,10 @@ function bindEvents() {
     setLocaleMenuOpen(!isLocaleMenuOpen());
   });
 
+  els.localeSwitcherMenu?.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+  });
+
   els.localeSwitcherMenu?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-locale-option]");
 
@@ -2318,6 +2711,12 @@ function bindEvents() {
     const localeCode = button.getAttribute("data-locale-option") || "pt-BR";
     setLocaleMenuOpen(false);
     void state.localeController.setLocale(localeCode);
+  });
+
+  window.addEventListener("resize", () => {
+    if (isLocaleMenuOpen()) {
+      positionLocaleMenu();
+    }
   });
 
   els.toolTabs.forEach((button) => {
@@ -2349,6 +2748,7 @@ function bindEvents() {
       state.findPartyVocation = state.findPartyVocation === vocation ? "" : vocation;
       state.findPartyPage = 1;
       renderFindParty();
+      void ensureFindPartySnapshot({ force: true });
     });
   });
 
@@ -2563,6 +2963,30 @@ function bindEvents() {
       setItemViewMode(button.dataset.itemView || "list");
     });
   });
+  els.spellsSearchInput?.addEventListener("input", () => {
+    state.spells.query = els.spellsSearchInput.value.trim();
+    renderSpellsCatalog();
+  });
+  els.spellsSortFilter?.addEventListener("change", () => {
+    state.spells.sort = els.spellsSortFilter.value || "name-asc";
+    renderSpellsCatalog();
+  });
+  els.spellVocationFilters.forEach((button) => button.addEventListener("click", () => {
+    const vocation = button.dataset.spellVocation || "";
+    if (!vocation) return;
+    state.spells.vocations.has(vocation) ? state.spells.vocations.delete(vocation) : state.spells.vocations.add(vocation);
+    renderSpellsCatalog();
+  }));
+  els.spellCategoryFilters.forEach((button) => button.addEventListener("click", () => {
+    const category = button.dataset.spellCategory || "";
+    if (!category) return;
+    state.spells.categories.has(category) ? state.spells.categories.delete(category) : state.spells.categories.add(category);
+    renderSpellsCatalog();
+  }));
+  els.spellWheelFilter?.addEventListener("click", () => {
+    state.spells.wheelOnly = !state.spells.wheelOnly;
+    renderSpellsCatalog();
+  });
 
   const refreshBooks = () => {
     state.booksDocuments.page = 1;
@@ -2607,9 +3031,24 @@ function bindEvents() {
     scheduleStashMarketLoad();
   });
 
+  els.stashGrid?.addEventListener("scroll", handleStashGridScroll, { passive: true });
+  if (els.stashGrid && "ResizeObserver" in window) {
+    const stashGridObserver = new ResizeObserver(() => {
+      scheduleStashGridVirtualRender();
+    });
+    stashGridObserver.observe(els.stashGrid);
+  }
+
   els.stashClearSearch?.addEventListener("click", () => {
     state.stashQuery = "";
     els.stashSearchInput.value = "";
+    renderStashGrid();
+    scheduleStashMarketLoad();
+  });
+
+  els.stashWeeklyFilter?.addEventListener("click", () => {
+    state.stashWeeklyOnly = !state.stashWeeklyOnly;
+    renderStashFilters();
     renderStashGrid();
     scheduleStashMarketLoad();
   });
@@ -2643,17 +3082,20 @@ function bindEvents() {
       renderStashFilters();
       renderStashValueButtons();
       renderStashGrid();
+      if (nextMode === "market") {
+        void syncStashMarketRefreshCooldown();
+      }
       scheduleStashMarketLoad();
     });
   });
 
-  els.stashMarketRefreshButton?.addEventListener("click", () => {
-    if (state.stashLoadingMarket) {
+  els.stashMarketRefreshButton?.addEventListener("click", async () => {
+    if (state.stashLoadingMarket || state.stashMarketRefreshSyncing) {
       return;
     }
 
     if (isStashMarketRefreshCoolingDown()) {
-      showStashMarketRefreshWarning();
+      showStashMarketRefreshWarning(getStashMarketRefreshCooldownLabel());
       return;
     }
 
@@ -2664,9 +3106,26 @@ function bindEvents() {
       return;
     }
 
-    setStashMarketRefreshCooldown(STASH_MARKET_REFRESH_COOLDOWN_MS);
-    hideStashMarketRefreshWarning();
-    void refreshFilteredStashMarketValues();
+    state.stashMarketRefreshSyncing = true;
+    renderStashValueButtons();
+
+    try {
+      const authorization = await reserveStashMarketRefresh();
+      applyStashMarketRefreshServerState(authorization);
+
+      if (authorization?.allowed !== true) {
+        showStashMarketRefreshWarning(getStashMarketRefreshCooldownLabel());
+        return;
+      }
+
+      hideStashMarketRefreshWarning();
+      void refreshFilteredStashMarketValues();
+    } catch (error) {
+      showStashMarketRefreshWarning(error instanceof Error ? error.message : "Nao foi possivel confirmar o limite do market.");
+    } finally {
+      state.stashMarketRefreshSyncing = false;
+      renderStashValueButtons();
+    }
   });
 
   els.entityTabs.forEach((button) => {
@@ -2680,31 +3139,37 @@ function bindEvents() {
 
   els.npcSearchInput?.addEventListener("input", () => {
     state.npcQuery = els.npcSearchInput.value.trim();
+    state.npcCatalogLimit = 60;
     renderNpcCatalog();
   });
 
   els.npcCityFilter?.addEventListener("change", () => {
     state.npcCity = els.npcCityFilter.value;
+    state.npcCatalogLimit = 60;
     renderNpcCatalog();
   });
 
   els.npcJobFilter?.addEventListener("change", () => {
     state.npcJob = els.npcJobFilter.value;
+    state.npcCatalogLimit = 60;
     renderNpcCatalog();
   });
 
   els.npcTradeFilter?.addEventListener("change", () => {
     state.npcTrade = els.npcTradeFilter.value;
+    state.npcCatalogLimit = 60;
     renderNpcCatalog();
   });
 
   els.monsterSearchInput?.addEventListener("input", () => {
     state.monsterQuery = els.monsterSearchInput.value.trim();
+    state.monsterCatalogLimit = 60;
     renderMonsterCatalog();
   });
 
   els.bossSearchInput?.addEventListener("input", () => {
     state.bossQuery = els.bossSearchInput.value.trim();
+    state.bossCatalogLimit = 60;
     renderBossCatalog();
   });
 
@@ -2713,6 +3178,7 @@ function bindEvents() {
       const key = input.dataset.bossFilter;
       if (key) {
         state.bossFilters[key] = input.checked;
+        state.bossCatalogLimit = 60;
         renderBossCatalog();
       }
     });
@@ -2734,6 +3200,7 @@ function bindEvents() {
     }
 
     state.monsterCategory = button.dataset.monsterCategory || "";
+    state.monsterCatalogLimit = 60;
     renderMonsterCategories();
     renderMonsterCatalog();
     scrollMonsterListIntoView();
@@ -2741,11 +3208,13 @@ function bindEvents() {
 
   els.monsterClassFilter?.addEventListener("change", () => {
     state.monsterClass = els.monsterClassFilter.value;
+    state.monsterCatalogLimit = 60;
     renderMonsterCatalog();
   });
 
   els.monsterTypeFilter?.addEventListener("change", () => {
     state.monsterType = els.monsterTypeFilter.value;
+    state.monsterCatalogLimit = 60;
     renderMonsterCatalog();
   });
 
@@ -2782,6 +3251,10 @@ function bindEvents() {
     state.miniWorldChangesRefreshCooldownUntil = Date.now() + MINI_WORLD_CHANGES_REFRESH_COOLDOWN_MS;
     renderMiniWorldChangesRefreshControl();
     void loadMiniWorldChanges({ force: true });
+  });
+
+  els.findPartyRefreshButton?.addEventListener("click", () => {
+    void ensureFindPartySnapshot({ force: true });
   });
 
   els.miniWorldChangeBack?.addEventListener("click", () => {
@@ -2827,6 +3300,7 @@ function bindEvents() {
 
   els.itemInput.addEventListener("input", () => {
     state.selectedItemSuggestion = null;
+    els.npcCard?.classList.add("hidden");
     if (!els.itemInput.value.trim()) {
       setFeedback("");
       closeItemSuggestions();
@@ -2872,6 +3346,21 @@ function bindEvents() {
     void updateItemSuggestions({ showAll: true });
   });
 
+  els.itemSuggestions?.addEventListener("scroll", () => {
+    if (
+      !state.itemSuggestionsShowAll ||
+      !state.itemSuggestionsHasMore ||
+      state.itemSuggestionsLoadingMore
+    ) {
+      return;
+    }
+
+    const remaining = els.itemSuggestions.scrollHeight - els.itemSuggestions.scrollTop - els.itemSuggestions.clientHeight;
+    if (remaining <= ITEM_SUGGESTIONS_LOAD_AHEAD_PX) {
+      void loadMoreItemSuggestions();
+    }
+  }, { passive: true });
+
   els.itemInput.addEventListener("keydown", async (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -2885,6 +3374,13 @@ function bindEvents() {
 
     if (event.key === "ArrowDown") {
       event.preventDefault();
+      if (
+        state.activeItemSuggestionIndex === state.itemSuggestions.length - 1 &&
+        state.itemSuggestionsShowAll &&
+        state.itemSuggestionsHasMore
+      ) {
+        await loadMoreItemSuggestions();
+      }
       state.activeItemSuggestionIndex =
         (state.activeItemSuggestionIndex + 1) % state.itemSuggestions.length;
       renderItemSuggestions();
@@ -2914,6 +3410,11 @@ function bindEvents() {
   });
 
   els.globalWorldDropdownButton?.addEventListener("click", () => {
+    if (document.body.classList.contains("desktop-mode") && window.desktopApi?.globalWorldPicker?.open) {
+      void toggleDesktopGlobalWorldPicker();
+      return;
+    }
+
     if (state.globalWorldSuggestionsOpen) {
       closeWorldSuggestions("global");
       return;
@@ -2934,6 +3435,20 @@ function bindEvents() {
 
   els.desktopBoostedBoss?.addEventListener("click", () => {
     void openBoostedEntity(state.boostedStatus.boss?.name, "bosses");
+  });
+
+  [els.desktopBoostedCreatureImage, els.desktopBoostedBossImage].forEach((image) => {
+    image?.addEventListener("error", () => {
+      let fallbacks = [];
+      try { fallbacks = JSON.parse(image.dataset.fallbackSources || "[]"); } catch (_error) {}
+      const nextSource = Array.isArray(fallbacks) ? fallbacks.shift() : "";
+      if (!nextSource) {
+        image.hidden = true;
+        return;
+      }
+      image.dataset.fallbackSources = JSON.stringify(fallbacks);
+      image.src = nextSource;
+    });
   });
 
   els.desktopYasirPodium?.addEventListener("click", () => {
@@ -3222,6 +3737,24 @@ function bindEvents() {
       await setDesktopOverlayOpacity(opacity).catch(() => {});
     });
 
+    document.addEventListener("input", (event) => {
+      const input = event.target.closest("#desktop-screenshot-upscale-input");
+      if (!input) return;
+      const factor = Math.min(20, Math.max(1, Math.round(Number(input.value) || 1)));
+      const progress = ((factor - 1) / 19) * 100;
+      input.value = String(factor);
+      input.style.setProperty("--slider-progress", `${progress}%`);
+      const value = input.closest(".desktop-screenshot-upscale-control")?.querySelector("strong");
+      if (value) value.textContent = `${factor}x`;
+      state.desktopScreenshotSettings = {
+        ...(state.desktopScreenshotSettings || {}),
+        upscaleFactor: factor
+      };
+      void window.desktopApi?.screenshots?.setUpscale?.(factor).then((result) => {
+        if (result?.settings) state.desktopScreenshotSettings = result.settings;
+      }).catch(() => {});
+    });
+
     els.desktopMinimizeButton?.addEventListener("click", () => {
       void minimizeDesktopOverlay();
     });
@@ -3231,21 +3764,37 @@ function bindEvents() {
     });
 
     els.desktopUpdateButton?.addEventListener("click", () => {
-      if (state.appUpdate?.phase !== "available") {
+      if (state.appUpdate?.phase !== "available" || state.appUpdateRequestPending) {
         return;
       }
-      void window.desktopApi?.updater?.requestDownload?.();
+      state.appUpdateRequestPending = true;
+      renderDesktopUpdateUi();
+      void window.desktopApi?.updater?.requestDownload?.()
+        .catch(() => {})
+        .finally(() => {
+          state.appUpdateRequestPending = false;
+          renderDesktopUpdateUi();
+        });
+    });
+
+    els.desktopLibraryContentUpdateButton?.addEventListener("click", () => {
+      // A prepared Library snapshot is activated at the next navigation edge,
+      // avoiding a partial re-render of a detail page while it is being read.
+      void activateLibraryContentAtSafePoint();
     });
 
     els.desktopSettingsButton?.addEventListener("click", () => {
-      void requestDesktopDockedPanel("settings-panel");
+      void openDesktopSettingsPanel();
     });
 
     els.desktopTibiaCoinsButton?.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      void openDesktopScreenVisionWindow("tibia-coins-panel");
+      // The toolbar is an in-app entry point.  It must always open the
+      // Tibia Coins purchase panel; only the panel's confirmed purchase
+      // action may then forward to an Admin-managed external destination.
+      void openManagedDesktopCampaign();
     });
 
     document.addEventListener("click", (event) => {
@@ -3255,14 +3804,83 @@ function bindEvents() {
       if (settingsActionButton) {
         event.preventDefault();
         const action = settingsActionButton.dataset.settingsAction || "";
+        if ((action === "capture-screenshot" || action === "open-screenshot-assistant") && (state.desktopScreenshotActionBusy || state.desktopScreenshotDiscoveryState === "searching")) {
+          return;
+        }
 
         if (action === "open-discord") {
-          void openDesktopExternalLink(DESKTOP_SETTINGS_DISCORD_URL);
+          void openDesktopExternalLink(state.desktopSocialLinks.discord);
         } else if (action === "open-youtube") {
-          void openDesktopExternalLink(DESKTOP_SETTINGS_YOUTUBE_URL);
+          void openDesktopExternalLink(state.desktopSocialLinks.youtube);
+        } else if (action === "open-instagram") {
+          void openDesktopExternalLink(state.desktopSocialLinks.instagram);
+        } else if (action === "open-twitch") {
+          void openDesktopExternalLink(state.desktopSocialLinks.twitch);
+        } else if (action === "open-website") {
+          void openDesktopExternalLink(DESKTOP_SETTINGS_WEBSITE_URL);
         } else if (action === "open-authenticator") {
           void requestDesktopDockedPanel("authenticator-panel");
+        } else if (action === "reset-tutorial") {
+          void window.desktopApi?.app?.tutorial?.resetAll?.();
+        } else if (action === "open-account") {
+          void openDesktopAccountPanel();
+        } else if (action === "toggle-account") {
+          void toggleDesktopAccountConnection();
+        } else if (action === "toggle-screenshot-settings") {
+          state.desktopScreenshotExpanded = !state.desktopScreenshotExpanded;
+          // Keep this interaction in-place. Re-rendering the shared dock here
+          // races its native resize notification and made the extension flash
+          // open before the shell painted its previous markup again.
+          const config = settingsActionButton.closest(".desktop-screenshot-option")?.querySelector(".desktop-screenshot-config");
+          if (config) {
+            config.hidden = !state.desktopScreenshotExpanded;
+            config.style.display = state.desktopScreenshotExpanded ? "grid" : "none";
+          }
+        } else if (action === "start-screenshot-tutorial") {
+          state.desktopScreenshotExpanded = true;
+          renderDesktopSettingsPanelIntoDockedShell();
+          window.setTimeout(() => window.TibiaToolsTutorial?.startScreenshotsTour?.(), 120);
+        } else if (action === "open-screenshot-assistant") {
+          void openDesktopScreenshotAssistant();
+        } else if (action === "capture-screenshot") {
+          void captureDesktopScreenshot();
+        } else if (action === "toggle-delete-original") {
+          void toggleDesktopScreenshotDeleteOriginal();
+        } else if (action === "choose-screenshot-directory") {
+          void chooseDesktopScreenshotDirectory();
+        } else if (action === "choose-tibia-screenshot-directory") {
+          void chooseDesktopTibiaScreenshotDirectory();
+        } else if (action === "open-screenshot-directory") {
+          void openDesktopScreenshotDirectory();
         }
+        return;
+      }
+
+      const accountActionButton = event.target.closest("[data-account-action]");
+      if (accountActionButton) {
+        event.preventDefault();
+        void handleDesktopAccountAction(accountActionButton.dataset.accountAction || "");
+        return;
+      }
+
+      const reportKindButton = event.target.closest("[data-account-report-kind]");
+      if (reportKindButton) {
+        event.preventDefault();
+        setDesktopReportKind(reportKindButton.dataset.accountReportKind || "suggestion", reportKindButton.closest("form"));
+        return;
+      }
+
+      const reportSelectButton = event.target.closest("[data-account-report-select]");
+      if (reportSelectButton) {
+        event.preventDefault();
+        startDesktopReportElementPicker();
+        return;
+      }
+
+      const reportRemoveButton = event.target.closest("[data-account-report-remove]");
+      if (reportRemoveButton) {
+        event.preventDefault();
+        removeDesktopReportElement(reportRemoveButton.dataset.accountReportRemove || "", reportRemoveButton.closest("form"));
         return;
       }
 
@@ -3271,11 +3889,59 @@ function bindEvents() {
       }
 
       event.preventDefault();
-      void openDesktopScreenVisionWindow("tibia-coins-panel");
+      void openManagedDesktopCampaign();
     });
+
+    document.addEventListener("pointerover", (event) => {
+      const screenshotButton = event.target.closest(".desktop-screenshot-select-icon");
+      if (!screenshotButton) return;
+      const previousAvailability = state.desktopScreenshotTibiaOpen;
+      void refreshDesktopScreenshotAvailability().then(() => {
+        if (previousAvailability !== state.desktopScreenshotTibiaOpen) {
+          renderDesktopSettingsPanelIntoDockedShell();
+        }
+      });
+    }, true);
 
     els.desktopAuthenticatorButton?.addEventListener("click", () => {
       void requestDesktopDockedPanel("authenticator-panel");
+    });
+
+    document.addEventListener("submit", (event) => {
+      const form = event.target.closest("[data-account-report-form]");
+      if (!form) return;
+      event.preventDefault();
+      void submitDesktopAccountReport(form);
+    });
+
+    window.addEventListener("tibia-toolkit:open-report", () => {
+      void openDesktopReportPanel();
+    });
+
+    window.addEventListener("tibia-toolkit:open-screenshot-assistant", () => {
+      void openDesktopScreenshotAssistant();
+    });
+
+    window.addEventListener("tibia-toolkit:docked-panel-rendered", (event) => {
+      const panelKey = String(event?.detail?.panelKey || "").trim();
+      const requestedPanelKey = String(state.requestedDockedPanelKey || "").trim();
+      // The native dock emits a short `open: false` packet while changing
+      // bounds. Account/report panels are renderer-owned navigation views;
+      // ignoring that packet let Screen Vision's empty placeholder win for a
+      // frame (and sometimes remain visible). Keep the requested owner alive
+      // through that transition, but ignore unrelated closed tool panels.
+      const ownsTransientPanel = ["settings-panel", "account-panel", "report-panel"].includes(panelKey)
+        && (Boolean(event?.detail?.open) || requestedPanelKey === panelKey);
+      if (!ownsTransientPanel) {
+        return;
+      }
+      if (panelKey === "settings-panel") {
+        renderDesktopSettingsPanelIntoDockedShell();
+      } else if (panelKey === "account-panel") {
+        renderDesktopAccountPanelIntoDockedShell();
+      } else if (panelKey === "report-panel") {
+        renderDesktopReportPanelIntoDockedShell();
+      }
     });
 
     els.desktopCoffeeButton?.addEventListener("click", () => {
@@ -3286,14 +3952,21 @@ function bindEvents() {
       void requestDesktopDockedPanel(SUPPORTER_DOCKED_PANEL_KEY);
     });
 
+    window.desktopApi?.supportersShowcase?.onOpenPanel?.(() => {
+      void requestDesktopDockedPanel(SUPPORTER_DOCKED_PANEL_KEY);
+    });
+
+    window.desktopApi?.supportersShowcase?.onOpenCoffeePanel?.(() => {
+      void requestDesktopDockedPanel("buy-me-a-coffee-panel");
+    });
+
     els.apiDocsButton?.addEventListener("click", () => {
       const docsUrl = new URL("docs/apis.html", window.location.href).href;
       void openDesktopExternalLink(docsUrl);
     });
 
     els.desktopDockedPanelClose?.addEventListener("click", () => {
-      const currentPanelKey = state.dockedToolPanelState.panelKey || SUPPORTER_DOCKED_PANEL_KEY;
-      void openDesktopScreenVisionWindow(currentPanelKey);
+      handleDesktopDockedPanelClose();
     });
 
     window.desktopApi?.screenVision?.events?.onDockedToolPanelStateChanged?.((panelState) => {
@@ -3382,6 +4055,26 @@ function applySupportersPayload(payload = {}, rankingRates = DEFAULT_SUPPORTER_R
 
 function requestDesktopDockedPanel(panelKey) {
   const normalizedPanelKey = String(panelKey || "").trim();
+  const currentPanelState = state.dockedToolPanelState || {};
+
+  // Only My Account has a parent panel. Every other lateral panel, including
+  // Report a Bug, must close directly instead of reviving an older panel.
+  state.desktopDockedPanelReturnKey = normalizedPanelKey === "account-panel"
+    ? "settings-panel"
+    : "";
+
+  // Account/report actions are idempotent. A second event while the same
+  // panel is already visible must not restart its opening animation (or make
+  // the panel appear blank while the transition is clipped).
+  if (["account-panel", "report-panel"].includes(normalizedPanelKey)
+    && currentPanelState.open
+    && currentPanelState.panelKey === normalizedPanelKey
+    && currentPanelState.phase !== "closed"
+    && currentPanelState.phase !== "closing") {
+    renderActiveDockedToolPanel();
+    return Promise.resolve(true);
+  }
+
   state.requestedDockedPanelKey = normalizedPanelKey;
   state.dockedToolPanelState = {
     ...state.dockedToolPanelState,
@@ -3392,7 +4085,443 @@ function requestDesktopDockedPanel(panelKey) {
   };
   syncDockedToolPanelShell();
   renderActiveDockedToolPanel();
+
+  // Reports/account are navigation surfaces, not toggle tools. A duplicate
+  // late click or renderer event must keep them open; otherwise Electron's
+  // normal dock toggle closes the panel just after it was rendered.
+  if (["account-panel", "report-panel"].includes(normalizedPanelKey)
+    && window.desktopApi?.screenVisionApi?.tools?.open) {
+    return window.desktopApi.screenVisionApi.tools.open(normalizedPanelKey, { forceOpen: true });
+  }
   return openDesktopScreenVisionWindow(normalizedPanelKey);
+}
+
+function handleDesktopDockedPanelClose() {
+  const currentPanelKey = state.dockedToolPanelState.panelKey || SUPPORTER_DOCKED_PANEL_KEY;
+
+  if (currentPanelKey === "account-panel") {
+    state.desktopDockedPanelReturnKey = "";
+    void requestDesktopDockedPanel("settings-panel");
+    return;
+  }
+
+  state.desktopDockedPanelReturnKey = "";
+  const closePanel = window.desktopApi?.screenVisionApi?.tools?.close;
+  if (typeof closePanel === "function") {
+    void closePanel(currentPanelKey).catch(() => null);
+    return;
+  }
+
+  void openDesktopScreenVisionWindow(currentPanelKey);
+}
+
+function getDesktopDockedPanelElements() {
+  const host = document.querySelector("#desktop-docked-panel");
+  if (!host) return {};
+
+  // The static document still contains the legacy header with a generic X.
+  // Settings/account/report navigation must own the shell so it uses the
+  // standard image button, even before Screen Vision has rebuilt it. Its side
+  // and icon are synchronized in syncDockedToolPanelShell().
+  if (!host.querySelector(".desktop-docked-panel-content") || !host.querySelector(".desktop-docked-tool-header")) {
+    host.innerHTML = `
+      <div class="desktop-docked-panel-shell">
+        <header class="desktop-docked-tool-header desktop-docked-tool-header-right">
+          <button type="button" class="desktop-docked-arrow-close desktop-docked-panel-close desktop-history-button desktop-window-image-button" id="desktop-docked-panel-close" aria-label="${escapeHtml(t("common.back"))}" data-tooltip="${escapeHtml(t("common.back"))}">
+            <span class="desktop-window-icon-stack" aria-hidden="true">
+              <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/desktop-history/voltar-off.png" alt="">
+              <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/desktop-history/voltar-on.png" alt="">
+            </span>
+          </button>
+          <div class="desktop-docked-tool-heading">
+            <strong id="desktop-docked-panel-title">Painel</strong>
+            <small id="desktop-docked-panel-description"></small>
+          </div>
+        </header>
+        <div class="desktop-docked-panel-content" id="desktop-docked-panel-content"></div>
+      </div>
+    `;
+  }
+
+  // Screen Vision is lazy-loaded and used to be able to replace this shared
+  // host while an account/report panel was opening. Resolve the live nodes on
+  // each render, instead of relying solely on references captured at boot.
+  const closeButton = host.querySelector("#desktop-docked-panel-close");
+  if (closeButton && closeButton.dataset.appDockedCloseBound !== "true") {
+    closeButton.dataset.appDockedCloseBound = "true";
+    closeButton.addEventListener("click", () => {
+      handleDesktopDockedPanelClose();
+    });
+  }
+
+  // Screen Vision is loaded lazily and may replace the shared dock shell
+  // after the account/report renderer has painted it.  Watch that one host
+  // only: if a replacement leaves an app-owned panel with the generic empty
+  // body, restore the actual account/report surface on the next frame.
+  if (host.dataset.appDockedOwnershipObserved !== "true") {
+    host.dataset.appDockedOwnershipObserved = "true";
+    const observer = new MutationObserver(() => {
+      const activePanelKey = state.dockedToolPanelState?.panelKey || state.requestedDockedPanelKey;
+      if (!host.isConnected || !["account-panel", "report-panel"].includes(activePanelKey)) return;
+      const content = host.querySelector("#desktop-docked-panel-content, .desktop-docked-panel-content");
+      // Both application-owned surfaces count as a populated shell. The
+      // account view uses `.desktop-account-panel`, while the signed-in
+      // report view is a `<form.desktop-report-panel>`.
+      if (content?.querySelector(".desktop-settings-panel, .desktop-account-panel, .desktop-report-panel")) return;
+      window.requestAnimationFrame(() => {
+        const currentPanelKey = state.dockedToolPanelState?.panelKey || state.requestedDockedPanelKey;
+        if (currentPanelKey === "settings-panel") renderDesktopSettingsPanelIntoDockedShell();
+        if (currentPanelKey === "account-panel") renderDesktopAccountPanelIntoDockedShell();
+        if (currentPanelKey === "report-panel") renderDesktopReportPanelIntoDockedShell();
+      });
+    });
+    observer.observe(host, { childList: true, subtree: true });
+  }
+
+  return {
+    host,
+    title: host.querySelector("#desktop-docked-panel-title, .desktop-docked-tool-heading strong"),
+    description: host.querySelector("#desktop-docked-panel-description, .desktop-docked-tool-heading small"),
+    content: host.querySelector("#desktop-docked-panel-content, .desktop-docked-panel-content")
+  };
+}
+
+async function openDesktopSettingsPanel() {
+  await requestDesktopDockedPanel("settings-panel");
+  state.desktopScreenshotDiscoveryState = "searching";
+  renderDesktopSettingsPanelIntoDockedShell();
+  await Promise.all([refreshDesktopAccountState({ refreshAds: true }), refreshDesktopScreenshotSettings(), refreshDesktopScreenshotAvailability()]);
+  renderDesktopSettingsPanelIntoDockedShell();
+}
+
+async function openDesktopAccountPanel() {
+  try {
+    await requestDesktopDockedPanel("account-panel");
+    await refreshDesktopAccountState({ refreshAds: true });
+  } finally {
+    // The account form is still useful if the background dock animation or
+    // state refresh fails. Never leave the user with an empty side panel.
+    renderDesktopAccountPanelIntoDockedShell();
+  }
+}
+
+async function openDesktopReportPanel() {
+  // Do not rely only on Screen Vision's late render event. When the account
+  // is already connected that event can be skipped during a panel transition,
+  // leaving the shared shell visible but empty. Render after both operations
+  // in every account state.
+  try {
+    await requestDesktopDockedPanel("report-panel");
+    await refreshDesktopAccountState();
+  } finally {
+    // See the account equivalent above. A report panel must render even when
+    // the optional account refresh cannot complete.
+    renderDesktopReportPanelIntoDockedShell();
+    // The dock shell itself may be recreated by the animation bridge after
+    // the awaited IPC call. Paint again on the next frames so the report form
+    // is never replaced by an empty shell during that hand-off.
+    window.requestAnimationFrame(() => renderDesktopReportPanelIntoDockedShell());
+    // Native resize/state messages can arrive after the first frame. Repeat
+    // only while Report remains the requested panel, so a later close cannot
+    // resurrect it, while the real form still wins over the generic fallback.
+    for (const delay of [80, 240, 600]) {
+      window.setTimeout(() => {
+        if ((state.dockedToolPanelState?.panelKey || state.requestedDockedPanelKey) === "report-panel") {
+          renderDesktopReportPanelIntoDockedShell();
+        }
+      }, delay);
+    }
+  }
+}
+
+function renderDesktopAccountPanelIntoDockedShell() {
+  renderDesktopAccountPanelIntoDockedShellByKey("account-panel", t("account.title"), renderDesktopAccountPanelMarkup);
+}
+
+function renderDesktopSettingsPanelIntoDockedShell() {
+  renderDesktopAccountPanelIntoDockedShellByKey("settings-panel", t("screenVision.settings.title"), renderDesktopSettingsPanelMarkup);
+}
+
+function renderDesktopReportPanelIntoDockedShell() {
+  renderDesktopAccountPanelIntoDockedShellByKey("report-panel", t("account.report.title"), renderDesktopReportPanelMarkup);
+}
+
+function renderDesktopAccountPanelIntoDockedShellByKey(panelKey, panelTitle, renderMarkup) {
+  const { host, title, description, content } = getDesktopDockedPanelElements();
+  const panelState = state.dockedToolPanelState || {};
+  const requestedPanelKey = String(state.requestedDockedPanelKey || "").trim();
+  const shellPanelKey = String(document.body?.dataset?.dockedPanelKey || "").trim();
+  const ownsRequestedShell = requestedPanelKey === panelKey || shellPanelKey === panelKey;
+
+  // Electron can briefly announce an empty/closed state while the dock is
+  // transitioning. Account and report are navigation panels: once requested,
+  // their real content must win over that transient packet instead of leaving
+  // a visibly blank side panel.
+  if (!host || (panelState.panelKey !== panelKey && !ownsRequestedShell)) {
+    return;
+  }
+
+  if (!content) {
+    return;
+  }
+
+  if (title) title.textContent = panelTitle;
+  // Keep the shared description node in the DOM. Removing it leaves cached
+  // renderer references detached after the panel shell is refreshed.
+  if (description) description.textContent = "";
+  content.innerHTML = renderMarkup();
+  if (panelKey === "settings-panel" || panelKey === "report-panel") {
+    syncDesktopScreenshotActionBusyUi();
+  }
+  // Use the one floating-tooltip binder shared by the rest of the app.  The
+  // previous call referenced a stale helper name, so freshly-rendered account
+  // and report controls never acquired their standard hover tooltip.
+  bindSkillDynamicTooltips(content);
+}
+
+function syncDesktopScreenshotActionBusyUi() {
+  const busy = Boolean(state.desktopScreenshotActionBusy) || state.desktopScreenshotDiscoveryState === "searching";
+  document.querySelectorAll('[data-settings-action="open-screenshot-assistant"], [data-settings-action="capture-screenshot"], #tt-screenshot-context-button').forEach((button) => {
+    button.disabled = busy;
+    button.classList.toggle("screenshot-action-busy", busy);
+    if (busy) button.setAttribute("aria-busy", "true");
+    else button.removeAttribute("aria-busy");
+  });
+}
+
+function setDesktopScreenshotActionBusy(busy) {
+  state.desktopScreenshotActionBusy = Boolean(busy);
+  syncDesktopScreenshotActionBusyUi();
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:screenshot-action-state", {
+    detail: { busy: state.desktopScreenshotActionBusy }
+  }));
+}
+
+async function handleDesktopAccountAction(action) {
+  if (action === "connect" || action === "connect-report") {
+    await connectDesktopAccount({ openPanel: action === "connect-report" ? "report-panel" : "account-panel" });
+    return;
+  }
+  if (action === "report") {
+    await openDesktopReportPanel();
+    return;
+  }
+  if (action === "remove-ads") {
+    await requestDesktopDockedPanel("buy-me-a-coffee-panel");
+    return;
+  }
+  if (action === "proof-discord") {
+    await openDesktopExternalLink(state.desktopSocialLinks.discord);
+    return;
+  }
+  if (action === "edit-character") {
+    await window.desktopApi?.account?.openPage?.("profile");
+    return;
+  }
+  if (action === "reports" || action === "proof" || action === "settings") {
+    await window.desktopApi?.account?.openPage?.(action === "settings" ? "account" : action);
+    return;
+  }
+  if (action === "logout") {
+    await toggleDesktopAccountConnection();
+  }
+}
+
+function getDesktopReportPageLabel() {
+  const labels = {
+    "item-prices": "Preços dos itens",
+    "item-stash": "Stash",
+    "item-books": "Livros",
+    "npcs": "NPCs e criaturas",
+    "tools": "Ferramentas"
+  };
+  return labels[state.selectedSection] || "Tibia Toolkit app";
+}
+
+const DESKTOP_REPORT_KIND_COPY = {
+  suggestion: {
+    icon: "assets/ui/feedback/suggestion.png",
+    titleKey: "account.report.suggestionTitle",
+    detailKey: "account.report.suggestionDetails"
+  },
+  bug: {
+    icon: "assets/ui/feedback/bug-nostalgia.gif",
+    titleKey: "account.report.bugTitle",
+    detailKey: "account.report.bugDetails"
+  },
+  correction: {
+    icon: "assets/ui/feedback/correction.png",
+    titleKey: "account.report.correctionTitle",
+    detailKey: "account.report.correctionDetails"
+  }
+};
+
+function normalizeDesktopReportKind(value) {
+  return Object.prototype.hasOwnProperty.call(DESKTOP_REPORT_KIND_COPY, value) ? value : "suggestion";
+}
+
+function desktopReportSelectorFor(element) {
+  if (element?.id) return `#${CSS.escape(element.id)}`;
+  const parts = [];
+  let current = element;
+  while (current && current.tagName?.toLowerCase() !== "body" && parts.length < 5) {
+    const tag = current.tagName.toLowerCase();
+    const siblings = current.parentElement
+      ? Array.from(current.parentElement.children).filter((entry) => entry.tagName === current.tagName)
+      : [];
+    parts.unshift(`${tag}:nth-of-type(${Math.max(1, siblings.indexOf(current) + 1)})`);
+    if (current.matches?.("main, .content-panel, .workspace-shell, .main-content")) break;
+    current = current.parentElement;
+  }
+  return parts.join(" > ");
+}
+
+function desktopReportElementLabel(element) {
+  return String(element?.getAttribute?.("aria-label") || element?.textContent || element?.tagName || "Elemento")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 90) || "Elemento";
+}
+
+function desktopReportPickerIgnored(element) {
+  return !element || Boolean(element.closest?.(".desktop-docked-panel, .desktop-report-picker-hud, .desktop-report-element-highlight, .tt-tour-context-button, .global-loading-overlay, .desktop-window-controls"));
+}
+
+function closeDesktopReportElementPicker() {
+  const cleanup = state.desktopReportPickerCleanup;
+  state.desktopReportPickerCleanup = null;
+  cleanup?.();
+}
+
+function ensureDesktopReportPickerElements() {
+  let hud = document.querySelector("#desktop-report-picker-hud");
+  if (!hud) {
+    hud = document.createElement("div");
+    hud.id = "desktop-report-picker-hud";
+    hud.className = "desktop-report-picker-hud";
+    hud.setAttribute("role", "status");
+    document.body.appendChild(hud);
+  }
+  let highlight = document.querySelector("#desktop-report-element-highlight");
+  if (!highlight) {
+    highlight = document.createElement("div");
+    highlight.id = "desktop-report-element-highlight";
+    highlight.className = "desktop-report-element-highlight";
+    highlight.setAttribute("aria-hidden", "true");
+    document.body.appendChild(highlight);
+  }
+  return { hud, highlight };
+}
+
+function renderDesktopReportSelectedElements(form) {
+  const container = form?.querySelector?.("[data-account-report-selected]");
+  if (!container) return;
+  container.innerHTML = state.desktopReportSelectedElements.map((element) => `
+    <div><strong>${escapeHtml(element.id ? `#${element.id}` : element.label)}</strong><span>${escapeHtml(element.selector)}</span><button type="button" data-account-report-remove="${escapeHtml(element.selector)}" aria-label="${escapeHtml(t("account.report.removeElement"))}" data-tooltip="${escapeHtml(t("account.report.removeElement"))}"><img src="assets/ui/Cross.png" alt=""></button></div>
+  `).join("");
+  container.hidden = state.desktopReportSelectedElements.length === 0;
+}
+
+function setDesktopReportKind(value, form = null) {
+  const kind = normalizeDesktopReportKind(value);
+  state.desktopReportKind = kind;
+  const target = form || document.querySelector("[data-account-report-form]");
+  if (!target) return;
+  const copy = DESKTOP_REPORT_KIND_COPY[kind];
+  const field = target.querySelector("[name=kind]");
+  if (field) field.value = kind;
+  target.querySelectorAll("[data-account-report-kind]").forEach((button) => {
+    const selected = button.dataset.accountReportKind === kind;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  const titleLabel = target.querySelector("[data-account-report-title-label]");
+  const titleInput = target.querySelector("[name=title]");
+  const detail = target.querySelector("[name=body]");
+  if (titleLabel) titleLabel.textContent = t(copy.titleKey);
+  if (titleInput) titleInput.placeholder = t(copy.titleKey);
+  if (detail) detail.placeholder = t(copy.detailKey);
+}
+
+function removeDesktopReportElement(selector, form = null) {
+  state.desktopReportSelectedElements = state.desktopReportSelectedElements.filter((entry) => entry.selector !== selector);
+  renderDesktopReportSelectedElements(form || document.querySelector("[data-account-report-form]"));
+}
+
+function startDesktopReportElementPicker() {
+  closeDesktopReportElementPicker();
+  const { hud, highlight } = ensureDesktopReportPickerElements();
+  hud.innerHTML = `${escapeHtml(t("account.report.selectElement"))} <small>Esc</small>`;
+  hud.hidden = false;
+  highlight.hidden = true;
+  document.body.classList.add("desktop-report-element-picker-active");
+  const elementAt = (event) => {
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    if (desktopReportPickerIgnored(element)) {
+      highlight.hidden = true;
+      return null;
+    }
+    const rect = element.getBoundingClientRect();
+    highlight.style.left = `${rect.left - 4}px`;
+    highlight.style.top = `${rect.top - 4}px`;
+    highlight.style.width = `${rect.width + 8}px`;
+    highlight.style.height = `${rect.height + 8}px`;
+    highlight.hidden = false;
+    return element;
+  };
+  const move = (event) => { elementAt(event); };
+  const key = (event) => { if (event.key === "Escape") closeDesktopReportElementPicker(); };
+  const click = (event) => {
+    const element = elementAt(event);
+    if (!element) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const selected = { id: element.id || null, selector: desktopReportSelectorFor(element), label: desktopReportElementLabel(element) };
+    if (!state.desktopReportSelectedElements.some((entry) => entry.selector === selected.selector)) {
+      state.desktopReportSelectedElements = [...state.desktopReportSelectedElements, selected];
+    }
+    closeDesktopReportElementPicker();
+    renderDesktopReportSelectedElements(document.querySelector("[data-account-report-form]"));
+  };
+  document.addEventListener("pointermove", move, true);
+  document.addEventListener("click", click, true);
+  document.addEventListener("keydown", key, true);
+  state.desktopReportPickerCleanup = () => {
+    document.body.classList.remove("desktop-report-element-picker-active");
+    hud.hidden = true;
+    highlight.hidden = true;
+    document.removeEventListener("pointermove", move, true);
+    document.removeEventListener("click", click, true);
+    document.removeEventListener("keydown", key, true);
+  };
+}
+
+async function submitDesktopAccountReport(form) {
+  const status = form.querySelector("[data-account-report-status]");
+  const submit = form.querySelector("button[type=submit]");
+  const data = new FormData(form);
+  if (submit) submit.disabled = true;
+  if (status) status.textContent = "";
+  try {
+    await window.desktopApi?.account?.submitFeedback?.({
+      kind: data.get("kind"),
+      title: data.get("title"),
+      body: `${String(data.get("body") || "").trim()}${state.desktopReportSelectedElements.length ? `\n\n${t("account.report.selectedElements")}\n${t("account.report.page")}: ${getDesktopReportPageLabel()}\n${state.desktopReportSelectedElements.map((element, index) => `${index + 1}. ${element.label}\n   ${t("account.report.selector")}: ${element.selector}${element.id ? `\n   ID: #${element.id}` : ""}`).join("\n")}` : `\n\n${t("account.report.page")}: ${getDesktopReportPageLabel()}`}`,
+      locale: state.localeController?.getLocale?.() || "pt-BR",
+      pageLabel: getDesktopReportPageLabel()
+    });
+    form.reset();
+    state.desktopReportKind = "suggestion";
+    state.desktopReportSelectedElements = [];
+    setDesktopReportKind("suggestion", form);
+    renderDesktopReportSelectedElements(form);
+    if (status) status.textContent = t("account.report.sent");
+    await refreshDesktopAccountState();
+  } catch (error) {
+    if (status) status.textContent = error?.message || t("account.report.failed");
+  } finally {
+    if (submit) submit.disabled = false;
+  }
 }
 
 function normalizeSupportersDataUrls(...values) {
@@ -3639,6 +4768,7 @@ function buildSupporterEntries(seeds = [], rankingRates = DEFAULT_SUPPORTER_RANK
       const currency = resolveSupporterCurrency(seed);
       return {
         name: String(seed.characterName || seed.name || "").trim(),
+        avatarUrl: String(seed.avatarUrl || "").trim(),
         vocation: String(seed.vocation || "").trim(),
         sex: String(seed.sex || "").trim(),
         level: Number.isFinite(Number(seed.level)) ? Math.round(Number(seed.level)) : null,
@@ -3700,6 +4830,10 @@ function normalizeExternalHttpUrl(value) {
     const parsedUrl = new URL(rawUrl);
     if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
       return "";
+    }
+
+    if (parsedUrl.hostname.toLowerCase() === "www.danielhatano.com.br") {
+      parsedUrl.searchParams.set("tracking", "tibiatoolkit");
     }
 
     return parsedUrl.href;
@@ -3953,6 +5087,36 @@ function syncSupporterToolbarRotation() {
   }, 1800);
 }
 
+function syncSupportersShowcase(supporters = state.supporters) {
+  const showcaseApi = window.desktopApi?.supportersShowcase;
+  if (!showcaseApi?.update) {
+    return;
+  }
+
+  const payload = {
+    supporters: (Array.isArray(supporters) ? supporters : [])
+      .slice(0, 5)
+      .map((supporter) => {
+        const tier = String(supporter?.tier || "default").trim().toLowerCase();
+        const tierMeta = getSupporterTierMeta(tier);
+        return {
+          name: String(supporter?.name || "").trim(),
+          tier,
+          medalPath: tierMeta.medalPath,
+          backgroundPath: `assets/ui/supporters/fundo-${({ diamond: "diamante", gold: "ouro", silver: "prata", bronze: "bronze", iron: "ferro" }[tier] || "prata")}.gif`
+        };
+      })
+      .filter((supporter) => supporter.name && supporter.medalPath)
+  };
+  const signature = JSON.stringify(payload);
+  if (signature === state.supporterShowcaseSignature) {
+    return;
+  }
+
+  state.supporterShowcaseSignature = signature;
+  showcaseApi.update(payload);
+}
+
 function renderSupporterToolbar() {
   const supporters = state.supporters;
   const activeSupporter = supporters[0] || null;
@@ -3962,6 +5126,8 @@ function renderSupporterToolbar() {
   if (!els.desktopSupportersSlot || !els.desktopSupportersButton) {
     return;
   }
+
+  syncSupportersShowcase(supporters);
 
   const hasSupporters = Boolean(activeSupporter);
   els.desktopSupportersSlot.hidden = !hasSupporters;
@@ -4074,27 +5240,82 @@ async function hydrateSupporterProfiles() {
 }
 
 function handleDockedToolPanelStateChange(panelState = {}) {
-  if (panelState.panelKey) {
-    state.requestedDockedPanelKey = panelState.panelKey;
-  } else if (!panelState.open && (panelState.phase || "closed") === "closed") {
+  const previousPanelKey = String(
+    state.dockedToolPanelState?.panelKey || state.requestedDockedPanelKey || ""
+  ).trim();
+  const incomingPanelKey = String(panelState.panelKey || "").trim();
+  const incomingPhase = panelState.phase || "closed";
+  const requestedPanelKey = String(state.requestedDockedPanelKey || "").trim();
+  const ownsTransientShell = ["account-panel", "report-panel"].includes(requestedPanelKey);
+  const isRequestedTransientPanel = ownsTransientShell
+    && (!incomingPanelKey || incomingPanelKey === requestedPanelKey);
+
+  if (!panelState.open && incomingPhase === "closed" && isRequestedTransientPanel) {
+    // Electron briefly reports an empty closed dock while it swaps/resizes the
+    // shared shell. Some builds retain the same panel key in that packet.
+    // Do not let either form erase a renderer-owned report/account surface.
+    // A true close has no successor state, so it is still released shortly
+    // afterwards below.
+    state.dockedToolPanelState = {
+      ...state.dockedToolPanelState,
+      open: true,
+      panelKey: requestedPanelKey,
+      side: panelState.side === "left" ? "left" : "right",
+      phase: "transitioning",
+      width: Number(panelState.width) || state.dockedToolPanelState.width || 418
+    };
+    syncDockedToolPanelShell();
+    renderActiveDockedToolPanel();
+    window.setTimeout(() => {
+      const currentRequestedPanelKey = String(state.requestedDockedPanelKey || "").trim();
+      const currentPanelState = state.dockedToolPanelState || {};
+      if (currentRequestedPanelKey !== requestedPanelKey
+        || currentPanelState.panelKey !== requestedPanelKey
+        || currentPanelState.phase !== "transitioning") {
+        return;
+      }
+      state.requestedDockedPanelKey = "";
+      state.dockedToolPanelState = {
+        open: false,
+        panelKey: "",
+        side: currentPanelState.side || "right",
+        phase: "closed",
+        width: 0
+      };
+      syncDockedToolPanelShell();
+      renderActiveDockedToolPanel();
+    }, 900);
+    window.requestAnimationFrame(syncDesktopEffectiveBreakpoints);
+    return;
+  } else if (incomingPanelKey) {
+    state.requestedDockedPanelKey = incomingPanelKey;
+  } else if (!panelState.open && incomingPhase === "closed") {
     state.requestedDockedPanelKey = "";
   }
 
   state.dockedToolPanelState = {
     open: Boolean(panelState.open),
-    panelKey: panelState.panelKey || "",
+    panelKey: incomingPanelKey,
     side: panelState.side === "left" ? "left" : "right",
-    phase: panelState.phase || "closed",
+    phase: incomingPhase,
     width: Number(panelState.width) || 0
   };
 
   syncDockedToolPanelShell();
   renderActiveDockedToolPanel();
   window.requestAnimationFrame(syncDesktopEffectiveBreakpoints);
+
+  // Settings is the operator's lightweight entitlement check. Refresh once
+  // after leaving it as well, so a benefit granted/revoked in the browser can
+  // recreate or remove the desktop ads without restarting the app.
+  if (previousPanelKey === "settings-panel" && incomingPanelKey !== "settings-panel") {
+    void refreshDesktopAccountState({ refreshAds: true });
+  }
 }
 
 function syncDockedToolPanelShell() {
-  if (!els.desktopDockedPanel) {
+  const { host } = getDesktopDockedPanelElements();
+  if (!host) {
     return;
   }
 
@@ -4107,15 +5328,52 @@ function syncDockedToolPanelShell() {
   document.body.classList.toggle("desktop-docked-panel-open", Boolean(panelState.open));
   document.body.classList.toggle("desktop-docked-panel-left", Boolean(panelState.open) && side === "left");
   document.body.classList.toggle("desktop-docked-panel-right", Boolean(panelState.open) && side === "right");
+  document.body.dataset.dockedPanelKey = panelState.open ? (panelState.panelKey || "") : "";
   document.body.dataset.dockedPanelSide = side;
   document.body.dataset.dockedPanelPhase = phase;
 
-  els.desktopDockedPanel.classList.toggle("hidden", !isVisible || phase === "left-pre-shift");
-  els.desktopDockedPanel.setAttribute("aria-hidden", panelState.open ? "false" : "true");
+  const activePanelKey = panelState.panelKey || state.requestedDockedPanelKey || "";
+  syncDesktopAppOwnedDockedPanelHeader(host, activePanelKey, side);
+
+  host.classList.toggle("hidden", !isVisible || phase === "left-pre-shift");
+  host.setAttribute("aria-hidden", panelState.open ? "false" : "true");
+}
+
+function syncDesktopAppOwnedDockedPanelHeader(host, panelKey, side) {
+  const appOwnedPanelKeys = new Set(["settings-panel", "account-panel", "report-panel"]);
+  if (!host || !appOwnedPanelKeys.has(String(panelKey || "").trim())) {
+    return;
+  }
+
+  const header = host.querySelector(".desktop-docked-tool-header");
+  const closeButton = header?.querySelector("#desktop-docked-panel-close");
+  const heading = header?.querySelector(".desktop-docked-tool-heading");
+  if (!header || !closeButton || !heading) {
+    return;
+  }
+
+  const normalizedSide = side === "left" ? "left" : "right";
+  header.classList.toggle("desktop-docked-tool-header-left", normalizedSide === "left");
+  header.classList.toggle("desktop-docked-tool-header-right", normalizedSide === "right");
+
+  // Keep the same control and listener; only place it at the edge that faces
+  // the main app, matching the generic docked panels.
+  if (normalizedSide === "left") {
+    header.append(heading, closeButton);
+  } else {
+    header.insertBefore(closeButton, heading);
+  }
+
+  const iconIdle = closeButton.querySelector(".desktop-window-icon-idle");
+  const iconActive = closeButton.querySelector(".desktop-window-icon-active");
+  const iconPrefix = normalizedSide === "left" ? "avancar" : "voltar";
+  if (iconIdle) iconIdle.src = `assets/ui/desktop-history/${iconPrefix}-off.png`;
+  if (iconActive) iconActive.src = `assets/ui/desktop-history/${iconPrefix}-on.png`;
 }
 
 function renderActiveDockedToolPanel() {
-  if (!els.desktopDockedPanelContent || !els.desktopDockedPanelTitle || !els.desktopDockedPanelDescription) {
+  const { title, description, content } = getDesktopDockedPanelElements();
+  if (!content || !title || !description) {
     return;
   }
 
@@ -4126,32 +5384,101 @@ function renderActiveDockedToolPanel() {
   const isDockedPanelVisible = panelState.open || panelState.phase !== "closed";
   const isSupporterPanel = effectivePanelKey === SUPPORTER_DOCKED_PANEL_KEY && isDockedPanelVisible;
   const isSettingsPanel = effectivePanelKey === "settings-panel" && isDockedPanelVisible;
+  const isAccountPanel = effectivePanelKey === "account-panel" && isDockedPanelVisible;
+  const isReportPanel = effectivePanelKey === "report-panel" && isDockedPanelVisible;
 
   if (isSupporterPanel) {
-    els.desktopDockedPanelTitle.textContent = t("screenVision.supporters.title");
-    els.desktopDockedPanelDescription.textContent = "";
-    els.desktopDockedPanelContent.innerHTML = renderSupporterDockedPanelMarkup();
-    bindSupporterCardActions(els.desktopDockedPanelContent);
-    initializeSupporterShowcaseCycles(els.desktopDockedPanelContent);
+    title.textContent = t("screenVision.supporters.title");
+    description.textContent = "";
+    content.innerHTML = renderSupporterDockedPanelMarkup();
+    delete content.dataset.renderKey;
+    bindSupporterCardActions(content);
+    bindSupporterAvatarFallback(content);
+    initializeSupporterShowcaseCycles(content);
     return;
   }
 
   if (isSettingsPanel) {
-    els.desktopDockedPanelTitle.textContent = t("screenVision.settings.title");
-    els.desktopDockedPanelDescription.textContent = "";
-    els.desktopDockedPanelContent.innerHTML = renderDesktopSettingsPanelMarkup();
+    title.textContent = t("screenVision.settings.title");
+    description.textContent = "";
+    const settingsRenderKey = `settings:${state.desktopAccountConnected}:${state.desktopAccountEntitlements.join(",")}`;
+    if (content.dataset.renderKey !== settingsRenderKey) {
+      content.innerHTML = renderDesktopSettingsPanelMarkup();
+      content.dataset.renderKey = settingsRenderKey;
+      // Settings are rendered after the initial document tooltip binding.
+      // Bind the new My Account control to the exact same floating hover used
+      // by the existing controls instead of relying on a browser title.
+      bindSkillDynamicTooltips(content);
+    }
     return;
   }
 
-  els.desktopDockedPanelTitle.textContent = "Painel";
-  els.desktopDockedPanelDescription.textContent = "Painel lateral acoplado ao app principal.";
-  els.desktopDockedPanelContent.innerHTML = `
-    <section class="desktop-docked-panel-empty-card">
-      <div class="desktop-docked-panel-empty-icon" aria-hidden="true"></div>
-      <strong id="desktop-docked-panel-empty-title">Painel em preparacao</strong>
-      <p id="desktop-docked-panel-empty-copy">Vamos preencher este painel lateral no proximo passo.</p>
-    </section>
-  `;
+  if (isAccountPanel) {
+    title.textContent = t("account.title");
+    description.textContent = "";
+    content.innerHTML = renderDesktopAccountPanelMarkup();
+    bindSkillDynamicTooltips(content);
+    bindDesktopAccountAvatarFallback(content);
+    delete content.dataset.renderKey;
+    return;
+  }
+
+  if (isReportPanel) {
+    title.textContent = t("account.report.title");
+    description.textContent = "";
+    content.innerHTML = renderDesktopReportPanelMarkup();
+    delete content.dataset.renderKey;
+    return;
+  }
+
+  // Alertas, Perfis, SQM Finder and the other Tibia Mirror panels are
+  // rendered by screen-vision.js. Rendering this legacy generic placeholder
+  // here raced the dedicated renderer and exposed "Painel em preparacao" for
+  // a frame while the Alertas panel opened.
+}
+
+function bindDesktopAccountAvatarFallback(root) {
+  const avatar = root?.querySelector("[data-account-avatar]");
+  if (!avatar || avatar.getAttribute("src") === "assets/ui/tools/tibia-eye/profiles/no-vocation.png") return;
+  const fitAvatarToVisiblePixels = () => {
+    try {
+      const sourceWidth = avatar.naturalWidth;
+      const sourceHeight = avatar.naturalHeight;
+      if (!sourceWidth || !sourceHeight) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = sourceWidth;
+      canvas.height = sourceHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return;
+      context.drawImage(avatar, 0, 0);
+      const pixels = context.getImageData(0, 0, sourceWidth, sourceHeight).data;
+      let left = sourceWidth;
+      let top = sourceHeight;
+      let right = -1;
+      let bottom = -1;
+      for (let y = 0; y < sourceHeight; y += 1) {
+        for (let x = 0; x < sourceWidth; x += 1) {
+          if (pixels[(y * sourceWidth + x) * 4 + 3] <= 12) continue;
+          left = Math.min(left, x); top = Math.min(top, y); right = Math.max(right, x); bottom = Math.max(bottom, y);
+        }
+      }
+      if (right < left || bottom < top) return;
+      const visibleWidth = right - left + 1;
+      const visibleHeight = bottom - top + 1;
+      const scale = Math.min(4, Math.max(1, 0.82 / Math.max(visibleWidth / sourceWidth, visibleHeight / sourceHeight)));
+      const offsetX = -(((left + right + 1) / 2 / sourceWidth) - 0.5) * 100 * scale;
+      const offsetY = -(((top + bottom + 1) / 2 / sourceHeight) - 0.5) * 100 * scale;
+      avatar.style.transform = `translate(${offsetX}%, ${offsetY}%) scale(${scale})`;
+    } catch {
+      // A remote image without readable pixels still receives a useful zoom.
+      avatar.style.transform = "scale(2)";
+    }
+  };
+  avatar.addEventListener("load", fitAvatarToVisiblePixels, { once: true });
+  if (avatar.complete) fitAvatarToVisiblePixels();
+  avatar.addEventListener("error", () => {
+    avatar.src = "assets/ui/tools/tibia-eye/profiles/no-vocation.png";
+  }, { once: true });
 }
 
 function renderSupporterDockedPanelMarkup() {
@@ -4184,68 +5511,540 @@ function renderSupporterDockedPanelMarkup() {
 }
 
 function renderDesktopSettingsPanelMarkup() {
-  const settingsItems = [
-    {
-      label: t("screenVision.settings.discordLabel"),
-      tooltip: t("screenVision.settings.discordTooltip"),
-      image: DESKTOP_SETTINGS_ASSETS.discord,
-      action: "open-discord"
-    },
-    {
-      label: t("screenVision.settings.youtubeLabel"),
-      tooltip: t("screenVision.settings.youtubeTooltip"),
-      image: DESKTOP_SETTINGS_ASSETS.youtube,
-      action: "open-youtube"
-    },
-    {
-      label: t("screenVision.settings.authenticatorLabel"),
-      tooltip: t("screenVision.settings.authenticatorTooltip"),
-      image: DESKTOP_SETTINGS_ASSETS.authenticator,
-      action: "open-authenticator"
-    },
-    {
-      label: t("screenVision.settings.tutorialLabel"),
-      tooltip: t("screenVision.settings.tutorialTooltip"),
-      image: DESKTOP_SETTINGS_ASSETS.tutorial,
-      action: ""
-    },
-    {
-      label: t("screenVision.settings.websiteLabel"),
-      tooltip: t("screenVision.settings.websiteTooltip"),
-      image: DESKTOP_SETTINGS_ASSETS.website,
-      action: ""
-    }
-  ];
-
+  const screenshot = state.desktopScreenshotSettings || {};
+  const hotkey = screenshot.hotkey || {};
+  const hotkeyLabel = state.desktopScreenshotCapturingHotkey
+    ? "..."
+    : String(hotkey.label || "Não definido");
+  const directory = String(screenshot.outputDirectory || "Carregando diretório...");
+  const tibiaScreenshotDirectory = String(state.desktopScreenshotSourceDirectory || screenshot.sourceDirectory || "Pasta de screenshots do Tibia não identificada");
+  const upscaleFactor = Math.min(20, Math.max(1, Math.round(Number(screenshot.upscaleFactor) || 1)));
+  const upscaleProgress = ((upscaleFactor - 1) / 19) * 100;
+  const deleteOriginal = Boolean(screenshot.deleteOriginal);
+  const screenshotDiscoverySearching = state.desktopScreenshotDiscoveryState === "searching";
+  const screenshotButtonTooltip = screenshotDiscoverySearching
+    ? "Procurando pasta de screenshots"
+    : !state.desktopScreenshotSourceAvailable
+      ? "Pasta de screenshot do Tibia não identificada. Clique aqui para selecionar a pasta de screenshots do Tibia."
+      : "Ativar ScreenshotToolkit";
+  const screenshotButtonTone = screenshotDiscoverySearching
+    ? ""
+    : !state.desktopScreenshotSourceAvailable ? "danger" : "";
+  const screenshotButtonBusy = screenshotDiscoverySearching || state.desktopScreenshotActionBusy;
+  const screenshotNeedsSelection = Boolean((state.desktopScreenshotNeedsSelection || state.desktopScreenshotNeedsTibia) && !screenshot.enabled);
+  const screenshotSelectIcon = screenshot.enabled
+    ? "assets/ui/tutorial/polaroid.gif"
+    : "assets/ui/tutorial/polaroid-inactive.png";
+  const newScreenshotCount = Math.max(0, Number(state.desktopScreenshotNewCount) || 0);
+  const screenshotFolderIcon = newScreenshotCount > 0
+    ? "assets/ui/tutorial/folder.gif"
+    : "assets/ui/tutorial/folder-inactive.png";
+  const screenshotFolderCount = newScreenshotCount > 0
+    ? `<em class="desktop-screenshot-folder-count" aria-hidden="true">${newScreenshotCount}</em>`
+    : "";
+  const imageButton = (image, action, tooltip, className = "") => `
+    <button type="button" class="desktop-settings-image-button ${className}" data-settings-action="${escapeHtml(action)}" data-tooltip="${escapeHtml(tooltip)}" aria-label="${escapeHtml(tooltip)}"><img src="${escapeHtml(image)}" alt=""></button>`;
   return `
     <div class="desktop-settings-panel">
-      ${settingsItems.map((entry) => `
-        <section class="desktop-settings-option">
-          <strong class="desktop-settings-option-label">${escapeHtml(entry.label)}</strong>
-          <button
-            type="button"
-            class="desktop-settings-image-button"
-            ${entry.action ? `data-settings-action="${escapeHtml(entry.action)}"` : ""}
-            data-tooltip="${escapeHtml(entry.tooltip)}"
-            aria-label="${escapeHtml(entry.tooltip)}"
-          >
-            <img src="${escapeHtml(entry.image)}" alt="${escapeHtml(entry.label)}">
-          </button>
-        </section>
-      `).join("")}
+      <section class="desktop-settings-option desktop-settings-group">
+        <strong class="desktop-settings-option-label">Conta</strong>
+        <div class="desktop-settings-paired-buttons">
+          ${imageButton(state.desktopAccountConnected ? "assets/ui/account/my-account.png" : "assets/ui/account/login.png", state.desktopAccountConnected ? "open-account" : "toggle-account", state.desktopAccountConnected ? t("account.open") : t("toolbar.login"), "desktop-settings-account-button")}
+          ${imageButton(DESKTOP_SETTINGS_ASSETS.authenticator, "open-authenticator", t("screenVision.settings.authenticatorTooltip"))}
+        </div>
+      </section>
+       <section class="desktop-settings-option desktop-screenshot-option${screenshot.enabled ? " screenshot-enabled" : ""}${screenshotNeedsSelection ? " screenshot-needs-selection" : ""}" data-tutorial-focus="screenshots-panel">
+        <div class="desktop-screenshot-summary">
+          <strong class="desktop-settings-option-label">Screenshots</strong>
+          <button type="button" class="docked-alert-icon-button desktop-screenshot-edit" data-settings-action="toggle-screenshot-settings" data-tooltip="Configurar screenshots" aria-label="Configurar screenshots"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17,3 C17.55,2.45 18.45,2.45 19,3 L21,5 C21.55,5.55 21.55,6.45 21,7 L7,21 L3,21 L3,17 Z M15,5 L19,9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+           <div class="desktop-screenshot-summary-actions"><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-tutorial" data-settings-action="start-screenshot-tutorial" data-tooltip="Tutorial de screenshots" aria-label="Tutorial de screenshots"><img src="assets/ui/tutorial/balao-interrogacao.gif" alt=""></button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-folder-icon${newScreenshotCount > 0 ? " has-new-screenshots" : ""}" data-settings-action="open-screenshot-directory" data-tooltip="Abrir pasta de screenshots" aria-label="Abrir pasta de screenshots${newScreenshotCount > 0 ? ` (${newScreenshotCount} novas)` : ""}"><img src="${screenshotFolderIcon}" alt="">${screenshotFolderCount}</button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-select-icon${screenshotButtonBusy ? " screenshot-action-busy" : ""}" data-settings-action="open-screenshot-assistant" data-tutorial-focus="screenshot-select-area" data-tooltip="${escapeHtml(screenshotButtonTooltip)}" data-tooltip-tone="${screenshotButtonTone}" aria-label="${escapeHtml(screenshotButtonTooltip)}"${screenshotButtonBusy ? " disabled aria-busy=\"true\"" : ""}><img src="${screenshotSelectIcon}" alt=""></button></div>
+        </div>
+        <div class="desktop-screenshot-config docked-alert-extension" ${state.desktopScreenshotExpanded ? "" : "hidden"}>
+          <div class="docked-alert-extension-divider" aria-hidden="true"></div>
+          <div class="desktop-screenshot-legacy-controls" hidden>
+          <div class="desktop-screenshot-hotkey-row" hidden>
+            <div class="docked-alert-hotkey-builder"><span class="docked-alert-hotkey-builder-label${state.desktopScreenshotCapturingHotkey ? " capturing" : ""}">${escapeHtml(state.desktopScreenshotCapturingHotkey ? "Pressione a combinação desejada" : "Clique para escolher o atalho")}</span><button type="button" class="docked-alert-hotkey-capture${state.desktopScreenshotCapturingHotkey ? " capturing" : ""}" data-settings-action="choose-screenshot-hotkey">${escapeHtml(state.desktopScreenshotCapturingHotkey ? "Pressione uma tecla..." : "Escolher atalho")}</button></div>
+            <button type="button" class="desktop-report-select-action desktop-screenshot-manual-button" data-settings-action="capture-screenshot" data-tooltip="Tirar screenshot" aria-label="Tirar screenshot"><img src="data:image/gif;base64,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1rGKhSxjH1tWwFZAsH3dq183q9nOLjazn+VsaD0rWdCO1bKYFW1pVUvZyLZ2sq6NLWxna9rX1vasXCoFaW3LWtnelra9Be5ufRvc3/YRmyhI7XCFO9rmrna5xv8trnShu1mVKte5vKWudrFL3O0+l7t4tWdADUre8pr3vOH043jRy972upef6tXme+dL3/qmM75xtK9+98vfgyLXp/Ltr4AHrN9jrZfACE6wQQ0cYAU7+MH+/G9gGwzhClv4nQxe5jGrycwOb9iaz/ywh505TRCXeMQZPuKIf7niEJOYwyKO8YtNDOMZtziWKWaxjHVs4x27mMdA/rGQT+xjIssyx0OucZCNvGQlJ5nGUL6xk42c4igXecpYtnKPt9xkLXdZjFWWspefLOYyX3nMTCbzIMN8ZjNzWc1vTrOcs+zmL69ZwpeVr53jTOc2+5nPaO4zoMGMZwroctB/3rP/ouG86DkHmpGFnsChGy1oSj+6zozOtKNPGGkJTFrTlQb1pRMtakxTudMI+PSmSb1qRLva0qYONY5R/a3i2PobSL61rgFF65vt+tf0yDWwhy2QY03w2MhOtrKXzewbwaDZ0I62tKc97WdT+9rYzra2m2TtbXv72+CGdrfDTe5ym3tN4z63utfNbhmlu93wjve23y3vetu72ePWpL73ze9+P4dG+fa3wAdOcA4B/AU5KrjCF85wCc4o4A2PuMQZfnAXNOdUGM+4xjdOlObA4OIcD7nIR07yQnj8BSAvucpXznKWnNzizGm5zGdO80i8vAU0qrnOd67ziuN8RjwPutBL/+5zFuR86EhP+qmKvoKjK/3pUIcI01Vw76pbXdn0vrrWtw6mrHP962C3kdfDTvavj73saLf62dPOdnmvve1wX/fb4053cs+97nifN8Lzznd1373vgBf33gNPeL27YKeIT7ziF19SGDD+8ZCPfOQdL/nKW/7yLqU85jfP+c5XVPOeD73oOQ/60Zv+9IwvPepXz3qZqr71sI89SV8v+9rb3qK0v73ud8/Q3PP+97X3PfCHz3rhE//4ozc+8pdP+hcw//moVz70p/94GlD/+pDHAfa3r3jtc//7OfU++McPUx6Q//wiBQL6169R9bP//Z//AfznL1Ei0B/+SLj/+/Ov/13187//58cEAIh9UDCA11eABjh9CJiAzycKDviAEBiBEjiBFFiBFniB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" alt=""></button>
+          </div>
+          <div class="desktop-screenshot-directory-row"><strong>Escolher diretório</strong><button type="button" class="desktop-screenshot-directory-value" data-settings-action="choose-screenshot-directory" title="${escapeHtml(directory)}">${escapeHtml(directory)}</button></div>
+          <button type="button" class="desktop-report-select-action desktop-screenshot-folder-button" data-settings-action="open-screenshot-directory" data-tooltip="Abrir pasta de screenshots" aria-label="Abrir pasta de screenshots"><img src="data:image/gif;base64,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" alt=""></button>
+          </div>
+          <div class="desktop-screenshot-directory-row" data-tutorial-focus="screenshot-directory"><strong>Escolher diretório</strong><button type="button" class="desktop-screenshot-directory-value" data-settings-action="choose-screenshot-directory" data-tooltip="Escolha a pasta onde suas screenshots serão salvas. Isso é opcional.">${escapeHtml(directory)}</button></div>
+          <div class="desktop-screenshot-directory-row" data-tutorial-focus="tibia-screenshot-directory"><strong>Pasta do Tibia</strong><button type="button" class="desktop-screenshot-directory-value" data-settings-action="choose-tibia-screenshot-directory" data-tooltip="Escolha a pasta onde o Tibia salva suas screenshots oficiais.">${escapeHtml(tibiaScreenshotDirectory)}</button></div>
+          <div class="desktop-screenshot-upscale-row"><strong>Escala</strong><label class="desktop-opacity-control desktop-screenshot-upscale-control" for="desktop-screenshot-upscale-input" data-tooltip="Selecione a resolução da imagem gerada pela screenshot."><input id="desktop-screenshot-upscale-input" type="range" min="1" max="20" step="1" value="${upscaleFactor}" style="--slider-progress: ${upscaleProgress}%"><strong>${upscaleFactor}x</strong></label></div>
+          <div class="desktop-screenshot-extra-actions" aria-label="Ações de screenshots"><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-tutorial" data-settings-action="start-screenshot-tutorial" data-tooltip="Tutorial de screenshots" aria-label="Tutorial de screenshots"><img src="assets/ui/tutorial/balao-interrogacao.gif" alt=""></button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-folder-icon${newScreenshotCount > 0 ? " has-new-screenshots" : ""}" data-settings-action="open-screenshot-directory" data-tooltip="Abrir pasta de screenshots" aria-label="Abrir pasta de screenshots${newScreenshotCount > 0 ? ` (${newScreenshotCount} novas)` : ""}"><img src="${screenshotFolderIcon}" alt="">${screenshotFolderCount}</button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-delete-icon${deleteOriginal ? " active" : ""}" data-settings-action="toggle-delete-original" data-tooltip="Apagar imagem original" aria-label="Apagar imagem original" aria-pressed="${deleteOriginal ? "true" : "false"}"><img src="assets/ui/tutorial/Dustbin.gif" alt=""></button></div>
+          ${state.desktopScreenshotStatus ? `<p class="desktop-screenshot-status">${escapeHtml(state.desktopScreenshotStatus)}</p>` : ""}
+        </div>
+      </section>
+      <section class="desktop-settings-option desktop-settings-social-option"><strong class="desktop-settings-option-label">Siga-nos nas redes</strong><div class="desktop-settings-social-buttons">${imageButton(DESKTOP_SETTINGS_ASSETS.discord, "open-discord", t("screenVision.settings.discordTooltip"))}${imageButton(DESKTOP_SETTINGS_ASSETS.youtube, "open-youtube", t("screenVision.settings.youtubeTooltip"))}${imageButton(DESKTOP_SETTINGS_ASSETS.instagram, "open-instagram", "Instagram")}${imageButton(DESKTOP_SETTINGS_ASSETS.twitch, "open-twitch", "Twitch")}</div></section>
+      <section class="desktop-settings-option desktop-settings-group"><strong class="desktop-settings-option-label">Mais</strong><div class="desktop-settings-paired-buttons">${imageButton(DESKTOP_SETTINGS_ASSETS.tutorial, "reset-tutorial", t("screenVision.settings.tutorialTooltip"))}${imageButton(DESKTOP_SETTINGS_ASSETS.website, "open-website", t("screenVision.settings.websiteTooltip"))}</div></section>
     </div>
   `;
+}
+
+async function refreshDesktopScreenshotSettings() {
+  if (!window.desktopApi?.screenshots?.getSettings) return;
+  try {
+    state.desktopScreenshotSettings = await window.desktopApi.screenshots.getSettings();
+  } catch {
+    state.desktopScreenshotStatus = "Não foi possível carregar as configurações de screenshot.";
+  }
+}
+
+async function refreshDesktopScreenshotAvailability() {
+  if (state.desktopScreenshotAvailabilityPromise) return state.desktopScreenshotAvailabilityPromise;
+  state.desktopScreenshotDiscoveryState = "searching";
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:screenshot-discovery-state", { detail: { state: "searching" } }));
+  const requestId = Number(state.desktopScreenshotAvailabilityRequestId || 0) + 1;
+  state.desktopScreenshotAvailabilityRequestId = requestId;
+  const request = (async () => {
+  try {
+    const availability = await window.desktopApi?.screenshots?.getAvailability?.();
+    if (requestId !== state.desktopScreenshotAvailabilityRequestId) return;
+    state.desktopScreenshotTibiaOpen = Boolean(availability?.tibiaOpen);
+    state.desktopScreenshotSourceAvailable = Boolean(availability?.screenshotDirectory);
+    state.desktopScreenshotSourceDirectory = String(availability?.screenshotDirectory || "");
+    state.desktopScreenshotDiscoveryState = availability?.discoveryState === "found" || state.desktopScreenshotSourceAvailable
+      ? "found"
+      : "not-found";
+  } catch {
+    if (requestId !== state.desktopScreenshotAvailabilityRequestId) return;
+    state.desktopScreenshotTibiaOpen = false;
+    state.desktopScreenshotSourceAvailable = false;
+    state.desktopScreenshotSourceDirectory = "";
+    state.desktopScreenshotDiscoveryState = "not-found";
+  }
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:screenshot-discovery-state", { detail: { state: state.desktopScreenshotDiscoveryState } }));
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:screenshot-state-changed"));
+  })();
+  const trackedRequest = request.finally(() => {
+    if (state.desktopScreenshotAvailabilityPromise === trackedRequest) state.desktopScreenshotAvailabilityPromise = null;
+  });
+  state.desktopScreenshotAvailabilityPromise = trackedRequest;
+  return trackedRequest;
+}
+
+async function chooseDesktopTibiaScreenshotDirectory() {
+  const result = await window.desktopApi?.screenshots?.chooseSourceDirectory?.();
+  if (result?.settings) state.desktopScreenshotSettings = result.settings;
+  await refreshDesktopScreenshotAvailability();
+  renderDesktopSettingsPanelIntoDockedShell();
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:screenshot-state-changed"));
+}
+
+async function chooseDesktopScreenshotDirectory() {
+  const result = await window.desktopApi?.screenshots?.chooseDirectory?.();
+  if (result?.settings) state.desktopScreenshotSettings = result.settings;
+  renderDesktopSettingsPanelIntoDockedShell();
+}
+
+async function toggleDesktopScreenshotDeleteOriginal() {
+  const current = Boolean(state.desktopScreenshotSettings?.deleteOriginal);
+  const result = await window.desktopApi?.screenshots?.setDeleteOriginal?.(!current);
+  if (result?.settings) state.desktopScreenshotSettings = result.settings;
+  renderDesktopSettingsPanelIntoDockedShell();
+}
+
+async function openDesktopScreenshotDirectory() {
+  const result = await window.desktopApi?.screenshots?.openDirectory?.();
+  state.desktopScreenshotStatus = result?.error || "";
+  renderDesktopSettingsPanelIntoDockedShell();
+}
+
+async function openDesktopScreenshotAssistant() {
+  if (state.desktopScreenshotActionBusy || state.desktopScreenshotDiscoveryState === "searching") return;
+  setDesktopScreenshotActionBusy(true);
+  try {
+    await refreshDesktopScreenshotSettings();
+    await refreshDesktopScreenshotAvailability();
+    if (!state.desktopScreenshotSourceAvailable) {
+      await chooseDesktopTibiaScreenshotDirectory();
+      return;
+    }
+    const result = await window.desktopApi?.screenshots?.showAssistant?.({ launcher: true });
+    if (result?.opened === false) {
+      state.desktopScreenshotStatus = result?.error || "Não foi possível abrir o ScreenshotToolkit.";
+    }
+  } catch {
+    state.desktopScreenshotStatus = "Não foi possível abrir o ScreenshotToolkit.";
+  } finally {
+    setDesktopScreenshotActionBusy(false);
+    renderDesktopSettingsPanelIntoDockedShell();
+  }
+}
+
+async function captureDesktopScreenshot() {
+  if (state.desktopScreenshotActionBusy || state.desktopScreenshotDiscoveryState === "searching") return;
+  setDesktopScreenshotActionBusy(true);
+  try {
+    await refreshDesktopScreenshotSettings();
+    await refreshDesktopScreenshotAvailability();
+  if (!state.desktopScreenshotSourceAvailable) {
+    await chooseDesktopTibiaScreenshotDirectory();
+    return;
+  }
+  const isEnabled = Boolean(state.desktopScreenshotSettings?.enabled);
+  if (!state.desktopScreenshotTibiaOpen && !isEnabled) {
+    state.desktopScreenshotStatus = "";
+    renderDesktopSettingsPanelIntoDockedShell();
+    window.dispatchEvent(new CustomEvent("tibia-toolkit:screenshot-state-changed"));
+    return;
+  }
+  state.desktopScreenshotStatus = isEnabled ? "Desativando o recorte automático..." : "Selecione a área padrão da screenshot.";
+  renderDesktopSettingsPanelIntoDockedShell();
+  try {
+    const result = await window.desktopApi?.screenshots?.capture?.();
+    if (result?.sourceDirectoryRequired) {
+      await chooseDesktopTibiaScreenshotDirectory();
+      return;
+    }
+    state.desktopScreenshotSettings = result?.settings || state.desktopScreenshotSettings;
+    state.desktopScreenshotStatus = result?.cancelled ? "Seleção cancelada." : (result?.error || (result?.disabled ? "Recorte automático desativado." : (result?.selection ? "Área padrão definida. Suas próximas screenshots do Tibia serão recortadas." : "")));
+  } catch {
+    state.desktopScreenshotStatus = "Não foi possível definir a área da screenshot.";
+  }
+  renderDesktopSettingsPanelIntoDockedShell();
+    window.dispatchEvent(new CustomEvent("tibia-toolkit:screenshot-state-changed"));
+  } finally {
+    setDesktopScreenshotActionBusy(false);
+    renderDesktopSettingsPanelIntoDockedShell();
+  }
+}
+
+window.desktopApi?.screenshots?.onStatus?.((message) => {
+  // The source-folder watcher may retry at a fixed interval. Repainting the
+  // complete Settings dock for the same status makes the whole panel flicker.
+  // Keep the current DOM intact unless the message actually changed.
+  if (state.desktopScreenshotStatus === message) return;
+  state.desktopScreenshotStatus = message;
+  renderDesktopSettingsPanelIntoDockedShell();
+});
+
+window.desktopApi?.screenshots?.onState?.((payload) => {
+  if (typeof payload?.enabled === "boolean") {
+    state.desktopScreenshotSettings = {
+      ...(state.desktopScreenshotSettings || {}),
+      enabled: payload.enabled
+    };
+  }
+  state.desktopScreenshotNeedsSelection = Boolean(payload?.needsSelection);
+  state.desktopScreenshotNeedsTibia = Boolean(payload?.needsTibia);
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:screenshot-state-changed"));
+  if (state.requestedDockedPanelKey === "settings-panel") renderDesktopSettingsPanelIntoDockedShell();
+});
+
+window.desktopApi?.screenshots?.onDiscoveryState?.((payload) => {
+  const discoveryState = String(payload?.state || "").trim();
+  if (!["searching", "found", "not-found"].includes(discoveryState)) return;
+  state.desktopScreenshotDiscoveryState = discoveryState;
+  syncDesktopScreenshotActionBusyUi();
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:screenshot-discovery-state", { detail: { state: discoveryState } }));
+  if (state.requestedDockedPanelKey === "settings-panel") renderDesktopSettingsPanelIntoDockedShell();
+});
+
+window.desktopApi?.screenshots?.onNewScreenshotCount?.((count) => {
+  const normalized = Math.max(0, Number(count) || 0);
+  if (state.desktopScreenshotNewCount === normalized) return;
+  state.desktopScreenshotNewCount = normalized;
+  renderDesktopSettingsPanelIntoDockedShell();
+});
+
+window.desktopApi?.globalWorldPicker?.onSelected?.((slug) => {
+  const world = state.worlds.find((candidate) => candidate.slug === slug);
+  els.globalWorldDropdownButton?.classList.remove("open");
+  if (world) {
+    void selectWorldSuggestion("global", world);
+  }
+});
+
+window.desktopApi?.globalWorldPicker?.onClosed?.(() => {
+  els.globalWorldDropdownButton?.classList.remove("open");
+});
+
+function renderDesktopAccountPanelMarkup() {
+  if (!state.desktopAccountConnected) {
+    return `<section class="desktop-account-panel"><p>${escapeHtml(t("account.signInCopy"))}</p><button type="button" class="desktop-account-image-action" data-account-action="connect" aria-label="${escapeHtml(t("toolbar.login"))}" data-tooltip="${escapeHtml(t("toolbar.login"))}"><img src="assets/ui/account/login.png" alt="${escapeHtml(t("toolbar.login"))}"></button></section>`;
+  }
+  const profile = state.desktopAccountProfile || {};
+  const summary = state.desktopAccountSummary || {};
+  const displayName = String(profile.displayName || profile.name || "Tibia Toolkit").trim();
+  const email = String(profile.email || "").trim();
+  const avatarUrl = String(profile.avatarUrl || "").trim();
+  const avatarImageUrl = avatarUrl || "assets/ui/tools/tibia-eye/profiles/no-vocation.png";
+  const adsBenefit = (Array.isArray(state.desktopAccountBenefits) ? state.desktopAccountBenefits : []).find((benefit) => benefit?.key === "ads.remove") || null;
+  const adsBenefitMarkup = adsBenefit
+    ? `<dd>${escapeHtml(formatDesktopAdsBenefit(adsBenefit))}</dd>`
+    : `<dd><button type="button" class="desktop-account-action desktop-remove-ads-action" data-account-action="remove-ads" data-tooltip="${escapeHtml(t("account.removeAds"))}"><img src="assets/ui/tools/tibia-eye/buy-me-a-coffee/coffee-toolbar.gif" alt=""><strong>${escapeHtml(t("account.removeAds"))}</strong></button></dd>`;
+  return `<section class="desktop-account-panel">
+    <header class="desktop-account-identity">
+      <div class="desktop-account-avatar-frame"><img src="${escapeHtml(avatarImageUrl)}" alt="${escapeHtml(t("account.characterAvatar"))}" data-account-avatar></div>
+      <div><strong>${escapeHtml(displayName)}</strong>${email ? `<span>${escapeHtml(email)}</span>` : ""}</div>
+      <button type="button" class="desktop-account-edit-character" data-account-action="edit-character" data-tooltip="${escapeHtml(t("account.editCharacter"))}" aria-label="${escapeHtml(t("account.editCharacter"))}"><img src="assets/tibia-client/organized/objects/items/painting-equipment/artist-s-palette--item-3133.png" alt=""></button>
+    </header>
+    <dl><div><dt>${escapeHtml(t("account.openReports"))}</dt><dd>${Number(summary.openReports) || 0}</dd></div><div><dt>${escapeHtml(t("account.unreadMessages"))}</dt><dd>${Number(summary.unreadMessages) || 0}</dd></div><div class="desktop-account-benefit"><dt>${escapeHtml(t("account.adsRemoved"))}</dt>${adsBenefitMarkup}</div></dl>
+    <div class="desktop-account-actions">
+      <button type="button" class="desktop-account-action" data-account-action="report" data-tooltip="${escapeHtml(t("account.report.open"))}"><strong>${escapeHtml(t("account.report.open"))}</strong></button>
+      <button type="button" class="desktop-account-action" data-account-action="reports" data-tooltip="${escapeHtml(t("account.reports"))}"><strong>${escapeHtml(t("account.reports"))}</strong></button>
+      <section class="desktop-account-proof-actions" aria-labelledby="desktop-account-proof-title">
+        <h2 id="desktop-account-proof-title">${escapeHtml(t("account.proof"))}</h2>
+        <div>
+          <button type="button" class="desktop-account-action" data-account-action="proof" data-tooltip="${escapeHtml(t("account.proofSite"))}"><img src="assets/ui/economy/Tibia_Coin_Icon.gif" alt=""><strong>${escapeHtml(t("account.proofSite"))}</strong></button>
+          <button type="button" class="desktop-account-action" data-account-action="proof-discord" data-tooltip="${escapeHtml(t("account.proofDiscord"))}"><img src="assets/ui/tools/tibia-eye/buy-me-a-coffee/discord.svg" alt=""><strong>${escapeHtml(t("account.proofDiscord"))}</strong></button>
+        </div>
+      </section>
+      <button type="button" class="desktop-account-action" data-account-action="settings" data-tooltip="${escapeHtml(t("account.moreSettings"))}"><strong>${escapeHtml(t("account.moreSettings"))}</strong></button>
+      <button type="button" class="desktop-account-image-action desktop-account-logout-image-action" data-account-action="logout" data-tooltip="${escapeHtml(t("toolbar.logout"))}" aria-label="${escapeHtml(t("toolbar.logout"))}"><img src="assets/ui/account/logout.png" alt="${escapeHtml(t("toolbar.logout"))}"></button>
+    </div>
+  </section>`;
+}
+
+function formatDesktopAdsBenefit(benefit) {
+  if (!benefit) return t("account.adsInactive");
+  const endsAt = benefit.endsAt ? new Date(benefit.endsAt) : null;
+  if (!endsAt || Number.isNaN(endsAt.getTime())) return t("account.adsActiveIndefinite");
+  const remainingMs = endsAt.getTime() - Date.now();
+  if (remainingMs <= 0) return t("account.adsInactive");
+  const remainingDays = Math.max(1, Math.ceil(remainingMs / 86400000));
+  const date = new Intl.DateTimeFormat(document.documentElement.lang || "pt-BR", { dateStyle: "medium" }).format(endsAt);
+  return t("account.adsActiveUntil", { date, days: remainingDays });
+}
+
+function renderDesktopReportPanelMarkup() {
+  if (!state.desktopAccountConnected) {
+    return `<section class="desktop-account-panel"><p>${escapeHtml(t("account.report.signInCopy"))}</p><button type="button" class="desktop-account-image-action" data-account-action="connect-report" aria-label="${escapeHtml(t("toolbar.login"))}" data-tooltip="${escapeHtml(t("toolbar.login"))}"><img src="assets/ui/account/login.png" alt="${escapeHtml(t("toolbar.login"))}"></button></section>`;
+  }
+  const kind = normalizeDesktopReportKind(state.desktopReportKind);
+  const kindCopy = DESKTOP_REPORT_KIND_COPY[kind];
+  return `<form class="desktop-report-panel" data-account-report-form>
+    <fieldset><legend>${escapeHtml(t("account.report.whatFound"))}</legend><div class="desktop-report-kind-options">${Object.entries(DESKTOP_REPORT_KIND_COPY).map(([entryKind, entry]) => `<button type="button" data-account-report-kind="${escapeHtml(entryKind)}" class="${entryKind === kind ? "is-selected" : ""}" aria-pressed="${entryKind === kind}" aria-label="${escapeHtml(t(`account.report.${entryKind}`))}" data-tooltip="${escapeHtml(t(`account.report.${entryKind}`))}"><img src="${escapeHtml(entry.icon)}" alt=""></button>`).join("")}</div></fieldset>
+    <input type="hidden" name="kind" value="${escapeHtml(kind)}">
+    <div class="desktop-report-selected-elements" data-account-report-selected ${state.desktopReportSelectedElements.length ? "" : "hidden"}>${state.desktopReportSelectedElements.map((element) => `<div><strong>${escapeHtml(element.id ? `#${element.id}` : element.label)}</strong><span>${escapeHtml(element.selector)}</span><button type="button" data-account-report-remove="${escapeHtml(element.selector)}" aria-label="${escapeHtml(t("account.report.removeElement"))}" data-tooltip="${escapeHtml(t("account.report.removeElement"))}"><img src="assets/ui/Cross.png" alt=""></button></div>`).join("")}</div>
+    <label><span data-account-report-title-label>${escapeHtml(t(kindCopy.titleKey))}</span><input name="title" placeholder="${escapeHtml(t(kindCopy.titleKey))}" minlength="4" maxlength="160" required></label>
+    <label><span>${escapeHtml(t("account.report.details"))}</span><textarea name="body" placeholder="${escapeHtml(t(kindCopy.detailKey))}" minlength="10" maxlength="10000" required></textarea></label>
+    <p class="desktop-account-status" data-account-report-status aria-live="polite"></p>
+    <footer class="desktop-report-actions"><button type="submit" class="entity-link-chip desktop-report-submit" data-tooltip="${escapeHtml(t("account.report.submit"))}">${escapeHtml(t("account.report.submit"))}</button><button type="button" class="desktop-report-select-action" data-account-report-select aria-label="${escapeHtml(t("account.report.selectElement"))}" data-tooltip="${escapeHtml(t("account.report.selectElement"))}"><img src="assets/ui/feedback/select-element.png" alt=""></button></footer>
+  </form>`;
+}
+
+async function connectDesktopAccount(options = {}) {
+  if (!window.desktopApi?.account?.connect) {
+    return;
+  }
+
+  try {
+    const account = await window.desktopApi.account.connect();
+    state.desktopAccountConnected = Boolean(account?.connected);
+    state.desktopAccountEntitlements = Array.isArray(account?.entitlements) ? account.entitlements : [];
+    state.desktopAccountBenefits = Array.isArray(account?.benefits) ? account.benefits : [];
+    state.desktopAccountProfile = account?.user ? { ...account.user, ...(account.profile || {}) } : null;
+    state.desktopAccountSummary = account?.summary || { openReports: 0, unreadMessages: 0 };
+    publishDesktopAccountStateChanged();
+    const catalog = await window.desktopApi.account.getCampaigns?.();
+    const firstCampaign = Array.isArray(catalog?.ads) ? catalog.ads[0] : null;
+    const firstSupport = Array.isArray(catalog?.support) ? catalog.support[0] : null;
+    state.desktopCampaignDestination = typeof firstCampaign?.destinationUrl === "string" ? firstCampaign.destinationUrl : "";
+    state.desktopSupportDestination = typeof firstSupport?.destination === "string" ? firstSupport.destination : "";
+    state.desktopSocialLinks = {
+      discord: typeof catalog?.socialLinks?.discord === "string" ? catalog.socialLinks.discord : DESKTOP_SETTINGS_DISCORD_URL,
+      youtube: typeof catalog?.socialLinks?.youtube === "string" ? catalog.socialLinks.youtube : DESKTOP_SETTINGS_YOUTUBE_URL,
+      instagram: DESKTOP_SETTINGS_INSTAGRAM_URL,
+      twitch: DESKTOP_SETTINGS_TWITCH_URL
+    };
+    syncDesktopCampaignVisibility();
+    if (options.openPanel) requestDesktopDockedPanel(options.openPanel);
+    renderActiveDockedToolPanel();
+    const adsRemoved = Array.isArray(account?.entitlements) && account.entitlements.includes("ads.remove");
+    await window.desktopApi?.dialogs?.confirm?.({
+      title: t("account.loginCompletedTitle"),
+      message: adsRemoved ? t("account.loginCompletedAdsRemoved") : t("account.loginCompleted"),
+      confirmLabel: t("dialog.confirm"),
+      tone: "success",
+      mediaPath: "assets/ui/tutorial/obs.gif",
+      mediaWidth: 208,
+      hideCancel: true,
+      autoHeight: true,
+      external: true,
+      flat: true
+    });
+  } catch (error) {
+    window.alert(error?.message || "Não foi possível conectar a conta.");
+  }
+}
+
+function hasDesktopEntitlement(entitlement) {
+  return state.desktopAccountEntitlements.includes(entitlement);
+}
+
+async function openManagedDesktopCampaign() {
+  // Every Tibia Coins CTA opens the same in-app purchase panel. The panel
+  // itself remains responsible for the confirmed checkout destination.
+  await requestDesktopDockedPanel("tibia-coins-panel");
+}
+
+function syncDesktopCampaignVisibility() {
+  const campaignButtons = [
+    els.desktopTibiaCoinsButton,
+    ...document.querySelectorAll(".tibia-coins-cta")
+  ];
+
+  // VIP removes advertising, not access to the Tibia Coins purchase panel.
+  // These are navigation controls and must remain available to every account
+  // state, including a connected account with the ads.remove entitlement.
+  campaignButtons.forEach((button) => {
+    if (!button) {
+      return;
+    }
+    button.hidden = false;
+    button.disabled = false;
+    button.setAttribute("aria-hidden", "false");
+  });
+}
+
+async function refreshDesktopAccountState(options = {}) {
+  if (!window.desktopApi?.account?.getState) {
+    state.desktopAccountConnected = false;
+    state.desktopAccountEntitlements = [];
+    state.desktopAccountBenefits = [];
+    state.desktopAccountProfile = null;
+    state.desktopAccountSummary = { openReports: 0, unreadMessages: 0 };
+    syncDesktopCampaignVisibility();
+    publishDesktopAccountStateChanged();
+    return false;
+  }
+
+  try {
+    const getAccountState = options.refreshAds && window.desktopApi.account.refresh
+      ? window.desktopApi.account.refresh
+      : window.desktopApi.account.getState;
+    const account = await getAccountState?.();
+    state.desktopAccountConnected = Boolean(account?.connected);
+    state.desktopAccountEntitlements = Array.isArray(account?.entitlements) ? account.entitlements : [];
+    state.desktopAccountBenefits = Array.isArray(account?.benefits) ? account.benefits : [];
+    state.desktopAccountProfile = account?.user ? { ...account.user, ...(account.profile || {}) } : null;
+    state.desktopAccountSummary = account?.summary || { openReports: 0, unreadMessages: 0 };
+    const catalog = await window.desktopApi.account.getCampaigns?.();
+    const firstCampaign = Array.isArray(catalog?.ads) ? catalog.ads[0] : null;
+    const firstSupport = Array.isArray(catalog?.support) ? catalog.support[0] : null;
+    state.desktopCampaignDestination = typeof firstCampaign?.destinationUrl === "string" ? firstCampaign.destinationUrl : "";
+    state.desktopSupportDestination = typeof firstSupport?.destination === "string" ? firstSupport.destination : "";
+    state.desktopSocialLinks = {
+      discord: typeof catalog?.socialLinks?.discord === "string" ? catalog.socialLinks.discord : DESKTOP_SETTINGS_DISCORD_URL,
+      youtube: typeof catalog?.socialLinks?.youtube === "string" ? catalog.socialLinks.youtube : DESKTOP_SETTINGS_YOUTUBE_URL,
+      instagram: DESKTOP_SETTINGS_INSTAGRAM_URL,
+      twitch: DESKTOP_SETTINGS_TWITCH_URL
+    };
+  } catch {
+    state.desktopAccountConnected = false;
+    state.desktopAccountEntitlements = [];
+    state.desktopAccountBenefits = [];
+    state.desktopAccountProfile = null;
+    state.desktopAccountSummary = { openReports: 0, unreadMessages: 0 };
+    state.desktopCampaignDestination = "";
+    state.desktopSupportDestination = "";
+    state.desktopSocialLinks = {
+      discord: DESKTOP_SETTINGS_DISCORD_URL,
+      youtube: DESKTOP_SETTINGS_YOUTUBE_URL,
+      instagram: DESKTOP_SETTINGS_INSTAGRAM_URL,
+      twitch: DESKTOP_SETTINGS_TWITCH_URL
+    };
+  }
+
+  syncDesktopCampaignVisibility();
+  publishDesktopAccountStateChanged();
+
+  const activePanelKey = state.dockedToolPanelState?.panelKey || state.requestedDockedPanelKey;
+  if (["settings-panel", "account-panel", "report-panel"].includes(activePanelKey)) {
+    renderActiveDockedToolPanel();
+  }
+
+  return state.desktopAccountConnected;
+}
+
+function publishDesktopAccountStateChanged() {
+  scheduleDesktopAccountEntitlementRefresh();
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:account-state-changed", {
+    detail: {
+      connected: state.desktopAccountConnected,
+      entitlements: [...state.desktopAccountEntitlements],
+      benefits: [...state.desktopAccountBenefits]
+    }
+  }));
+}
+
+function scheduleDesktopAccountEntitlementRefresh() {
+  if (state.desktopAccountEntitlementRefreshTimer) {
+    window.clearTimeout(state.desktopAccountEntitlementRefreshTimer);
+    state.desktopAccountEntitlementRefreshTimer = null;
+  }
+
+  const nextExpiry = (Array.isArray(state.desktopAccountBenefits) ? state.desktopAccountBenefits : [])
+    .filter((benefit) => benefit?.key === "ads.remove" && benefit?.endsAt)
+    .map((benefit) => new Date(benefit.endsAt).getTime())
+    .filter((timestamp) => Number.isFinite(timestamp) && timestamp > Date.now())
+    .sort((left, right) => left - right)[0];
+
+  if (!nextExpiry) {
+    return;
+  }
+
+  const delay = Math.min(
+    2_147_000_000,
+    Math.max(250, nextExpiry - Date.now() + 1_000)
+  );
+  state.desktopAccountEntitlementRefreshTimer = window.setTimeout(() => {
+    state.desktopAccountEntitlementRefreshTimer = null;
+    void refreshDesktopAccountState({ refreshAds: true });
+  }, delay);
+}
+
+window.addEventListener("tibia-toolkit:account-state-changed", (event) => {
+  const detail = event?.detail || {};
+  if (typeof detail.connected === "boolean") {
+    state.desktopAccountConnected = detail.connected;
+  }
+  if (Array.isArray(detail.entitlements)) {
+    state.desktopAccountEntitlements = detail.entitlements.map((entry) => String(entry || "").trim()).filter(Boolean);
+  }
+  if (Array.isArray(detail.benefits)) {
+    state.desktopAccountBenefits = detail.benefits;
+  }
+  syncDesktopCampaignVisibility();
+  renderActiveDockedToolPanel();
+});
+
+async function toggleDesktopAccountConnection() {
+  if (state.desktopAccountLoading || !window.desktopApi?.account) {
+    return;
+  }
+
+  state.desktopAccountLoading = true;
+  try {
+    if (state.desktopAccountConnected) {
+      state.desktopAccountConnected = false;
+      state.desktopAccountEntitlements = [];
+      state.desktopAccountBenefits = [];
+      state.desktopAccountProfile = null;
+      state.desktopAccountSummary = { openReports: 0, unreadMessages: 0 };
+      publishDesktopAccountStateChanged();
+      syncDesktopCampaignVisibility();
+      renderActiveDockedToolPanel();
+      // Update the visual state before the IPC round-trip so Logout becomes
+      // Login immediately when the user clicks it.
+      await window.desktopApi.account.disconnect?.();
+      return;
+    }
+
+    await connectDesktopAccount();
+  } finally {
+    state.desktopAccountLoading = false;
+  }
 }
 
 function renderSupporterCardMarkup(supporter = {}) {
   const tierMeta = getSupporterTierMeta(supporter.tier || "default");
   const subtitle = buildSupporterSubtitle(supporter);
   const highlightedSubtitle = buildHighlightedSupporterSubtitle(supporter);
-  const avatarMarkup = getPlayerAvatarMarkup({
-    name: supporter.name,
-    vocation: supporter.vocation,
-    sex: supporter.sex
-  });
+  const avatarMarkup = renderSupporterAvatarMarkup(supporter);
   const isHighlighted = supporter.tier && supporter.tier !== "default";
   const showcase = isHighlighted ? resolveSupporterShowcaseConfig(supporter) : null;
   const showcaseAttributes = buildSupporterShowcaseAttributes(showcase);
@@ -4294,6 +6093,45 @@ function renderSupporterCardMarkup(supporter = {}) {
       </div>
     </article>
   `;
+}
+
+function renderSupporterAvatarMarkup(supporter = {}) {
+  const avatarUrl = String(supporter.avatarUrl || "").trim();
+  const player = {
+    name: supporter.name,
+    vocation: supporter.vocation,
+    sex: supporter.sex
+  };
+
+  if (!avatarUrl) {
+    return getPlayerAvatarMarkup(player);
+  }
+
+  const vocationFallback = getVocationOutfitPath(player.vocation, player.sex);
+  return `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(player.vocation || "Avatar do perfil")}" data-supporter-avatar-profile="true" data-supporter-avatar-fallback-src="${escapeHtml(vocationFallback)}" data-supporter-avatar-fallback-initials="${escapeHtml(getPlayerInitials(player.name))}">`;
+}
+
+function bindSupporterAvatarFallback(root) {
+  root?.querySelectorAll('[data-supporter-avatar-profile="true"]').forEach((avatar) => {
+    if (avatar.dataset.supporterAvatarFallbackBound === "true") {
+      return;
+    }
+
+    avatar.dataset.supporterAvatarFallbackBound = "true";
+    avatar.addEventListener("error", () => {
+      const fallbackSrc = String(avatar.dataset.supporterAvatarFallbackSrc || "").trim();
+
+      if (fallbackSrc && avatar.dataset.supporterAvatarFallbackApplied !== "true") {
+        avatar.dataset.supporterAvatarFallbackApplied = "true";
+        avatar.src = fallbackSrc;
+        return;
+      }
+
+      const initials = document.createElement("span");
+      initials.textContent = avatar.dataset.supporterAvatarFallbackInitials || "?";
+      avatar.replaceWith(initials);
+    });
+  });
 }
 
 function buildSupporterSubtitle(supporter = {}) {
@@ -4733,11 +6571,21 @@ function switchSection(section, options = {}) {
   const nextSection = section || state.selectedSection;
   const sectionChanged = nextSection !== state.selectedSection;
 
+  if (
+    sectionChanged
+    && state.selectedSection === "tools"
+    && state.selectedToolTab === "loot-splitter"
+    && nextSection !== "tools"
+  ) {
+    cancelLootVisualHydration();
+  }
+
   if (sectionChanged && !options.skipHistory && !state.navigationRestoring) {
     pushCurrentNavigationEntry();
   }
 
   state.selectedSection = nextSection;
+  syncMirrorGameSelectorVisibility();
   els.navButtons.forEach((navButton) =>
     navButton.classList.toggle("active", navButton.dataset.section === nextSection)
   );
@@ -4756,9 +6604,23 @@ function switchSection(section, options = {}) {
     void loadMiniWorldChanges({ force: true });
   }
 
+  if (nextSection === "tools") {
+    scheduleActiveToolLiveDataLoad();
+  }
+
+  if (state.libraryContentNeedsViewRefresh && (sectionChanged || nextSection === state.selectedSection)) {
+    void refreshLibraryViewAfterContentActivation();
+  }
+
   if (sectionChanged || !state.currentNavigationEntry) {
     setCurrentNavigationEntry(getCurrentSectionNavigationEntry());
   }
+}
+
+function syncMirrorGameSelectorVisibility() {
+  void window.desktopApi?.app?.setMirrorGameSelectorVisible?.(
+    state.selectedSection === "tools" && state.selectedToolTab === "screen-vision"
+  ).catch(() => {});
 }
 
 function setCurrentNavigationEntry(entry) {
@@ -4951,10 +6813,11 @@ function ensureItemDetailView() {
     return els.itemDetailView;
   }
 
+  const controls = els.controlsCard;
   const layout = els.itemListView?.querySelector(".layout-grid");
   const related = els.itemListView?.querySelector(".related-card");
 
-  if (!layout || !els.itemBooksView) {
+  if (!controls || !layout || !els.itemBooksView) {
     return null;
   }
 
@@ -4962,6 +6825,7 @@ function ensureItemDetailView() {
   detailView.id = "item-detail-view";
   detailView.className = "item-detail-view";
   els.itemBooksView.insertAdjacentElement("afterend", detailView);
+  detailView.append(controls);
   detailView.append(layout);
 
   if (related) {
@@ -4973,7 +6837,7 @@ function ensureItemDetailView() {
 }
 
 async function setItemViewMode(mode, options = {}) {
-  const nextMode = ["list", "stash", "books"].includes(mode) ? mode : "list";
+  const nextMode = ["list", "stash", "books", "spells"].includes(mode) ? mode : "list";
   const viewModeChanged = nextMode !== state.itemViewMode;
 
   if (viewModeChanged && !options.skipHistory && !state.navigationRestoring) {
@@ -4985,6 +6849,9 @@ async function setItemViewMode(mode, options = {}) {
   }
 
   state.itemViewMode = nextMode;
+  if (state.itemViewMode !== "stash") {
+    cancelStashMarketBackgroundRefresh();
+  }
   els.itemViewTabs.forEach((button) =>
     button.classList.toggle("active", button.dataset.itemView === state.itemViewMode)
   );
@@ -4993,31 +6860,204 @@ async function setItemViewMode(mode, options = {}) {
   els.shortcutsCard?.classList.toggle("hidden", state.itemViewMode !== "list");
   els.itemStashView?.classList.toggle("hidden", state.itemViewMode !== "stash");
   els.itemBooksView?.classList.toggle("hidden", state.itemViewMode !== "books");
+  els.itemSpellsView?.classList.toggle("hidden", state.itemViewMode !== "spells");
   const itemDetailView = ensureItemDetailView();
   itemDetailView?.classList.toggle(
     "hidden",
-    state.itemViewMode === "books" ||
+    state.itemViewMode === "books" || state.itemViewMode === "spells" ||
       (state.itemViewMode === "stash" && !state.stashPreviewVisible)
   );
 
   if (state.itemViewMode === "stash") {
-    try {
-      await ensureStashLoaded();
-      renderStashFilters();
-      renderStashGrid();
-      scheduleStashMarketLoad();
-    } catch (error) {
-      setStashStatus(error instanceof Error ? error.message : "Falha ao carregar stash.");
+    const loadStashView = async () => {
+      try {
+        await ensureStashLoaded();
+        // The user can leave Stash while its catalog is loading. Keep the
+        // catalog warm, but do not redraw a view that is no longer visible.
+        if (state.itemViewMode !== "stash") {
+          return;
+        }
+        renderStashFilters();
+        renderStashGrid();
+        scheduleStashMarketLoad();
+      } catch (error) {
+        if (state.itemViewMode === "stash") {
+          setStashStatus(error instanceof Error ? error.message : "Falha ao carregar stash.");
+        }
+      }
+    };
+
+    if (options.deferStashLoad) {
+      // The introductory tutorial step only highlights the Stash tab. It does
+      // not need to wait for thousands of catalog records before appearing.
+      void loadStashView();
+    } else {
+      await loadStashView();
     }
   }
 
   if (state.itemViewMode === "books") {
     await loadBooksDocuments();
   }
+  if (state.itemViewMode === "spells") {
+    try {
+      await loadSpellsCatalog();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível carregar as magias.";
+      if (els.spellsStatus) els.spellsStatus.textContent = message;
+      if (els.spellsGrid) els.spellsGrid.innerHTML = "";
+    }
+  }
 
   if (!options.skipCurrentEntry) {
     setCurrentNavigationEntry(getCurrentSectionNavigationEntry());
   }
+}
+
+async function loadSpellsCatalog() {
+  if (!state.spells.loaded) {
+    els.spellsStatus.textContent = "Carregando magias...";
+    // Keep the first local catalogue read consistent with the loading feedback
+    // used by the other Library sections.
+    showGlobalLoading("Carregando magias...");
+    try {
+    const bundle = window.desktopApi?.assets?.readJson
+      ? await window.desktopApi.assets.readJson("assets/data/spells.detailed.json")
+      : await fetch("assets/data/spells.detailed.json").then(async (response) => {
+          if (!response.ok) throw new Error("Não foi possível carregar as magias.");
+          return response.json();
+        });
+    state.spells.records = Array.isArray(bundle.records) ? bundle.records : [];
+    const catalogBundle = window.desktopApi?.assets?.readJson
+      ? await window.desktopApi.assets.readJson("assets/data/spells.catalog.json")
+      : await fetch("assets/data/spells.catalog.json").then((response) => response.json());
+    const catalogById = new Map((catalogBundle.spells || []).map((spell) => [spell.id, spell]));
+    const locale = state.localeController?.getLocale?.() || "pt-BR";
+    const phraseMap = await loadPhraseTranslationMap(locale).catch(() => ({}));
+    state.spells.records = state.spells.records.map((spell) => {
+      const canonical = catalogById.get(spell.id);
+      const merged = {
+        ...spell,
+        // Vocation and category drive filters, so both surfaces must use the
+        // same audited catalogue classification. Detailed records remain the
+        // source for factual fields and the immutable spell words.
+        vocations: Array.isArray(canonical?.vocations) ? canonical.vocations.join(" ") : spell.vocations,
+        category: canonical?.category || spell.category,
+      };
+      // Spell names and magic words are game identifiers, so they remain
+      // literal in every locale. The remaining factual fields use the same
+      // reviewed phrase map consumed by the rest of the Library.
+      return localizeSpellRecord(merged, locale, phraseMap);
+    });
+    state.spells.loaded = true;
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+  renderSpellsCatalog();
+}
+
+function localizeSpellRecord(value, locale, phraseMap, path = []) {
+  if (locale === "pt-BR" || value === null || value === undefined) return value;
+  if (typeof value === "string") {
+    const key = path[path.length - 1] || "";
+    if (["id", "name", "spellWords", "words", "icon", "wikiUrl", "url", "localPath", "source"].includes(key)
+      || /^(?:https?:|assets\/|data:)/i.test(value)) {
+      return value;
+    }
+    return translatePhraseSync(locale, value, phraseMap);
+  }
+  if (Array.isArray(value)) return value.map((entry) => localizeSpellRecord(entry, locale, phraseMap, path));
+  if (typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
+    key,
+    localizeSpellRecord(entry, locale, phraseMap, [...path, key])
+  ]));
+}
+
+function renderSpellsCatalog() {
+  if (!els.spellsGrid) return;
+  const query = normalizeSearchText(state.spells.query || "");
+  const locale = state.localeController?.getLocale?.() || "pt-BR";
+  const filterLabels = {
+    "pt-BR": { search: "Buscar por", vocation: "Vocação", type: "Tipo", sort: "Ordenar por", knight: "Knight", paladin: "Paladin", druid: "Druid", sorcerer: "Sorcerer", monk: "Monk", ataque: "Magias de ataque", suporte: "Magias de suporte", wheel: "Roda do Destino", sortOptions: ["Nome: A-Z", "Nome: Z-A", "Mana: menor para maior", "Mana: maior para menor", "Level: menor para maior", "Level: maior para menor"] },
+    en: { search: "Search by", vocation: "Vocation", type: "Type", sort: "Sort by", knight: "Knight", paladin: "Paladin", druid: "Druid", sorcerer: "Sorcerer", monk: "Monk", ataque: "Attack spells", suporte: "Support spells", wheel: "Wheel of Destiny", sortOptions: ["Name: A-Z", "Name: Z-A", "Mana: low to high", "Mana: high to low", "Level: low to high", "Level: high to low"] },
+    de: { search: "Suchen nach", vocation: "Berufung", type: "Typ", sort: "Sortieren nach", knight: "Knight", paladin: "Paladin", druid: "Druid", sorcerer: "Sorcerer", monk: "Monk", ataque: "Angriffszauber", suporte: "Unterstützungszauber", wheel: "Schicksalsrad", sortOptions: ["Name: A-Z", "Name: Z-A", "Mana: niedrig zu hoch", "Mana: hoch zu niedrig", "Level: niedrig zu hoch", "Level: hoch zu niedrig"] }
+  }[locale] || {};
+  const records = state.spells.records.filter((spell) => {
+    const vocations = normalizeSearchText(spell.vocations || "");
+    const category = normalizeSearchText(spell.category || "");
+    const matchesVocation = [...state.spells.vocations].some((vocation) => vocations.includes(vocation));
+    const normalizedCategory = category === "ataque" ? "ataque" : "suporte";
+    const matchesCategory = state.spells.categories.has(normalizedCategory);
+    const normalMatch = matchesVocation && matchesCategory;
+    // The Wheel button is an inclusion switch, not an isolated-result mode.
+    // With it off, Wheel spells are hidden; with it on, they participate in
+    // the active vocation and type filters exactly like every other spell.
+    return (!query || normalizeSearchText(`${spell.name} ${spell.spellWords || ""}`).includes(query))
+      && normalMatch
+      && (state.spells.wheelOnly || !Boolean(spell.wheelSpellType));
+  }).sort((left, right) => {
+    const direction = state.spells.sort.endsWith("-desc") ? -1 : 1;
+    const field = state.spells.sort.startsWith("mana") ? "mana" : state.spells.sort.startsWith("level") ? "level" : "name";
+    if (field === "name") return direction * String(left.name || "").localeCompare(String(right.name || ""), locale);
+    const leftValue = Number(left[field]); const rightValue = Number(right[field]);
+    return direction * ((Number.isFinite(leftValue) ? leftValue : Number.MAX_SAFE_INTEGER) - (Number.isFinite(rightValue) ? rightValue : Number.MAX_SAFE_INTEGER));
+  });
+  els.spellVocationFilters.forEach((button) => {
+    const label = filterLabels[button.dataset.spellVocation || ""] || "";
+    button.classList.toggle("is-selected", state.spells.vocations.has(button.dataset.spellVocation || ""));
+    button.title = label;
+    button.dataset.tooltip = label;
+    button.setAttribute("aria-label", label);
+  });
+  els.spellCategoryFilters.forEach((button) => {
+    const label = filterLabels[button.dataset.spellCategory || ""] || "";
+    button.classList.toggle("is-selected", state.spells.categories.has(button.dataset.spellCategory || ""));
+    button.title = label;
+    button.dataset.tooltip = label;
+    button.setAttribute("aria-label", label);
+  });
+  if (els.spellWheelFilter) {
+    els.spellWheelFilter.classList.toggle("is-selected", state.spells.wheelOnly);
+    els.spellWheelFilter.title = filterLabels.wheel || "";
+    els.spellWheelFilter.dataset.tooltip = filterLabels.wheel || "";
+    els.spellWheelFilter.setAttribute("aria-label", filterLabels.wheel || "");
+  }
+  els.spellFilterLabels.forEach((label) => { label.textContent = filterLabels[label.dataset.spellFilterLabel || ""] || ""; });
+  if (els.spellsSortFilter) {
+    const labels = filterLabels.sortOptions || [];
+    [...els.spellsSortFilter.options].forEach((option, index) => { option.textContent = labels[index] || option.textContent; });
+    els.spellsSortFilter.value = state.spells.sort;
+  }
+  bindSkillDynamicTooltips(els.itemSpellsView);
+  els.spellsStatus.textContent = `${records.length} ${spellUi().spells}`;
+  els.spellsGrid.innerHTML = records.map((spell) => `<button type="button" class="book-card spell-card" data-spell-id="${escapeHtml(spell.id)}"><img src="${escapeHtml(spell.icon ? String(spell.icon).replace(/^\/library\/spells\//, "assets/data/spells/") : "assets/ui/tools/skill-magic.gif")}" alt=""><strong data-i18n-preserve>${escapeHtml(spell.name)}</strong><span data-i18n-preserve>${escapeHtml(spell.spellWords || "")}</span></button>`).join("");
+  els.spellsGrid.querySelectorAll("[data-spell-id]").forEach((button) => button.addEventListener("click", () => openSpellDetail(button.dataset.spellId || "")));
+}
+
+function openSpellDetail(id) {
+  const spell = state.spells.records.find((entry) => entry.id === id);
+  if (!spell || !els.spellsDetail) return;
+  const ui = spellUi();
+  const consumedRaw = new Set(["name", "subclass", "damagetype", "cooldowngrupo", "cooldownproprio", "cooldownspecial", "words", "premium", "mana", "expLvl", "voc", "implemented", "basePower", "scaleWith", "spellrange", "range", "aimattarget", "animation", "effect", "notes", "history", "soul", "updated1", "wheelSpellType", "category", "mode", "scales"]);
+  const facts = [[ui.level,spell.level],[ui.mana,spell.mana],[ui.words,spell.spellWords],[ui.vocation,spell.vocations],[ui.category,spell.category],[ui.damageType,spell.damageType],[ui.premium,spell.premium],[ui.soul,spell.soul],[ui.cooldown,spell.cooldownOwn],[ui.groupCooldown,spell.cooldownGroup],[ui.specialCooldown,spell.cooldownSpecial],[ui.effect,spell.effect],[ui.notes,spell.notes],[ui.history,spell.history],[ui.basePower,spell.basePower],[ui.scaleWith,spell.scaleWith],[ui.range,spell.range],[ui.target,spell.aimAtTarget],[ui.implemented,spell.implemented],[ui.updated,spell.updated],[ui.wheelType,spell.wheelSpellType]];
+  Object.entries(spell.rawFields || {}).forEach(([key,value]) => { if (value && !consumedRaw.has(key)) facts.push([key, value]); });
+  const displayedFacts = facts.filter(([,value]) => value);
+  const spellIcon = spell.icon ? String(spell.icon).replace(/^\/library\/spells\//, "assets/data/spells/") : "assets/ui/tools/skill-magic.gif";
+  els.spellsDetail.innerHTML = `<div class="books-detail-header"><div class="books-detail-hero"><img src="${escapeHtml(spellIcon)}" alt=""><h3>${escapeHtml(spell.name)}</h3></div></div><dl class="library-fact-list">${displayedFacts.map(([label,value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${renderLibraryFactualText(value)}</dd></div>`).join("")}</dl>${spell.animation?.localPath ? `<figure><img class="book-detail-image" src="assets/data/spells/demonstrations/${escapeHtml(String(spell.animation.localPath).split("/").pop())}" alt="${escapeHtml(`${ui.demonstration}: ${spell.name}`)}"><figcaption>${escapeHtml(ui.demonstration)}</figcaption></figure>` : ""}`;
+  els.spellsDetail.classList.remove("hidden");
+  window.requestAnimationFrame(() => els.spellsDetail?.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
+function spellUi() {
+  const locale = state.localeController?.getLocale?.() || "pt-BR";
+  const labels = {
+    "pt-BR": { spells:"magias", level:"Level", mana:"Mana", words:"Palavras mágicas", vocation:"Vocações", category:"Categoria", damageType:"Tipo de dano", premium:"Premium", soul:"Soul Points", cooldown:"Cooldown próprio", groupCooldown:"Cooldown de grupo", specialCooldown:"Cooldown especial", effect:"Efeito", notes:"Notas", history:"História", basePower:"Poder base", scaleWith:"Escala com", range:"Alcance", target:"Alvo", implemented:"Implementada", updated:"Atualizada", wheelType:"Tipo na roda", close:"Fechar", demonstration:"Demonstração" },
+    en: { spells:"spells", level:"Level", mana:"Mana", words:"Magic words", vocation:"Vocations", category:"Category", damageType:"Damage type", premium:"Premium", soul:"Soul Points", cooldown:"Own cooldown", groupCooldown:"Group cooldown", specialCooldown:"Special cooldown", effect:"Effect", notes:"Notes", history:"History", basePower:"Base power", scaleWith:"Scales with", range:"Range", target:"Target", implemented:"Implemented", updated:"Updated", wheelType:"Wheel type", close:"Close", demonstration:"Demonstration" },
+    de: { spells:"Zauber", level:"Level", mana:"Mana", words:"Zauberworte", vocation:"Berufungen", category:"Kategorie", damageType:"Schadensart", premium:"Premium", soul:"Seelenpunkte", cooldown:"Eigener Cooldown", groupCooldown:"Gruppen-Cooldown", specialCooldown:"Spezial-Cooldown", effect:"Effekt", notes:"Notizen", history:"Geschichte", basePower:"Grundstärke", scaleWith:"Skaliert mit", range:"Reichweite", target:"Ziel", implemented:"Implementiert", updated:"Aktualisiert", wheelType:"Radtyp", close:"Schließen", demonstration:"Demonstration" }
+  };
+  return labels[locale] || labels["pt-BR"];
 }
 
 async function setEntityViewMode(mode, options = {}) {
@@ -5052,7 +7092,9 @@ async function ensureActiveEntityCatalogLoaded() {
 
 async function ensureNpcCatalogLoaded() {
   if (state.npcLoaded) {
+    renderNpcFilters();
     renderNpcCatalog();
+    setNpcsStatus(t("npcs.countNpcs", { count: formatCompactNumber(state.npcIndex.length) }));
     return;
   }
 
@@ -5167,6 +7209,8 @@ function bindWeaknessFilterBar(container, targetView) {
 
 async function setCreatureWeaknessFilter(elementKey, targetView = state.entityViewMode) {
   state.monsterWeaknessFilter = state.monsterWeaknessFilter === elementKey ? "" : elementKey;
+  if (targetView === "bosses") state.bossCatalogLimit = 60;
+  else state.monsterCatalogLimit = 60;
   state.weaknessDropdownOpen = false;
   renderWeaknessFilters();
 
@@ -5363,7 +7407,7 @@ function renderMonsterCategories() {
 
   els.monsterCategoryGrid.innerHTML = normalizeUiText(`
     <button type="button" class="monster-category-card${allActiveClass}" data-monster-category="" data-tooltip="${escapeHtml(`${formatCompactNumber(allCount)} criaturas`)}">
-      <img class="monster-category-icon all" src="assets/ui/creature-category-all.png" alt="${escapeHtml(t("common.all.masculine"))}">
+      <img class="monster-category-icon all" src="assets/ui/bestiary/creature-category-all.png" alt="${escapeHtml(t("common.all.masculine"))}">
       <strong>${escapeHtml(t("common.all.masculine"))}</strong>
     </button>
     ${categories.map((category) => {
@@ -5379,51 +7423,57 @@ function renderMonsterCategories() {
   bindSkillDynamicTooltips(els.monsterCategoryGrid);
 }
 
+function getFilteredNpcCatalogItems() {
+  const query = normalizeSearchText(state.npcQuery);
+  const signature = [query, state.npcCity, state.npcJob, state.npcTrade].join("\u0000");
+  return state.npcCatalogFilterCache.get({
+    source: state.npcIndex,
+    signature,
+    buildItems: () => state.npcIndex.filter((npc) => {
+      const functionLabels = Array.isArray(npc.functionLabels) ? npc.functionLabels : [];
+      const cityLabels = Array.isArray(npc.cityCategoryLabels) ? npc.cityCategoryLabels : [];
+      const haystack = normalizeSearchText(
+        `${npc.name} ${npc.city || ""} ${npc.location || ""} ${npc.job || ""} ${npc.job2 || ""} ${functionLabels.join(" ")} ${cityLabels.join(" ")}`
+      );
+
+      if (query && !haystack.includes(query)) {
+        return false;
+      }
+
+      const cityMatches = state.npcCity
+        ? npc.city === state.npcCity || cityLabels.includes(state.npcCity)
+        : true;
+
+      if (!cityMatches) {
+        return false;
+      }
+
+      const jobLabels = functionLabels.length > 0 ? functionLabels : [npc.job, npc.job2].filter(Boolean);
+      if (state.npcJob && !jobLabels.includes(state.npcJob)) {
+        return false;
+      }
+
+      return !state.npcTrade || (npc.trade || "unknown") === state.npcTrade;
+    })
+  });
+}
+
 function renderNpcCatalog() {
   if (!els.npcListPanel) {
     return;
   }
-
-  const query = normalizeSearchText(state.npcQuery);
-  const items = state.npcIndex.filter((npc) => {
-    const functionLabels = Array.isArray(npc.functionLabels) ? npc.functionLabels : [];
-    const cityLabels = Array.isArray(npc.cityCategoryLabels) ? npc.cityCategoryLabels : [];
-    const haystack = normalizeSearchText(
-      `${npc.name} ${npc.city || ""} ${npc.location || ""} ${npc.job || ""} ${npc.job2 || ""} ${functionLabels.join(" ")} ${cityLabels.join(" ")}`
-    );
-
-    if (query && !haystack.includes(query)) {
-      return false;
-    }
-
-    const cityMatches = state.npcCity
-      ? npc.city === state.npcCity || cityLabels.includes(state.npcCity)
-      : true;
-
-    if (!cityMatches) {
-      return false;
-    }
-
-    const jobLabels = functionLabels.length > 0 ? functionLabels : [npc.job, npc.job2].filter(Boolean);
-    if (state.npcJob && !jobLabels.includes(state.npcJob)) {
-      return false;
-    }
-
-    if (state.npcTrade && (npc.trade || "unknown") !== state.npcTrade) {
-      return false;
-    }
-
-    return true;
-  });
+  const renderStartedAt = performance.now();
+  const items = getFilteredNpcCatalogItems();
 
   if (items.length === 0) {
     els.npcListPanel.innerHTML = `<div class="empty-inline">${escapeHtml(t("npcs.noneFound"))}</div>`;
     return;
   }
 
+  const displayed = items.slice(0, state.npcCatalogLimit);
   els.npcListPanel.innerHTML = normalizeUiText(
-    items.slice(0, 240).map(renderNpcCatalogCard).join("") +
-      `<div class="entity-count">${escapeHtml(t("npcs.foundNpcs", { count: formatCompactNumber(items.length) }))}</div>`
+    displayed.map(renderNpcCatalogCard).join("") +
+      renderLibraryCatalogProgress("npc", displayed.length, items.length, t("npcs.foundNpcs", { count: formatCompactNumber(items.length) }))
   );
   bindSkillDynamicTooltips(els.npcListPanel);
 
@@ -5432,12 +7482,74 @@ function renderNpcCatalog() {
       void openNpcDetail(button.dataset.npcName);
     });
   });
+  bindLibraryCatalogSpriteAnimations(els.npcListPanel);
+  bindLibraryCatalogMore(els.npcListPanel);
+  recordLibraryGridRenderMetric("npc", renderStartedAt, items.length, displayed.length, els.npcListPanel);
+}
+
+function getFilteredMonsterCatalogItems() {
+  const query = normalizeSearchText(state.monsterQuery);
+  const signature = [
+    query,
+    state.monsterCategory,
+    state.monsterClass,
+    state.monsterType,
+    state.monsterWeaknessFilter
+  ].join("\u0000");
+  return state.monsterCatalogFilterCache.get({
+    source: state.monsterIndex,
+    dependencies: [state.creatureWeaknessIndex],
+    signature,
+    buildItems: () => state.monsterIndex.filter((monster) => {
+      if (
+        query &&
+        !matchesNameSearch(monster.name, query) &&
+        !matchesNameSearch(monster.slug, query)
+      ) {
+        return false;
+      }
+
+      if (state.monsterCategory && !(monster.categorySlugs || []).includes(state.monsterCategory)) {
+        return false;
+      }
+
+      if (state.monsterClass && monster.creatureClass !== state.monsterClass) {
+        return false;
+      }
+
+      if (
+        state.monsterType &&
+        monster.primaryType !== state.monsterType &&
+        monster.secondaryType !== state.monsterType
+      ) {
+        return false;
+      }
+
+      return !state.monsterWeaknessFilter || isCreatureWeakToElement(monster, state.monsterWeaknessFilter);
+    }).sort((left, right) => {
+      if (!query) {
+        return 0;
+      }
+
+      const leftRank = Math.min(
+        getNameSearchRank(left.name, query),
+        getNameSearchRank(left.slug, query)
+      );
+      const rightRank = Math.min(
+        getNameSearchRank(right.name, query),
+        getNameSearchRank(right.slug, query)
+      );
+
+      return leftRank - rightRank || String(left.name || "").localeCompare(String(right.name || ""), "en");
+    })
+  });
 }
 
 function renderMonsterCatalog() {
   if (!els.monsterListPanel) {
     return;
   }
+  const renderStartedAt = performance.now();
 
   if (state.monsterWeaknessFilter && !state.creatureWeaknessIndex) {
     renderFilteredCreatureLoading("monsters");
@@ -5447,62 +7559,17 @@ function renderMonsterCatalog() {
     return;
   }
 
-  const query = normalizeSearchText(state.monsterQuery);
-  const items = state.monsterIndex.filter((monster) => {
-    if (
-      query &&
-      !matchesNameSearch(monster.name, query) &&
-      !matchesNameSearch(monster.slug, query)
-    ) {
-      return false;
-    }
-
-    if (state.monsterCategory && !(monster.categorySlugs || []).includes(state.monsterCategory)) {
-      return false;
-    }
-
-    if (state.monsterClass && monster.creatureClass !== state.monsterClass) {
-      return false;
-    }
-
-    if (
-      state.monsterType &&
-      monster.primaryType !== state.monsterType &&
-      monster.secondaryType !== state.monsterType
-    ) {
-      return false;
-    }
-
-    if (state.monsterWeaknessFilter && !isCreatureWeakToElement(monster, state.monsterWeaknessFilter)) {
-      return false;
-    }
-
-    return true;
-  }).sort((left, right) => {
-    if (!query) {
-      return 0;
-    }
-
-    const leftRank = Math.min(
-      getNameSearchRank(left.name, query),
-      getNameSearchRank(left.slug, query)
-    );
-    const rightRank = Math.min(
-      getNameSearchRank(right.name, query),
-      getNameSearchRank(right.slug, query)
-    );
-
-    return leftRank - rightRank || String(left.name || "").localeCompare(String(right.name || ""), "en");
-  });
+  const items = getFilteredMonsterCatalogItems();
 
   if (items.length === 0) {
     els.monsterListPanel.innerHTML = `<div class="empty-inline">${escapeHtml(t("npcs.noneCreaturesFound"))}</div>`;
     return;
   }
 
+  const displayed = items.slice(0, state.monsterCatalogLimit);
   els.monsterListPanel.innerHTML = normalizeUiText(
-    items.slice(0, 240).map(renderMonsterCatalogCard).join("") +
-      `<div class="entity-count">${escapeHtml(t("npcs.foundCreatures", { count: formatCompactNumber(items.length) }))}</div>`
+    displayed.map(renderMonsterCatalogCard).join("") +
+      renderLibraryCatalogProgress("monster", displayed.length, items.length, t("npcs.foundCreatures", { count: formatCompactNumber(items.length) }))
   );
   bindSkillDynamicTooltips(els.monsterListPanel);
 
@@ -5511,12 +7578,42 @@ function renderMonsterCatalog() {
       void openMonsterDetail(button.dataset.monsterName);
     });
   });
+  bindLibraryCatalogSpriteAnimations(els.monsterListPanel);
+  bindLibraryCatalogMore(els.monsterListPanel);
+  recordLibraryGridRenderMetric("creature", renderStartedAt, items.length, displayed.length, els.monsterListPanel);
+}
+
+function getFilteredBossCatalogItems() {
+  const query = normalizeSearchText(state.bossQuery);
+  const activeFilters = Object.entries(state.bossFilters)
+    .filter(([, active]) => active)
+    .map(([key]) => key);
+  const signature = [query, activeFilters.join(","), state.monsterWeaknessFilter].join("\u0000");
+  return state.bossCatalogFilterCache.get({
+    source: state.monsterIndex,
+    dependencies: [state.creatureWeaknessIndex],
+    signature,
+    buildItems: () => state.monsterIndex.filter((monster) => {
+      const bossKey = normalizeSearchText(monster.bossCategory);
+
+      if (!bossKey || !activeFilters.includes(bossKey)) {
+        return false;
+      }
+
+      if (query && !normalizeSearchText(`${monster.name} ${monster.bossCategory}`).includes(query)) {
+        return false;
+      }
+
+      return !state.monsterWeaknessFilter || isCreatureWeakToElement(monster, state.monsterWeaknessFilter);
+    })
+  });
 }
 
 function renderBossCatalog() {
   if (!els.bossListPanel) {
     return;
   }
+  const renderStartedAt = performance.now();
 
   if (state.monsterWeaknessFilter && !state.creatureWeaknessIndex) {
     renderFilteredCreatureLoading("bosses");
@@ -5526,36 +7623,17 @@ function renderBossCatalog() {
     return;
   }
 
-  const query = normalizeSearchText(state.bossQuery);
-  const activeFilters = Object.entries(state.bossFilters)
-    .filter(([, active]) => active)
-    .map(([key]) => key);
-  const bosses = state.monsterIndex.filter((monster) => {
-    const bossKey = normalizeSearchText(monster.bossCategory);
-
-    if (!bossKey || !activeFilters.includes(bossKey)) {
-      return false;
-    }
-
-    if (query && !normalizeSearchText(`${monster.name} ${monster.bossCategory}`).includes(query)) {
-      return false;
-    }
-
-    if (state.monsterWeaknessFilter && !isCreatureWeakToElement(monster, state.monsterWeaknessFilter)) {
-      return false;
-    }
-
-    return true;
-  });
+  const bosses = getFilteredBossCatalogItems();
 
   if (bosses.length === 0) {
     els.bossListPanel.innerHTML = `<div class="empty-inline">${escapeHtml(t("npcs.noneBossesFound"))}</div>`;
     return;
   }
 
+  const displayed = bosses.slice(0, state.bossCatalogLimit);
   els.bossListPanel.innerHTML = normalizeUiText(
-    bosses.slice(0, 240).map(renderBossCatalogCard).join("") +
-      `<div class="entity-count">${escapeHtml(t("npcs.foundBosses", { count: formatCompactNumber(bosses.length) }))}</div>`
+    displayed.map(renderBossCatalogCard).join("") +
+      renderLibraryCatalogProgress("boss", displayed.length, bosses.length, t("npcs.foundBosses", { count: formatCompactNumber(bosses.length) }))
   );
   bindSkillDynamicTooltips(els.bossListPanel);
 
@@ -5563,6 +7641,33 @@ function renderBossCatalog() {
     button.addEventListener("click", () => {
       void openMonsterDetail(button.dataset.monsterName);
     });
+  });
+  bindLibraryCatalogSpriteAnimations(els.bossListPanel);
+  bindLibraryCatalogMore(els.bossListPanel);
+  recordLibraryGridRenderMetric("boss", renderStartedAt, bosses.length, displayed.length, els.bossListPanel);
+}
+
+function libraryCatalogUi() {
+  const locale = state.localeController?.getLocale?.() || "pt-BR";
+  return ({
+    "pt-BR": { more: "Mostrar mais", showing: "Exibindo {shown} de {total}" },
+    en: { more: "Show more", showing: "Showing {shown} of {total}" },
+    de: { more: "Mehr anzeigen", showing: "{shown} von {total} angezeigt" }
+  })[locale] || { more: "Mostrar mais", showing: "Exibindo {shown} de {total}" };
+}
+
+function renderLibraryCatalogProgress(kind, shown, total, summary) {
+  const ui = libraryCatalogUi();
+  const progress = ui.showing.replace("{shown}", formatCompactNumber(shown)).replace("{total}", formatCompactNumber(total));
+  return `<div class="entity-count">${escapeHtml(summary)}<small>${escapeHtml(progress)}</small>${shown < total ? `<button type="button" class="entity-link-chip" data-library-catalog-more="${kind}">${escapeHtml(ui.more)}</button>` : ""}</div>`;
+}
+
+function bindLibraryCatalogMore(container) {
+  container?.querySelector("[data-library-catalog-more]")?.addEventListener("click", (event) => {
+    const kind = event.currentTarget.dataset.libraryCatalogMore;
+    if (kind === "npc") { state.npcCatalogLimit += 60; renderNpcCatalog(); }
+    if (kind === "monster") { state.monsterCatalogLimit += 60; renderMonsterCatalog(); }
+    if (kind === "boss") { state.bossCatalogLimit += 60; renderBossCatalog(); }
   });
 }
 
@@ -5572,7 +7677,7 @@ function renderNpcCatalogCard(npc) {
 
   return `
     <button type="button" class="entity-row npc-row" data-npc-name="${escapeHtml(npc.name)}" data-tooltip="${escapeHtml(t("common.viewDetails"))}">
-      <img src="${escapeHtml(npc.imageSrc || "")}" alt="${escapeHtml(npc.name)}" onerror="this.style.visibility='hidden'">
+      ${renderLibraryCatalogSprite(npc)}
       <span>
         <strong>${escapeHtml(npc.name)}</strong>
         <small>${escapeHtml(meta)}</small>
@@ -5591,7 +7696,7 @@ function renderMonsterCatalogCard(monster) {
 
   return `
     <button type="button" class="entity-row" data-monster-name="${escapeHtml(monster.name)}" data-tooltip="${escapeHtml(t("common.viewDetails"))}">
-      <img src="${escapeHtml(monster.imageSrc || "")}" alt="${escapeHtml(monster.name)}" onerror="this.style.visibility='hidden'">
+      ${renderLibraryCatalogSprite(monster)}
       <span>
         <strong>${escapeHtml(monster.name)}</strong>
         <small>${escapeHtml(meta)}</small>
@@ -5612,7 +7717,7 @@ function renderBossCatalogCard(monster) {
         ${icon ? `<img src="${escapeHtml(icon)}" alt="${escapeHtml(title)}" title="${escapeHtml(title)}">` : ""}
         <strong>${escapeHtml(monster.name)}</strong>
       </div>
-      <img class="boss-card-image" src="${escapeHtml(monster.imageSrc || "")}" alt="${escapeHtml(monster.name)}" onerror="this.style.visibility='hidden'">
+      ${renderLibraryCatalogSprite(monster, "boss-card-image")}
       <small>Total Kills</small>
       <div class="boss-progress">
         ${thresholds.map((value) => `<span>${escapeHtml(value)}</span>`).join("")}
@@ -5626,6 +7731,31 @@ function getBosstiaryThresholds(key) {
   if (key === "bane") return ["25", "100", "300"];
   if (key === "nemesis") return ["1", "3", "5"];
   return ["5", "20", "60"];
+}
+
+function renderLibraryCatalogSprite(entity = {}, className = "") {
+  const animatedSrc = String(entity.imageSrc || "").trim();
+  const stillSrc = String(entity.stillImageSrc || animatedSrc).trim();
+  if (!stillSrc) return "";
+  return `<img${className ? ` class="${escapeHtml(className)}"` : ""} src="${escapeHtml(stillSrc)}" data-library-still-src="${escapeHtml(stillSrc)}" data-library-animated-src="${escapeHtml(animatedSrc)}" alt="${escapeHtml(entity.name || "")}" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">`;
+}
+
+function bindLibraryCatalogSpriteAnimations(container) {
+  if (!container) return;
+  container.querySelectorAll("img[data-library-animated-src]").forEach((image) => {
+    const showAnimation = () => {
+      const animatedSrc = image.dataset.libraryAnimatedSrc || "";
+      if (animatedSrc && image.src !== animatedSrc) image.src = animatedSrc;
+    };
+    const showStill = () => {
+      const stillSrc = image.dataset.libraryStillSrc || "";
+      if (stillSrc && image.src !== stillSrc) image.src = stillSrc;
+    };
+    image.closest("button")?.addEventListener("pointerenter", showAnimation);
+    image.closest("button")?.addEventListener("pointerleave", showStill);
+    image.closest("button")?.addEventListener("focusin", showAnimation);
+    image.closest("button")?.addEventListener("focusout", showStill);
+  });
 }
 
 async function openNpcDetail(name, options = {}) {
@@ -5666,7 +7796,10 @@ async function openNpcDetail(name, options = {}) {
 }
 
 async function openMonsterDetail(name, options = {}) {
-  if (!name) {
+  const safeName = String(name || "")
+    .replace(/[^\p{L}\p{N} .(),'&-]/gu, "")
+    .trim();
+  if (!safeName) {
     return;
   }
 
@@ -5675,17 +7808,38 @@ async function openMonsterDetail(name, options = {}) {
   }
 
   const requestId = ++state.monsterDetailRequestId;
+  const detailCacheKey = getMonsterDetailMemoryCacheKey(safeName);
+  const cachedDetail = state.monsterDetailMemoryCache.get(detailCacheKey) || null;
+
+  if (cachedDetail) {
+    // Navigation back to a detail already opened in this session must not
+    // rebuild the local detail pipeline. Live boss data remains independent
+    // and is still loaded by its own cache-aware background path below.
+    state.currentMonsterDetail = cachedDetail;
+    renderMonsterDetail(cachedDetail);
+    void loadCreatureGearRecommendation(cachedDetail, requestId);
+    void loadMonsterBossTracker(cachedDetail, requestId);
+    scrollEntityDetailIntoView({ behavior: "auto" });
+    setCurrentNavigationEntry({
+      type: "creature",
+      name: cachedDetail.name || safeName,
+      slug: cachedDetail.slug || slugifyItemInput(cachedDetail.name || safeName),
+      category: cachedDetail.bossCategory ? "boss" : "creature"
+    });
+    return;
+  }
+
   state.currentMonsterDetail = null;
   state.currentBossTracker = null;
   state.bossRespawnHistoryLimit = 10;
-  showEntityLoading(`Carregando ${name}...`);
+  showEntityLoading(`Carregando ${safeName}...`);
   scrollEntityDetailIntoView({ behavior: "auto" });
-  showGlobalLoading(`Carregando ${name}...`);
+  showGlobalLoading(`Carregando ${safeName}...`);
 
   try {
     const selectedWorld = getSelectedWorld();
     const detail = await fetchCreatureDetail({
-      name,
+      name: safeName,
       worldName: selectedWorld?.name || "",
       worldSlug: selectedWorld?.slug || "",
       includeBossTracker: false
@@ -5696,14 +7850,15 @@ async function openMonsterDetail(name, options = {}) {
     }
 
     state.currentMonsterDetail = detail;
+    rememberMonsterDetail(detailCacheKey, detail);
     renderMonsterDetail(detail);
     void loadCreatureGearRecommendation(detail, requestId);
     void loadMonsterBossTracker(detail, requestId);
     scrollEntityDetailIntoView({ behavior: "auto" });
     setCurrentNavigationEntry({
       type: "creature",
-      name: detail.name || name,
-      slug: detail.slug || slugifyItemInput(detail.name || name),
+      name: detail.name || safeName,
+      slug: detail.slug || slugifyItemInput(detail.name || safeName),
       category: detail.bossCategory ? "boss" : "creature"
     });
   } catch (error) {
@@ -5715,33 +7870,53 @@ async function openMonsterDetail(name, options = {}) {
   }
 }
 
+function getMonsterDetailMemoryCacheKey(name) {
+  return slugifyItemInput(name || "");
+}
+
+function rememberMonsterDetail(key, detail) {
+  if (!key || !detail) {
+    return;
+  }
+
+  state.monsterDetailMemoryCache.delete(key);
+  state.monsterDetailMemoryCache.set(key, detail);
+  while (state.monsterDetailMemoryCache.size > MONSTER_DETAIL_MEMORY_CACHE_LIMIT) {
+    const oldestKey = state.monsterDetailMemoryCache.keys().next().value;
+    state.monsterDetailMemoryCache.delete(oldestKey);
+  }
+}
+
 function renderNpcDetail(detail) {
   const jobs = [detail.job, detail.job2].filter((job) => job && !isWeakNpcJobLabel(job));
-  const description = jobs.length
+  const description = detail.description || (jobs.length
     ? `Este NPC é ${jobs.map(escapeHtml).join(", ")}.`
-    : "Ocupação não informada.";
+    : "Ocupação não informada.");
 
-  setEntityDetailHtml(`
-    <div class="entity-hero npc-hero">
+  const detailRoot = setEntityDetailHtml(`
+    <div class="entity-hero npc-hero" data-library-section="hero">
       <img src="${escapeHtml(detail.imageSrc || "")}" alt="${escapeHtml(detail.name)}" onerror="this.style.visibility='hidden'">
       <div>
         <p class="muted">${escapeHtml(detail.city || "Local nao informado")}</p>
         <h3>${escapeHtml(detail.name)}</h3>
-        <p>${description}</p>
       </div>
     </div>
-    <div class="entity-chip-row">
+    <div class="entity-chip-row" data-library-section="summary">
       ${renderEntityChip("Cidade", detail.city, "npc-city")}
       ${jobs.map((job) => renderEntityChip("Funcao", job, "npc-job")).join("")}
       ${renderEntityChip("Comercio", renderTradeLabel(detail.trade))}
       ${renderEntityChip("Adicionado", detail.implemented)}
     </div>
     ${renderNpcLocationSection(detail)}
+    <div data-library-section="description">${renderEntityTextSection(t("common.description"), description)}</div>
     ${renderNpcNotes(detail)}
-    ${renderSoundList(detail.sounds, "npc")}
-    ${renderNpcTradeItems(detail.tradeItems)}
-    ${detail.wikiUrl ? `<button type="button" class="entity-link-chip entity-link-bottom" data-external-url="${escapeHtml(detail.wikiUrl)}">${escapeHtml(t("common.openWiki"))}</button>` : ""}
+    <div data-library-section="sounds">${renderSoundList(detail.sounds, "npc")}</div>
+    <div data-library-section="trade">${renderNpcTradeItems(detail.tradeItems)}</div>
+    <div data-library-section="history">${renderEntityTextSectionWithInlineMaps(t("creature.history"), detail.history, detail.name)}</div>
+    <div data-library-section="details">${renderNpcCanonicalFactsSection(detail)}</div>
+    <div data-library-section="actions">${detail.wikiUrl ? `<button type="button" class="entity-link-chip entity-link-bottom" data-external-url="${escapeHtml(detail.wikiUrl)}">${escapeHtml(t("common.openWiki"))}</button>` : ""}</div>
   `);
+  applyEditorialSectionOrder(detailRoot, detail.canonicalDocument?.presentation?.template);
 }
 
 function isWeakNpcJobLabel(value) {
@@ -5764,7 +7939,7 @@ function renderNpcLocationSection(detail) {
     : "";
 
   return `
-    <section>
+    <section data-library-section="location">
       <h4>Localiza&ccedil;&atilde;o</h4>
       <p>${escapeHtml(location)}</p>
       ${mapActions}
@@ -5780,18 +7955,19 @@ function renderMonsterLocationSection(detail) {
     return "";
   }
 
-  const mapLink = !isBossDetail && detail.map?.url
-    ? ` <span class="inline-map-wrap">(<button type="button" class="inline-map-link" data-map-url="${escapeHtml(detail.map.url)}" data-map-title="${escapeHtml(`${detail.name} - ${location}`)}">aqui<img src="assets/ui/18px-Map_(Colour).gif" alt="Mapa"></button>)</span>`
-    : "";
-  const bossMapActions = isBossDetail
-    ? renderBossLocationMapActions(detail)
-    : "";
+  // Library maps always stay in the current detail view. A creature is not a
+  // special case: the same inline, toggleable map used by bosses is safer and
+  // avoids creating a desktop popup or opening an external browser.
+  // Bosses podem receber mapa e rota somente depois da consulta ao Tracker.
+  // Mantenha o ponto de montagem desde a ficha inicial; a linha fica oculta
+  // ate que o acervo local ou o Hub entregue ao menos uma acao valida.
+  const mapActions = (isBossDetail || detail.map?.url) ? renderBossLocationMapActions(detail) : "";
 
   return `
-    <section>
+    <section data-library-section="location">
       <h4>${escapeHtml(t("common.locations"))}</h4>
-      <p>${escapeHtml(location || "-")}${mapLink}</p>
-      ${bossMapActions}
+      <p>${escapeHtml(location || "-")}</p>
+      ${mapActions}
     </section>
   `;
 }
@@ -5801,7 +7977,7 @@ function renderBossLocationMapActions(detail = {}) {
   const locationTitle = `${detail.name || "Boss"} - ${detail.location || "Mapa"}`;
 
   return `
-    <div class="boss-map-action-row" data-boss-map-actions data-location-map-url="${escapeHtml(locationUrl)}" data-location-map-title="${escapeHtml(locationTitle)}">
+    <div class="boss-map-action-row${locationUrl ? "" : " hidden"}" data-boss-map-actions data-location-map-url="${escapeHtml(locationUrl)}" data-location-map-title="${escapeHtml(locationTitle)}">
       ${locationUrl ? `<button type="button" class="entity-link-chip boss-map-toggle" data-boss-map-panel="location">${escapeHtml(t("common.showOnMap"))}</button>` : ""}
       <span data-boss-route-action-slot></span>
     </div>
@@ -5819,11 +7995,30 @@ function renderNpcNotes(detail = {}) {
   }
 
   return `
-    <section>
+    <section data-library-section="notes">
       <h4>${escapeHtml(t("common.notes"))}</h4>
       ${isYasir ? `<p class="npc-mini-world-change-note"><button type="button" class="inline-entity-link" data-open-mini-world-change="oriental-trader">${escapeHtml(t("npc.yasirMiniWorldChange"))}</button></p>` : ""}
-      ${regularNote ? `<p>${escapeHtml(regularNote)}</p>` : ""}
+      ${regularNote ? renderLibraryNarrative(regularNote, detail.name) : ""}
       ${spoilers.map((spoiler, index) => renderNpcSpoiler(spoiler, index)).join("")}
+    </section>
+  `;
+}
+
+function renderNpcCanonicalFactsSection(detail = {}) {
+  // City, functions, trade, notes and history already have native blocks.
+  // Keep any other published fact visible instead of silently losing it.
+  const entries = canonicalFactEntries(detail.canonicalFacts, [
+    "Cidade", "City", "Stadt", "Local", "Location", "Ort",
+    "Função", "Funcao", "Function", "Funktion", "Funções", "Funcoes", "Functions", "Funktionen",
+    "Comércio", "Comercio", "Trade", "Handel", "Venda", "Sale", "Verkauf", "Compra", "Purchase", "Kauf",
+    "Implementado", "Implemented", "Implementiert", "Notas", "Notes", "Hinweise",
+    "Falas", "Sounds", "Laute", "Aussagen", "História", "Historia", "History", "Geschichte"
+  ]);
+  if (!entries.length) return "";
+  return `
+    <section class="entity-fact-section">
+      <h4>${escapeHtml(t("common.details"))}</h4>
+      ${renderCanonicalFactList(entries, "entity-fact-list")}
     </section>
   `;
 }
@@ -5900,30 +8095,59 @@ function renderMonsterDetail(detail) {
     ["Ocorrencia", formatCreatureTextValue(detail.occurrence)]
   ];
 
-  setEntityDetailHtml(`
-    <div data-tutorial-focus="creature-summary">
+  const detailRoot = setEntityDetailHtml(`
+    <div data-tutorial-focus="creature-summary" data-library-section="hero">
       <div class="entity-hero creature-hero">
         <img src="${escapeHtml(detail.imageSrc || "")}" alt="${escapeHtml(detail.name)}" onerror="this.style.visibility='hidden'">
         <div>
-          <p class="muted">${escapeHtml([detail.creatureClass, detail.primaryType].filter(Boolean).join(" - ") || "Criatura")}</p>
+          <p class="muted">${escapeHtml([detail.creatureClass, detail.primaryType].filter(Boolean).join(" - ") || t("creature.entity"))}</p>
           <h3>${escapeHtml(detail.name)}${renderBossCategoryBadge(detail.bossCategory)}</h3>
           <p>${escapeHtml([detail.secondaryType, detail.isBoss === "yes" ? "Boss" : ""].filter(Boolean).join(" - "))}</p>
         </div>
       </div>
-      ${renderMonsterOverview(stats, detail)}
-      ${renderCreatureAbilities(detail.abilities)}
     </div>
-    <div data-tutorial-focus="boss-extra-details">
-      ${renderEntityTextSection("Comportamento", detail.behaviour)}
-      ${renderMonsterLocationSection(detail)}
-      ${renderSoundList(detail.sounds, "monster")}
-    </div>
-    ${renderEntityTextSection("Historia", detail.history)}
-    ${renderCreatureLoot(detail.loot)}
-    ${renderCreatureDetailActionRow(wikiButton)}
-    ${renderBossTrackerHost(detail)}
-    ${renderCreatureGearRecommendationHost(detail)}
+    <div data-library-section="status">${renderMonsterStatGrid(stats)}</div>
+    <div data-library-section="warning">${renderCreatureBestiaryWarning(detail)}</div>
+    <div data-library-section="damage">${renderDamageTable(detail.damageModifiers)}</div>
+    <div data-library-section="traits">${renderCreatureTraits(detail)}</div>
+    <div data-library-section="abilities">${renderCreatureAbilities(detail.abilities)}</div>
+    <div data-library-section="location">${renderMonsterLocationSection(detail)}</div>
+    <div data-library-section="description">${renderEntityTextSection(t("creature.behaviour"), detail.behaviour)}</div>
+    <div data-library-section="notes">${renderEntityTextSectionWithInlineMaps(t("common.notes"), detail.notes, detail.name)}</div>
+    <div data-library-section="sounds">${renderSoundList(detail.sounds, "monster")}</div>
+    <div data-library-section="history">${renderEntityTextSection(t("creature.history"), detail.history)}</div>
+    <div data-library-section="loot">${renderCreatureLoot(detail.loot)}</div>
+    <div data-library-section="tables">${renderLibraryDataTables(detail.tables)}</div>
+    <div data-tutorial-focus="boss-extra-details" data-library-section="details">${renderCreatureCanonicalFactsSection(detail)}</div>
+    <div data-library-section="actions">${renderCreatureDetailActionRow(wikiButton)}</div>
+    <div data-library-section="boss-tracker">${renderBossTrackerHost(detail)}</div>
+    <div data-library-section="gear-recommendations">${renderCreatureGearRecommendationHost(detail)}</div>
   `);
+  applyEditorialSectionOrder(detailRoot, detail.canonicalDocument?.presentation?.template);
+}
+
+function renderCreatureCanonicalFactsSection(detail = {}) {
+  // A canonical fact must not repeat a richer visual section. Keep only
+  // fields for which this screen has no dedicated presentation.
+  const entries = canonicalFactEntries(detail.canonicalFacts, [
+    "Vida", "Hitpoints", "Trefferpunkte", "Experiência", "Experience", "Erfahrung",
+    "Classe", "Class", "Klasse", "Tipo", "Type", "Typ",
+    "Localização", "Location", "Fundort", "Comportamento", "Behaviour", "Verhalten",
+    "Notas", "Notes", "Hinweise", "História", "History", "Geschichte",
+    "Falas", "Sounds", "Laute", "Aussagen", "Habilidades", "Abilities", "Fähigkeiten",
+    "Empurrável", "Pushable", "Verschiebbar", "Empurra objetos", "Pushes objects", "Schiebt Objekte", "Kann Gegenstände schieben",
+    "Imunidades", "Immunities", "Immunitäten", "Modificadores de dano", "Damage modifiers", "Schadensmodifikatoren",
+    "Loot", "Beute", "Velocidade", "Speed", "Geschwindigkeit", "Armadura", "Armor", "Rüstung",
+    "Mitigation", "Mitigação", "Schadensminderung", "Charms", "Dificuldade", "Difficulty", "Schwierigkeit",
+    "Ocorrência", "Occurrence", "Vorkommen"
+  ]);
+  if (!entries.length) return "";
+  return `
+    <section class="entity-fact-section">
+      <h4>${escapeHtml(t("creature.characteristics"))}</h4>
+      ${renderCanonicalFactList(entries, "entity-fact-list")}
+    </section>
+  `;
 }
 
 function renderCreatureDetailActionRow(wikiButton) {
@@ -5964,7 +8188,7 @@ function renderBossTrackerHost(detail) {
     <section class="boss-tracker-section boss-tracker-shell" data-boss-tracker-shell>
       <div class="boss-tracker-loading" data-boss-tracker-loading>
         <span class="global-loading-spinner boss-tracker-spinner" aria-hidden="true"></span>
-        <strong>Carregando estatisticas do boss...</strong>
+        <strong>${escapeHtml(t("creature.loadingBossStats"))}</strong>
       </div>
     </section>
   `;
@@ -5992,20 +8216,32 @@ function renderMonsterStatGrid(stats) {
         const icon = getCreatureStatIcon(label, value) || "";
         const isEmpty = value === "-";
         const iconOnly = label === "Dificuldade" || label === "Ocorrencia";
-        const tooltip = iconOnly && !isEmpty ? `${label}: ${value}` : "";
+        const displayLabel = creatureStatDisplayLabel(label);
+        const tooltip = iconOnly && !isEmpty ? `${displayLabel}: ${value}` : "";
         return `
           <div class="creature-status-line${isEmpty ? " empty" : ""}${iconOnly ? " icon-only-stat" : ""}"${tooltip ? ` data-tooltip="${escapeHtml(tooltip)}"` : ""}>
             ${icon ? `<img src="${escapeHtml(icon)}" alt="">` : ""}
             ${
               iconOnly
-                ? `<span>${escapeHtml(label)}</span>`
-                : `<span><strong>${escapeHtml(value)}</strong> ${escapeHtml(label)}</span>`
+                ? `<span>${escapeHtml(displayLabel)}</span>`
+                : `<span><strong>${escapeHtml(value)}</strong> ${escapeHtml(displayLabel)}</span>`
             }
           </div>
         `;
       }).join("")}
     </div>
   `;
+}
+
+function creatureStatDisplayLabel(label) {
+  const keys = {
+    Velocidade: "creature.speed",
+    Armadura: "creature.armor",
+    "Mitigação": "creature.mitigation",
+    Dificuldade: "creature.difficulty",
+    Ocorrencia: "creature.occurrence"
+  };
+  return keys[label] ? t(keys[label]) : label;
 }
 
 function getCreatureStatIcon(label, value) {
@@ -6336,16 +8572,16 @@ function renderCreatureBestiaryWarning(detail = {}) {
 
   return `
     <div class="creature-warning">
-      <strong><img src="assets/ui/15px-Warning_Icon_Yellow.png" alt=""> Aviso importante</strong>
-      <p>Essa criatura nao faz parte do bestiario; informacoes sobre fraquezas, resistencias e loots podem estar imprecisas.</p>
+      <strong><img src="assets/ui/combat-status/15px-Warning_Icon_Yellow.png" alt=""> ${escapeHtml(t("creature.warningTitle"))}</strong>
+      <p>${escapeHtml(t("creature.warningText"))}</p>
     </div>
   `;
 }
 
 function renderCreatureTraits(detail = {}) {
   const immunities = [
-    detail.paralyzeImmune ? { label: "Paralisia", value: detail.paralyzeImmune, icon: "assets/ui/Slowed_Icon.gif" } : null,
-    detail.senseInvisible ? { label: "Invisivel", value: detail.senseInvisible, icon: "assets/ui/9px-Invisible_Icon.gif" } : null
+    detail.paralyzeImmune ? { label: t("creature.paralysis"), value: detail.paralyzeImmune, icon: "assets/ui/combat-status/Slowed_Icon.gif" } : null,
+    detail.senseInvisible ? { label: t("creature.invisible"), value: detail.senseInvisible, icon: "assets/ui/combat-status/9px-Invisible_Icon.gif" } : null
   ].filter(Boolean).filter((entry) => isTruthyTrait(entry.value));
   const walksThrough = parseCreatureElementList(detail.walksThrough);
   const hasAnyTrait =
@@ -6361,19 +8597,19 @@ function renderCreatureTraits(detail = {}) {
   return `
     <div class="creature-traits-grid">
       <div>
-        <strong>Imunidades:</strong>
-        ${renderTraitIcons(immunities, "Nada.")}
+        <strong>${escapeHtml(t("creature.immunities"))}:</strong>
+        ${renderTraitIcons(immunities, t("creature.none"))}
       </div>
       <div>
-        <strong>Pode ser Puxado:</strong>
+        <strong>${escapeHtml(t("creature.pullable"))}:</strong>
         ${renderBooleanTrait(detail.pushable)}
       </div>
       <div>
-        <strong>Passa por:</strong>
-        ${renderElementTraitIcons(walksThrough, "Nada.")}
+        <strong>${escapeHtml(t("creature.walksThrough"))}:</strong>
+        ${renderElementTraitIcons(walksThrough, t("creature.none"))}
       </div>
       <div>
-        <strong>Empurra Objetos:</strong>
+        <strong>${escapeHtml(t("creature.pushesObjects"))}:</strong>
         ${renderBooleanTrait(detail.pushObjects)}
       </div>
     </div>
@@ -6921,14 +9157,8 @@ async function loadMonsterBossTracker(detail, requestId) {
     return;
   }
 
-  const selectedWorld = getSelectedWorld();
-
   try {
-    const bossTracker = await fetchBossTracker({
-      name: detail.name,
-      worldName: selectedWorld?.name || "",
-      worldSlug: selectedWorld?.slug || ""
-    });
+    const bossTracker = await requestBossTracker(detail);
 
     if (requestId !== state.monsterDetailRequestId) {
       return;
@@ -6944,6 +9174,49 @@ async function loadMonsterBossTracker(detail, requestId) {
   }
 }
 
+function getBossTrackerRequestPayload(detail = {}) {
+  const selectedWorld = getSelectedWorld();
+  return {
+    name: String(detail.name || "").trim(),
+    worldName: selectedWorld?.name || "",
+    worldSlug: selectedWorld?.slug || ""
+  };
+}
+
+function getBossTrackerRequestKey(payload = {}) {
+  return [
+    normalizeSearchText(payload.worldSlug || payload.worldName),
+    normalizeSearchText(payload.name)
+  ].join(":");
+}
+
+function requestBossTracker(detail = {}) {
+  const payload = getBossTrackerRequestPayload(detail);
+  const key = getBossTrackerRequestKey(payload);
+
+  if (!payload.name) {
+    return Promise.resolve(null);
+  }
+
+  const activeRequest = bossTrackerInFlightRequests.get(key);
+  if (activeRequest) {
+    return activeRequest;
+  }
+
+  const request = fetchBossTracker(payload)
+    .finally(() => {
+      if (bossTrackerInFlightRequests.get(key) === request) {
+        bossTrackerInFlightRequests.delete(key);
+      }
+    });
+  bossTrackerInFlightRequests.set(key, request);
+  return request;
+}
+
+function warmBossiaryTourBossTracker() {
+  return requestBossTracker({ name: "Yaga the Crone" }).catch(() => null);
+}
+
 function applyMonsterBossTracker(detail, bossTracker, hasError = false) {
   const shell = els.entityDetailContent?.querySelector("[data-boss-tracker-shell]");
   const heroTitle = els.entityDetailContent?.querySelector(".entity-hero h3");
@@ -6956,6 +9229,10 @@ function applyMonsterBossTracker(detail, bossTracker, hasError = false) {
   if (heroTitle) {
     heroTitle.innerHTML = normalizeUiText(renderMonsterBossHeader(detail, bossTracker));
   }
+
+  // Location belongs to the Library record and remains available while the
+  // optional tracker request is slow or unavailable.
+  syncBossMapActions(detail, bossTracker, mapActions);
 
   if (hasError) {
     state.currentBossTracker = null;
@@ -6976,7 +9253,6 @@ function applyMonsterBossTracker(detail, bossTracker, hasError = false) {
   shell.innerHTML = normalizeUiText(
     trackerSectionsHtml || `<div class="empty-inline">Estatisticas encontradas, mas sem grafico ou historico disponivel para este boss.</div>`
   );
-  syncBossMapActions(detail, bossTracker, mapActions);
   bindEntityDetailActions(shell);
   bindSkillDynamicTooltips(shell);
   centerBossChartScrolls(shell);
@@ -6987,7 +9263,7 @@ function syncBossMapActions(detail = {}, bossTracker = null, mapActions = null) 
     return;
   }
 
-  const locationUrl = String(bossTracker?.mapUrl || mapActions.dataset.locationMapUrl || "").trim();
+  const locationUrl = String(bossTracker?.mapUrl || detail.map?.url || mapActions.dataset.locationMapUrl || "").trim();
   if (locationUrl) {
     mapActions.dataset.locationMapUrl = locationUrl;
     mapActions.dataset.locationMapTitle = mapActions.dataset.locationMapTitle || `${detail.name || "Boss"} - ${detail.location || "Mapa"}`;
@@ -6999,12 +9275,15 @@ function syncBossMapActions(detail = {}, bossTracker = null, mapActions = null) 
     }
   }
 
+  const hasRoute = hasBossRouteMap(bossTracker?.routeMap);
   const routeSlot = mapActions.querySelector("[data-boss-route-action-slot]");
   if (routeSlot) {
-    routeSlot.innerHTML = hasBossRouteMap(bossTracker?.routeMap)
+    routeSlot.innerHTML = hasRoute
       ? `<button type="button" class="entity-link-chip boss-map-toggle" data-boss-map-panel="route">Como chegar</button>`
       : "";
   }
+
+  mapActions.classList.toggle("hidden", !locationUrl && !hasRoute);
 
   bindEntityDetailActions(mapActions);
 }
@@ -7015,7 +9294,7 @@ function hasBossRouteMap(routeMap) {
       Array.isArray(routeMap.maps) &&
       routeMap.maps.some((map) =>
         Array.isArray(map?.paths) &&
-          map.paths.some((pathEntry) => Array.isArray(pathEntry?.routes) && pathEntry.routes.length > 1)
+          map.paths.some((pathEntry) => Array.isArray(pathEntry?.routes) && pathEntry.routes.length > 0)
       )
   );
 }
@@ -7023,14 +9302,17 @@ function hasBossRouteMap(routeMap) {
 function renderBossInlineMap(button) {
   const mode = button.dataset.bossMapPanel || "";
   const actions = button.closest("[data-boss-map-actions]");
-  const panel = actions?.parentElement?.querySelector("[data-boss-inline-map-panel]");
+  const mapBlock = actions?.parentElement;
+  // Each action owns its immediate map panel. This prevents coordinate maps
+  // embedded in Notes from ever hijacking the creature/boss location map.
+  const panel = mapBlock?.querySelector(":scope > [data-boss-inline-map-panel]");
 
   if (!actions || !panel) {
     return;
   }
 
   const isSameOpen = !panel.classList.contains("hidden") && panel.dataset.bossMapMode === mode;
-  actions.querySelectorAll("[data-boss-map-panel]").forEach((entry) => {
+  mapBlock?.parentElement?.querySelectorAll("[data-boss-map-panel]").forEach((entry) => {
     entry.classList.remove("active");
   });
   stopTibiaInlineMaps(panel);
@@ -7206,7 +9488,7 @@ function getTibiaLeafletFloorLayer(mapState, floor) {
   const { L } = mapState;
   const floorLabel = String(normalizedFloor).padStart(2, "0");
   const layer = L.imageOverlay(
-    `${TIBIA_MAP_DATA_BASE_URL}floor-${floorLabel}-map.png`,
+    `${TIBIA_MAP_DATA_BASE_URL}floor-${floorLabel}-map.png?v=2026-08-08-r1`,
     [
       [0, 0],
       [TIBIA_MAP_PIXEL_BOUNDS.height, TIBIA_MAP_PIXEL_BOUNDS.width]
@@ -7816,6 +10098,10 @@ async function fetchCreatureGearRecommendationEntry(detail) {
       return state.creatureGearRecommendations[slug];
     }
 
+    if (state.creatureGearRecommendationMissingSlugs.has(slug)) {
+      continue;
+    }
+
     if (!state.creatureGearRecommendationPromises[slug]) {
       const recommendationPath = `${CREATURE_GEAR_RECOMMENDATIONS_DIR}/${slug}.json`;
       state.creatureGearRecommendationPromises[slug] = (window.desktopApi?.assets?.readJson
@@ -7825,8 +10111,17 @@ async function fetchCreatureGearRecommendationEntry(detail) {
         .then((entry) => {
           if (entry) {
             state.creatureGearRecommendations[slug] = entry;
+          } else {
+            state.creatureGearRecommendationMissingSlugs.add(slug);
           }
           return entry;
+        })
+        .catch((error) => {
+          if (isMissingCreatureGearRecommendation(error)) {
+            state.creatureGearRecommendationMissingSlugs.add(slug);
+            return null;
+          }
+          throw error;
         })
         .finally(() => {
           delete state.creatureGearRecommendationPromises[slug];
@@ -7840,6 +10135,12 @@ async function fetchCreatureGearRecommendationEntry(detail) {
   }
 
   return null;
+}
+
+function isMissingCreatureGearRecommendation(error) {
+  return /ENOENT|not found|404/i.test(
+    error instanceof Error ? error.message : String(error || "")
+  );
 }
 
 function getCreatureGearCandidateSlugs(detail) {
@@ -8065,7 +10366,7 @@ function renderCreatureAbilities(abilities = []) {
 
   return `
     <section>
-      <h4>Habilidades</h4>
+      <h4>${escapeHtml(t("creature.abilities"))}</h4>
       <div class="creature-ability-list">
         ${Object.entries(groups).map(([element, abilitiesByElement]) => {
           const icon = getCreatureAbilityGroupIcon(element);
@@ -8121,7 +10422,7 @@ function renderSoundList(sounds = [], kind = "monster") {
 
   return `
     <section>
-      <h4>Sons</h4>
+      <h4>${escapeHtml(t("creature.sounds"))}</h4>
       <div class="sound-list ${kind === "npc" ? "npc-sounds" : "monster-sounds"}">
         ${lines.map((sound) => `<q>${escapeHtml(sound)}</q>`).join("")}
       </div>
@@ -8143,14 +10444,14 @@ function renderDamageTable(modifiers = []) {
 
   return `
     <div class="creature-elements-panel">
-      <h4>Elementos</h4>
+      <h4>${escapeHtml(t("creature.elements"))}</h4>
       <div class="damage-grid creature-element-grid">
         ${modifiers.map((modifier) => {
           const numericValue = parseCreaturePercent(modifier.value);
           const tone = numericValue > 100 ? "weak" : numericValue < 100 ? "resist" : "neutral";
           const icon = ELEMENT_ICONS[modifier.label] || "";
           const elementKey = normalizeCreatureElementKey(modifier.key || modifier.label);
-          const tooltip = `Filtrar fraqueza: ${ELEMENT_DISPLAY_NAMES[modifier.label] || modifier.label}`;
+          const tooltip = t("creature.filterWeakness", { element: ELEMENT_DISPLAY_NAMES[modifier.label] || modifier.label });
           return `
             <button type="button" class="creature-element-card ${tone}" data-creature-weakness-filter="${escapeHtml(elementKey)}" data-tooltip="${escapeHtml(tooltip)}">
               <span class="creature-element-icon">${icon ? `<img src="${escapeHtml(icon)}" alt="">` : escapeHtml(modifier.label)}</span>
@@ -8175,7 +10476,145 @@ function renderEntityTextSection(title, text) {
     return "";
   }
 
-  return `<section><h4>${escapeHtml(title)}</h4><p>${escapeHtml(value)}</p></section>`;
+  return `<section><h4>${escapeHtml(title)}</h4><p>${renderLibraryFactualText(value)}</p></section>`;
+}
+
+function renderEntityTextSectionWithInlineMaps(title, text, entityName = "") {
+  const value = String(text || "").trim();
+  if (!value || value.toLowerCase() === "unknown" || value.toLowerCase() === "unknown.") return "";
+
+  return `
+    <section class="library-inline-note-section">
+      <h4>${escapeHtml(title)}</h4>
+      ${renderLibraryNarrative(value, entityName)}
+    </section>
+  `;
+}
+
+
+function renderLibraryNarrative(value, entityName = "") {
+  const blocks = String(value || "").replace(/\r\n?/g, "\n").split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  return blocks.map((block, blockIndex) => {
+    const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+    const list = lines.length > 0 && lines.every((line) => /^[-*â€¢]\s+/.test(line));
+    if (list) {
+      return `<ul class="library-narrative-list">${lines.map((line, lineIndex) => `<li>${renderLibraryNarrativeInline(line.replace(/^[-*â€¢]\s+/, ""), entityName, `${blockIndex}-${lineIndex}`)}</li>`).join("")}</ul>`;
+    }
+    return `<p>${lines.map((line, lineIndex) => `${lineIndex ? "<br>" : ""}${renderLibraryNarrativeInline(line, entityName, `${blockIndex}-${lineIndex}`)}`).join("")}</p>`;
+  }).join("");
+}
+
+function renderLibraryNarrativeInline(value, entityName, key) {
+  const coordinatePattern = /\(\s*(\d{4,5})\s*,\s*(\d{4,5})\s*,\s*(\d{1,2})(?:\s*:\s*(\d+))?\s+(?:aqui|here)\s*\)/gi;
+  const escaped = escapeHtml(String(value || ""));
+  let cursor = 0;
+  let result = "";
+  let match;
+  while ((match = coordinatePattern.exec(escaped))) {
+    result += renderLibraryNarrativeEmphasis(escaped.slice(cursor, match.index));
+    const [x, y, floor, zoom] = match.slice(1);
+    const mapKey = `${x},${y},${floor}:${zoom || 2}`;
+    const mapTitle = `${entityName || "Localizacao"} - Mapa (${x}, ${y}, ${floor})`;
+    result += `<span class="library-note-map-inline">aqui <span class="library-note-map-block"><span class="boss-map-action-row library-note-map-action" data-boss-map-actions data-location-map-url="https://tibiamaps.io/map#${escapeHtml(mapKey)}" data-location-map-title="${escapeHtml(mapTitle)}"><button type="button" class="entity-link-chip boss-map-toggle" data-boss-map-panel="location">Abrir mapa</button></span><span class="boss-inline-map hidden" data-boss-inline-map-panel></span></span></span>`;
+    cursor = match.index + match[0].length;
+  }
+  result += renderLibraryNarrativeEmphasis(escaped.slice(cursor));
+  return result || `-${key}`;
+}
+
+function renderLibraryNarrativeEmphasis(escaped) {
+  return escaped
+    .replace(/\[\[(item|npc|creature|boss):([a-z0-9-]+)\|([^\]]+)\]\]/g, (_match, kind, slug, label) => `<button type="button" class="inline-entity-link" data-entity-kind="${kind}" data-entity-slug="${slug}" data-entity-name="${label}"><strong>${label}</strong></button>`)
+    .replace(/\[([^\]]+)\]\(https?:\/\/(?:[^\s()]|\([^\s()]*\))+\)/g, (_match, label) => label)
+    .replace(/\*\*\*([^*\n]+)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_\n]+)__/g, "<em>$1</em>")
+    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
+}
+
+function renderInlineMapActions(maps = [], entityName = "") {
+  return maps.map((map, index) => `
+    <div class="library-note-map-block">
+      <div class="boss-map-action-row library-note-map-action" data-boss-map-actions data-location-map-url="${escapeHtml(map.url)}" data-location-map-title="${escapeHtml(`${entityName || "Localizacao"} - ${map.label}`)}">
+        <button type="button" class="entity-link-chip boss-map-toggle" data-boss-map-panel="location">${escapeHtml(index === 0 ? t("common.showOnMap") : `Mapa ${index + 1}`)}</button>
+      </div>
+      <div class="boss-inline-map hidden" data-boss-inline-map-panel></div>
+    </div>
+  `).join("");
+}
+
+function findInlineMapReferences(text) {
+  const maps = [];
+  const seen = new Set();
+  const coordinatePattern = /\(?\s*(\d{4,5})\s*,\s*(\d{4,5})\s*,\s*(\d{1,2})(?:\s*:\s*(\d+))?\s*\)?/g;
+  let match;
+  while ((match = coordinatePattern.exec(String(text || "")))) {
+    const [x, y, floor, zoom] = match.slice(1);
+    const key = `${x},${y},${floor}:${zoom || 2}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    maps.push({ url: `https://tibiamaps.io/map#${key}`, label: `Mapa (${x}, ${y}, ${floor})` });
+  }
+  return maps;
+}
+
+function renderLibraryDataTables(tables = []) {
+  if (!Array.isArray(tables) || tables.length === 0) return "";
+  return tables.map((table) => {
+    const headings = Array.isArray(table?.headings) ? table.headings : [];
+    const rows = Array.isArray(table?.rows) ? table.rows : [];
+    if (headings.length === 0 || rows.length === 0) return "";
+    return `
+      <section class="item-extra-section item-damage-section library-data-table-section">
+        <h4>${escapeHtml(table.title || "Dados")}</h4>
+        <div class="item-damage-table-wrap">
+          <table class="item-damage-table">
+            <thead><tr>${headings.map((heading) => `<th>${escapeHtml(heading)}</th>`).join("")}</tr></thead>
+            <tbody>${rows.map((row) => `<tr>${(Array.isArray(row) ? row : []).map((cell) => `<td>${renderLibraryFactualText(cell || "-")}</td>`).join("")}</tr>`).join("")}</tbody>
+          </table>
+        </div>
+      </section>
+    `;
+  }).join("");
+}
+
+function renderLibraryFactualText(value) {
+  const source = presentLibraryNarrativeValue(value);
+  if (!source.trim()) return "-";
+
+  return source
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => {
+      const bullet = line.match(/^(\s*)[*•]\s+(.+)$/);
+      const content = bullet ? `${bullet[1]}• ${bullet[2]}` : line;
+      return renderLibraryInlineFactualMarkdown(content);
+    })
+    .join("<br>");
+}
+
+// Match the website presentation rule.  Legacy MediaWiki image and `link=`
+// transport fragments are not facts to show in the desktop UI; the original
+// canonical record remains available to the editor/audit instead of being
+// rewritten here.
+function presentLibraryNarrativeValue(value) {
+  return String(value ?? "")
+    // Strip only the imported file token.  A caption after `|` may contain
+    // factual prose and must not disappear from the rendered record.
+    .replace(/(?:^|\s)\*?\s*(?:Arquivo|File|Image|Imagem):[^\s|]+\|?/giu, "")
+    .replace(/\blink=\s*/giu, "")
+    .replace(/[ \t]{2,}/gu, " ")
+    .replace(/[ \t]+([,.;:!?])/gu, "$1")
+    .replace(/""/gu, "")
+    .trim();
+}
+
+function renderLibraryInlineFactualMarkdown(value) {
+  return escapeHtml(String(value ?? ""))
+    .replace(/\*\*\*([^*\n]+)\*\*\*/g, "<strong><em>$1</em></strong>")
+    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/__([^_\n]+)__/g, "<em>$1</em>")
+    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>");
 }
 
 function renderCreatureLoot(loot = []) {
@@ -8184,23 +10623,26 @@ function renderCreatureLoot(loot = []) {
   }
 
   const groups = [
-    ["common", "Comum"],
-    ["uncommon", "Incomum"],
-    ["semi-rare", "Semi-raro"],
-    ["rare", "Raro"],
-    ["very-rare", "Muito raro"],
-    ["event", "Eventos"],
-    ["event-common", "Eventos - Comum"],
-    ["event-uncommon", "Eventos - Incomum"],
-    ["event-semi-rare", "Eventos - Semi-raro"],
-    ["event-rare", "Eventos - Raro"],
-    ["event-very-rare", "Eventos - Muito raro"],
-    ["event-always", "Eventos - Sempre"],
-    ["always", "Sempre"],
-    ["unknown", "Outros"]
+    ["common", t("library.loot.common")],
+    ["uncommon", t("library.loot.uncommon")],
+    ["semi-rare", t("library.loot.semiRare")],
+    ["rare", t("library.loot.rare")],
+    ["very-rare", t("library.loot.veryRare")],
+    ["event", t("library.loot.event")],
+    ["event-common", `${t("library.loot.event")} - ${t("library.loot.common")}`],
+    ["event-uncommon", `${t("library.loot.event")} - ${t("library.loot.uncommon")}`],
+    ["event-semi-rare", `${t("library.loot.event")} - ${t("library.loot.semiRare")}`],
+    ["event-rare", `${t("library.loot.event")} - ${t("library.loot.rare")}`],
+    ["event-very-rare", `${t("library.loot.event")} - ${t("library.loot.veryRare")}`],
+    ["event-always", `${t("library.loot.event")} - ${t("library.loot.always")}`],
+    ["always", t("library.loot.always")],
+    ["unknown", t("library.loot")]
   ];
 
-  const byRarity = loot.reduce((accumulator, item) => {
+  // Preserve unclassified reciprocal relations in the local dataset for the
+  // audit, but do not show them to users under a fictitious loot category.
+  const visibleLoot = loot.filter((item) => normalizeRenderedCreatureLootRarity(item.rarity) !== "unknown");
+  const byRarity = visibleLoot.reduce((accumulator, item) => {
     const rarity = normalizeRenderedCreatureLootRarity(item.rarity);
     if (!accumulator[rarity]) {
       accumulator[rarity] = [];
@@ -8211,7 +10653,7 @@ function renderCreatureLoot(loot = []) {
 
   return `
     <section class="creature-loot-section">
-      <h4>Loot</h4>
+      <h4>${escapeHtml(t("library.loot"))}</h4>
       <div class="creature-loot-table">
         ${groups.map(([rarity, label]) => {
           const items = byRarity[rarity] || [];
@@ -8357,6 +10799,22 @@ function setEntityDetailHtml(markup) {
   els.entityDetailContent.innerHTML = normalizeUiText(markup);
   bindEntityDetailActions();
   bindSkillDynamicTooltips(els.entityDetailContent);
+  return els.entityDetailContent;
+}
+
+function applyEditorialSectionOrder(root, template) {
+  if (!root || !Array.isArray(template?.sections) || !template.sections.length) return;
+  const ordered = template.sections.map((section) => String(section?.id || "")).filter(Boolean);
+  for (const anchor of Array.isArray(template.integrationAnchors) ? template.integrationAnchors : []) {
+    const id = String(anchor?.id || "");
+    const index = ordered.indexOf(String(anchor?.after || ""));
+    if (id && index >= 0 && !ordered.includes(id)) ordered.splice(index + 1, 0, id);
+  }
+  const rank = new Map(ordered.map((id, index) => [id, index]));
+  [...root.children]
+    .filter((element) => element.hasAttribute("data-library-section"))
+    .sort((left, right) => (rank.get(left.dataset.librarySection) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.dataset.librarySection) ?? Number.MAX_SAFE_INTEGER))
+    .forEach((element) => root.append(element));
 }
 
 function scrollEntityDetailIntoView(options = {}) {
@@ -8464,6 +10922,106 @@ function hideInitialSplash() {
   }, remaining);
 }
 
+function recordPerformanceMetric(name, details = {}) {
+  return window.desktopApi?.app?.performanceMetric?.(name, details).catch(() => {});
+}
+
+function bindTemporaryUiPerformanceDiagnostics() {
+  if (!isDesktopOverlayApp() || window.__tibiaToolkitUiPerformanceDiagnosticsBound) {
+    return;
+  }
+
+  window.__tibiaToolkitUiPerformanceDiagnosticsBound = true;
+  let sequence = 0;
+  void recordPerformanceMetric("ui-diagnostic-session-start", {
+    selectedSection: state.selectedSection || "",
+    selectedToolTab: state.selectedToolTab || ""
+  });
+
+  document.addEventListener("click", (event) => {
+    const clicked = event.target instanceof Element
+      ? event.target.closest("button, a, [role='button'], [data-section], [data-tool-tab], [data-tab], [data-action]")
+      : null;
+
+    if (!clicked) {
+      return;
+    }
+
+    const clickId = ++sequence;
+    const startedAt = performance.now();
+    const label = String(
+      clicked.getAttribute("aria-label")
+      || clicked.getAttribute("data-tooltip")
+      || clicked.getAttribute("title")
+      || clicked.textContent
+      || ""
+    ).replace(/\s+/g, " ").trim().slice(0, 100);
+    const target = {
+      tag: clicked.tagName.toLowerCase(),
+      id: String(clicked.id || "").slice(0, 80),
+      section: String(clicked.dataset.section || "").slice(0, 80),
+      toolTab: String(clicked.dataset.toolTab || "").slice(0, 80),
+      tab: String(clicked.dataset.tab || "").slice(0, 80),
+      action: String(clicked.dataset.action || "").slice(0, 80),
+      label
+    };
+
+    queueMicrotask(() => {
+      const context = {
+        selectedSection: state.selectedSection || "",
+        selectedToolTab: state.selectedToolTab || "",
+        itemViewMode: state.itemViewMode || "",
+        entityViewMode: state.entityViewMode || "",
+        npcTab: state.npcTab || ""
+      };
+      void recordPerformanceMetric("ui-click-diagnostic", { clickId, target, context });
+
+      window.setTimeout(() => {
+        const memory = performance.memory;
+        void recordPerformanceMetric("ui-click-settled-diagnostic", {
+          clickId,
+          target,
+          context: {
+            selectedSection: state.selectedSection || "",
+            selectedToolTab: state.selectedToolTab || "",
+            itemViewMode: state.itemViewMode || "",
+            entityViewMode: state.entityViewMode || "",
+            npcTab: state.npcTab || ""
+          },
+          elapsedMs: Math.round(performance.now() - startedAt),
+          domNodes: document.getElementsByTagName("*").length,
+          heapUsedMb: memory?.usedJSHeapSize
+            ? Math.round((memory.usedJSHeapSize / 1048576) * 100) / 100
+            : null
+        });
+      }, 250);
+    });
+  });
+}
+
+function recordLibraryGridRenderMetric(kind, startedAt, total, rendered, container) {
+  const now = performance.now();
+  const lastRecordedAt = libraryRenderMetricAt.get(kind) || -Infinity;
+  if (now - lastRecordedAt < LIBRARY_RENDER_METRIC_THROTTLE_MS) {
+    return;
+  }
+
+  libraryRenderMetricAt.set(kind, now);
+  void recordPerformanceMetric("library-grid-rendered", {
+    kind,
+    total,
+    rendered,
+    domNodes: container?.children?.length || 0,
+    elapsedMs: Math.round(now - startedAt)
+  });
+}
+
+// Pause only decorative motion while the desktop window is not active. Timers,
+// alerts and Mirror state continue in the main process and are not affected.
+window.desktopApi?.app?.onActivityStateChanged?.(({ active }) => {
+  document.body.classList.toggle("app-inactive", !active);
+});
+
 let postBootWorkScheduled = false;
 
 function schedulePostBootWork() {
@@ -8472,28 +11030,21 @@ function schedulePostBootWork() {
   }
 
   postBootWorkScheduled = true;
+  void recordPerformanceMetric("renderer-ready", {
+    elapsedMs: Math.round(performance.now() - state.initialSplashStartedAt)
+  });
   const run = async () => {
-    await import("./desktop/screen-vision/screen-vision.js").catch((error) => {
-      console.warn("[startup] screen-vision-module-failed", error);
-    });
-    await new Promise((resolve) => window.setTimeout(resolve, 0));
     await import("./desktop/tutorial-tour.js").catch((error) => {
       console.warn("[startup] tutorial-module-failed", error);
     });
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    await import("./desktop/screen-vision/screen-vision.js").catch((error) => {
+      console.warn("[startup] screen-vision-module-failed", error);
+    });
 
-    const warmCaches = () => {
-      void prewarmStartupCaches().catch((error) => {
-        console.warn("[startup] background-cache-warm-failed", error);
-      });
-    };
-
-    window.setTimeout(() => {
-      if (typeof window.requestIdleCallback === "function") {
-        window.requestIdleCallback(warmCaches, { timeout: 2500 });
-      } else {
-        warmCaches();
-      }
-    }, 2000);
+    // Do not parse and render full Stash/Bestiary datasets right after the
+    // splash. Their compact visual indexes remain available when a tab opens;
+    // complete details are hydrated on demand with the existing loading UI.
   };
 
   window.setTimeout(() => void run(), 120);
@@ -8516,6 +11067,30 @@ function runInitialSplashTask(startProgress, endProgress, task) {
   } catch (error) {
     updateInitialSplashProgress(endProgress);
     throw error;
+  }
+}
+
+async function waitForStartupTaskDeadline(taskPromise, startedAt, maxWaitMs) {
+  const remainingMs = Math.max(0, Math.round(
+    Number(maxWaitMs) - (performance.now() - Number(startedAt || performance.now()))
+  ));
+
+  if (remainingMs <= 0) {
+    return false;
+  }
+
+  let timeoutId = 0;
+  try {
+    return await Promise.race([
+      Promise.resolve(taskPromise).then(() => true),
+      new Promise((resolve) => {
+        timeoutId = window.setTimeout(() => resolve(false), remainingMs);
+      })
+    ]);
+  } finally {
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+    }
   }
 }
 
@@ -8604,20 +11179,22 @@ function hideGlobalLoading() {
 
 function bindEntityDetailActions(root = els.entityDetailContent) {
   root?.querySelectorAll("[data-external-url]").forEach((button) => {
+    if (button.dataset.externalLinkBound === "true") {
+      return;
+    }
+
+    button.dataset.externalLinkBound = "true";
     button.addEventListener("click", () => {
-      void openDesktopExternalLink(button.dataset.externalUrl);
+      const url = String(button.dataset.externalUrl || "").trim();
+      if (url) {
+        void openDesktopExternalLink(url);
+      }
     });
   });
 
   root?.querySelectorAll("[data-open-mini-world-change]").forEach((button) => {
     button.addEventListener("click", () => {
       void openOrientalTraderWorldChange();
-    });
-  });
-
-  root?.querySelectorAll("[data-map-url]").forEach((button) => {
-    button.addEventListener("click", () => {
-      void openMapModal(button.dataset.mapUrl, button.dataset.mapTitle || "Mapa");
     });
   });
 
@@ -8664,6 +11241,38 @@ function bindEntityDetailActions(root = els.entityDetailContent) {
       els.itemInput.value = state.selectedItemSuggestion.name;
       switchSection("item-prices");
       await handleItemSearch(true);
+    });
+  });
+
+  root?.querySelectorAll("[data-entity-kind][data-entity-slug]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const kind = button.dataset.entityKind;
+      const slug = button.dataset.entitySlug;
+      const name = button.dataset.entityName || slug;
+
+      if (!kind || !slug) {
+        return;
+      }
+
+      if (kind === "item") {
+        state.selectedItemSuggestion = { slug, name, category: "Item", imageSrc: "" };
+        pushCurrentNavigationEntry();
+        els.itemInput.value = name;
+        switchSection("item-prices");
+        await handleItemSearch(true);
+        return;
+      }
+
+      pushCurrentNavigationEntry();
+      switchSection("npcs", { skipHistory: true });
+      if (kind === "npc") {
+        await setEntityViewMode("npcs", { skipHistory: true });
+        await openNpcDetail(name, { skipHistory: true });
+        return;
+      }
+
+      await setEntityViewMode(kind === "boss" ? "bosses" : "monsters", { skipHistory: true });
+      await openMonsterDetail(name, { skipHistory: true });
     });
   });
 
@@ -8788,36 +11397,6 @@ function bindEntityDetailActions(root = els.entityDetailContent) {
 
 }
 
-async function openMapModal(url, title = "Mapa") {
-  const mapUrl = getEmbeddedTibiaMapUrl(url);
-  closeMapModal();
-
-  const openedInDesktop = await openDesktopMapWindow(mapUrl, normalizeUiText(title)).catch(() => false);
-
-  if (openedInDesktop) {
-    return;
-  }
-
-  if (isDesktopOverlayApp()) {
-    void openDesktopExternalLink(mapUrl);
-    return;
-  }
-
-  if (!els.mapModal || !els.mapModalFrame || !els.mapModalCard) {
-    void openDesktopExternalLink(mapUrl);
-    return;
-  }
-
-  els.mapModalTitle.textContent = normalizeUiText(title);
-  els.mapModalFrame.src = mapUrl;
-  if (!els.mapModalCard.style.left || !els.mapModalCard.style.top) {
-    els.mapModalCard.style.left = "28px";
-    els.mapModalCard.style.top = "84px";
-  }
-  els.mapModal.classList.remove("hidden");
-  els.mapModal.setAttribute("aria-hidden", "false");
-}
-
 function getEmbeddedTibiaMapUrl(url) {
   const value = String(url || "");
   const hashIndex = value.indexOf("#");
@@ -8930,18 +11509,42 @@ async function ensureStashLoaded() {
     return;
   }
 
-  setStashStatus(t("stash.loadingLocal"));
-  const data = await fetchStashItems();
-  state.stashItems = Array.isArray(data?.items) ? data.items : [];
-  state.stashCategories = Array.isArray(data?.categories) ? data.categories : [];
-  state.stashTraders = Array.isArray(data?.traders) ? data.traders : [];
-  state.stashLoaded = true;
-  renderStashFilters();
-  setStashStatus(t("stash.localItemsCount", { count: formatCompactNumber(state.stashItems.length) }));
+  if (state.stashLoadPromise) {
+    return state.stashLoadPromise;
+  }
+
+  state.stashLoadPromise = (async () => {
+    setStashStatus(t("stash.loadingLocal"));
+    const data = await fetchStashItems();
+    state.stashItems = Array.isArray(data?.items) ? data.items : [];
+    state.stashItemBySlug = new Map(state.stashItems.flatMap((item) => {
+      const keys = new Set([
+        String(item?.slug || ""),
+        slugifyItemInput(item?.name || "")
+      ].filter(Boolean));
+      return [...keys].map((key) => [key, item]);
+    }));
+    state.stashCategories = Array.isArray(data?.categories) ? data.categories : [];
+    state.stashTraders = Array.isArray(data?.traders) ? data.traders : [];
+    state.stashLoaded = true;
+    void recordPerformanceMetric("stash-catalog-ready", { count: state.stashItems.length });
+    renderStashFilters();
+    setStashStatus(t("stash.localItemsCount", { count: formatCompactNumber(state.stashItems.length) }));
+  })();
+
+  try {
+    await state.stashLoadPromise;
+  } finally {
+    state.stashLoadPromise = null;
+  }
 }
 
 function setBooksStatus(message) {
   if (els.booksStatus) {
+    // This value changes after the local catalog resolves.  It must no longer
+    // be treated as the static "books.loading" label, otherwise a later
+    // locale refresh replaces the result count with the loading fallback.
+    els.booksStatus.removeAttribute("data-i18n");
     els.booksStatus.textContent = normalizeUiText(message || "");
   }
 }
@@ -9029,8 +11632,11 @@ function renderBookDetail() {
   }
 
   const locale = state.localeController?.getLocale?.() || "pt-BR";
-  const readableText = locale === "pt-BR" && book.translatedText ? book.translatedText : book.englishText;
-  const textLabel = locale === "pt-BR" && book.translatedText ? t("books.translation") : t("books.originalText");
+  const translatedText = book.translatedText || book.ptText || "";
+  const originalText = book.englishText || book.originalText || book.rawText || "";
+  const hasReviewedTranslation = locale === "pt-BR" && Boolean(translatedText);
+  const readableText = hasReviewedTranslation ? translatedText : originalText;
+  const textLabel = hasReviewedTranslation ? t("books.translation") : t("books.originalText");
   const metadata = [
     [t("books.author"), book.author],
     [t("books.genre"), book.genre],
@@ -9040,21 +11646,22 @@ function renderBookDetail() {
   const appearances = Array.isArray(book.appearances) ? book.appearances : [];
 
   els.booksDetail.innerHTML = `
-    <div class="books-detail-header">
+    <div class="books-detail-header" data-library-section="hero">
       <div class="books-detail-hero">${book.image ? `<img src="${escapeHtml(book.image)}" alt="">` : ""}<div><h3>${escapeHtml(book.name)}</h3>${book.tibn ? `<p>${escapeHtml(book.tibn)}</p>` : ""}</div></div>
       <button type="button" class="entity-link-chip" data-books-close>${escapeHtml(t("books.closeDetails"))}</button>
     </div>
-    ${metadata.length ? `<div class="books-metadata">${metadata.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>` : ""}
-    <section class="books-detail-section"><h4>${escapeHtml(t("books.appearances"))}</h4><div class="books-appearances">${appearances.map((appearance, index) => `
+    ${metadata.length ? `<div class="books-metadata" data-library-section="metadata">${metadata.map(([label, value]) => `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join("")}</div>` : ""}
+    ${readableText ? `<section class="books-detail-section" data-library-section="text"><h4>${escapeHtml(textLabel)}</h4><div class="book-text">${renderLibraryFactualText(readableText)}</div></section>` : ""}
+    ${book.notes ? `<section class="books-detail-section" data-library-section="notes"><h4>${escapeHtml(t("common.notes"))}</h4><p>${renderLibraryFactualText(book.notes)}</p></section>` : ""}
+    ${book.relatedArticles ? `<section class="books-detail-section" data-library-section="related"><h4>${escapeHtml(t("books.related"))}</h4><p>${renderLibraryFactualText(book.relatedArticles)}</p></section>` : ""}
+    <section class="books-detail-section" data-library-section="appearances"><h4>${escapeHtml(t("books.appearances"))}</h4><div class="books-appearances">${appearances.map((appearance, index) => `
       <article class="book-appearance-card">
         <div class="book-appearance-content">${appearance.image ? `<img src="${escapeHtml(appearance.image)}" alt="">` : ""}
           <div><strong>${escapeHtml(appearance.name || t("books.appearance"))}</strong><span>${escapeHtml([appearance.location, appearance.locationDetail].filter(Boolean).join(" "))}</span></div>
         </div>
         ${appearance.coordinates ? `<button type="button" class="entity-link-chip boss-map-toggle" data-book-map-index="${index}">${escapeHtml(t("books.showMap"))}</button>` : ""}
       </article>`).join("") || `<p class="empty-inline">${escapeHtml(t("common.noData"))}</p>`}</div><div class="boss-inline-map hidden" data-books-inline-map-panel></div></section>
-    ${readableText ? `<section class="books-detail-section"><h4>${escapeHtml(textLabel)}</h4><pre class="book-text">${escapeHtml(readableText)}</pre></section>` : ""}
-    ${book.notes ? `<section class="books-detail-section"><h4>${escapeHtml(t("common.notes"))}</h4><p>${escapeHtml(book.notes)}</p></section>` : ""}
-    <div class="books-detail-actions">${book.source ? `<button type="button" class="entity-link-chip" data-book-open-wiki>${escapeHtml(t("common.openWiki"))}</button>` : ""}</div>`;
+    <div class="books-detail-actions" data-library-section="actions">${book.source ? `<button type="button" class="entity-link-chip" data-book-open-wiki>${escapeHtml(t("common.openWiki"))}</button>` : ""}</div>`;
   els.booksDetail.classList.remove("hidden");
   els.booksDetail.querySelector("[data-books-close]")?.addEventListener("click", () => {
     state.booksDocuments.detail = null;
@@ -9105,14 +11712,16 @@ function renderBookInlineMap(button, appearance, bookName) {
   panel.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
 }
 
-async function selectBookDocument(slug) {
+async function selectBookDocument(slug, { scrollIntoView = true } = {}) {
   const requestId = ++state.booksDocuments.requestId;
   try {
     const payload = await fetchBooksDocuments({ slug });
     if (requestId !== state.booksDocuments.requestId) return;
     state.booksDocuments.detail = payload?.detail || null;
     renderBookDetail();
-    els.booksDetail?.scrollIntoView({ block: "start", behavior: "smooth" });
+    if (scrollIntoView) {
+      els.booksDetail?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
   } catch (_error) {
     setBooksStatus(t("books.failed"));
   }
@@ -9145,6 +11754,51 @@ async function loadBooksDocuments() {
   } finally {
     if (requestId === books.requestId) books.loading = false;
   }
+}
+
+async function prewarmTutorialData() {
+  if (state.tutorialPreloadPromise) {
+    return state.tutorialPreloadPromise;
+  }
+
+  const startedAt = performance.now();
+  const worldSlug = state.currentWorldSlug;
+  state.tutorialPreloadPromise = Promise.allSettled([
+    fetchItemSuggestions({ query: "Plate Armor", limit: 8, showAll: false }),
+    fetchItemStatic({ itemSlug: "plate-armor", worldSlug }),
+    fetchNpcIndex(),
+    fetchNpcDetail({ name: "Yaman" })
+  ]).then((results) => {
+    const [itemSuggestionsResult, _itemStaticResult, npcIndexResult] = results;
+    if (itemSuggestionsResult.status === "fulfilled") {
+      state.tutorialItemSuggestions = Array.isArray(itemSuggestionsResult.value)
+        ? itemSuggestionsResult.value
+        : [];
+    }
+
+    if (npcIndexResult.status === "fulfilled") {
+      const data = npcIndexResult.value;
+      state.npcIndex = Array.isArray(data?.items) ? data.items : [];
+      state.npcCities = Array.isArray(data?.cities) ? data.cities : [];
+      state.npcJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+      state.npcLoaded = state.npcIndex.length > 0;
+    }
+
+    state.tutorialPreloadReady = results.every((result) => result.status === "fulfilled");
+    void recordPerformanceMetric("tutorial-data-ready", {
+      elapsedMs: Math.round(performance.now() - startedAt),
+      itemSuggestions: state.tutorialItemSuggestions.length,
+      npcs: state.npcIndex.length,
+      complete: state.tutorialPreloadReady
+    });
+    return {
+      complete: state.tutorialPreloadReady,
+      itemSuggestions: state.tutorialItemSuggestions.length,
+      npcs: state.npcIndex.length
+    };
+  });
+
+  return state.tutorialPreloadPromise;
 }
 
 async function prewarmStartupCaches(onProgress = null) {
@@ -9181,6 +11835,14 @@ async function prewarmStartupCaches(onProgress = null) {
 }
 
 function renderStashFilters() {
+  if (els.stashWeeklyFilter) {
+    const weeklyTasksLabel = t("stash.weeklyTasks");
+    els.stashWeeklyFilter.classList.toggle("active", state.stashWeeklyOnly);
+    els.stashWeeklyFilter.setAttribute("aria-pressed", String(state.stashWeeklyOnly));
+    els.stashWeeklyFilter.setAttribute("aria-label", weeklyTasksLabel);
+    els.stashWeeklyFilter.dataset.tooltip = weeklyTasksLabel;
+  }
+
   if (els.stashCategoryFilter) {
     els.stashCategoryFilter.innerHTML = [
       `<option value="">${escapeHtml(t("stash.showAll"))}</option>`,
@@ -9244,16 +11906,26 @@ function renderStashValueButtons() {
   if (els.stashMarketRefreshButton) {
     const marketModeActive = state.stashValueMode === "market";
     const cooldownActive = isStashMarketRefreshCoolingDown();
-    const cooldownSeconds = getStashMarketRefreshCooldownSeconds();
+    const cooldownLabel = getStashMarketRefreshCooldownLabel();
     els.stashMarketRefreshButton.classList.toggle("hidden", !marketModeActive);
-    els.stashMarketRefreshButton.disabled = !marketModeActive || state.stashLoadingMarket;
+    els.stashMarketRefreshButton.disabled = !marketModeActive || state.stashLoadingMarket || state.stashMarketRefreshSyncing || cooldownActive;
     els.stashMarketRefreshButton.classList.toggle("blocked", marketModeActive && cooldownActive);
-    els.stashMarketRefreshButton.setAttribute("aria-disabled", marketModeActive && cooldownActive ? "true" : "false");
+    els.stashMarketRefreshButton.setAttribute(
+      "aria-disabled",
+      marketModeActive && (cooldownActive || state.stashMarketRefreshSyncing) ? "true" : "false",
+    );
     els.stashMarketRefreshButton.classList.toggle("loading", marketModeActive && state.stashLoadingMarket);
     els.stashMarketRefreshButton.dataset.tooltip =
       marketModeActive && cooldownActive
-        ? `Atualizar preços do market (aguarde ${cooldownSeconds}s)`
+        ? cooldownLabel
         : "Atualizar preços do market";
+    els.stashMarketRefreshButton.dataset.tooltipTone = marketModeActive && cooldownActive ? "danger" : "default";
+    setLiveTooltip(els.stashMarketRefreshButton, els.stashMarketRefreshButton.dataset.tooltip);
+    els.stashMarketRefreshButton.removeAttribute("title");
+    els.stashMarketRefreshButton.setAttribute(
+      "aria-label",
+      marketModeActive && cooldownActive ? cooldownLabel : "Atualizar preços do market",
+    );
   }
   if (state.stashValueMode !== "market") {
     hideStashMarketRefreshWarning();
@@ -9262,9 +11934,30 @@ function renderStashValueButtons() {
 
 function getFilteredStashItems() {
   const query = normalizeSearchText(state.stashQuery);
+  const cacheSignature = [
+    query,
+    state.stashWeeklyOnly ? "weekly" : "all",
+    state.stashCategory,
+    state.stashTrader,
+    state.stashSort,
+    state.stashValueMode,
+    state.currentWorldSlug,
+    state.stashMarketRevision
+  ].join("\u0000");
 
-  return state.stashItems
+  if (
+    state.stashFilteredItemsCacheSource === state.stashItems &&
+    state.stashFilteredItemsCacheSignature === cacheSignature
+  ) {
+    return state.stashFilteredItemsCache;
+  }
+
+  const filteredItems = state.stashItems
     .filter((item) => {
+      if (state.stashWeeklyOnly && !item.isWeeklyTask) {
+        return false;
+      }
+
       if (query) {
         const haystack = normalizeSearchText(
           `${item.name} ${item.slug} ${item.category} ${(item.categoryTags || []).join(" ")}`
@@ -9288,6 +11981,11 @@ function getFilteredStashItems() {
       return true;
     })
     .sort(compareStashItems);
+
+  state.stashFilteredItemsCacheSource = state.stashItems;
+  state.stashFilteredItemsCacheSignature = cacheSignature;
+  state.stashFilteredItemsCache = filteredItems;
+  return filteredItems;
 }
 
 function compareStashItems(left, right) {
@@ -9340,17 +12038,44 @@ function renderStashGrid() {
   if (!els.stashGrid) {
     return;
   }
+  const renderStartedAt = performance.now();
 
-  const items = getFilteredStashItems();
+  const filteredItems = getFilteredStashItems();
 
-  if (items.length === 0) {
+  if (filteredItems.length === 0) {
     els.stashGrid.innerHTML = `<div class="stash-empty">${escapeHtml(t("stash.noItemsFound"))}</div>`;
     setStashStatus(t("stash.noItemsCurrentFilters"));
     return;
   }
 
-  els.stashGrid.innerHTML = items.map((item) => renderStashItem(item)).join("");
-  setStashGridStatus(items);
+  const renderSignature = [
+    state.stashQuery,
+    state.stashWeeklyOnly ? "weekly" : "all",
+    state.stashCategory,
+    state.stashTrader,
+    state.stashSort,
+    state.stashValueMode
+  ].join("\u0000");
+  if (renderSignature !== state.stashRenderSignature) {
+    state.stashRenderSignature = renderSignature;
+    els.stashGrid.scrollTop = 0;
+  }
+  const previousScrollTop = els.stashGrid.scrollTop;
+  const virtualWindow = STASH_GRID_VIRTUALIZATION_ENABLED
+    ? getStashGridVirtualWindow(filteredItems.length)
+    : {
+        firstIndex: 0,
+        endIndex: filteredItems.length,
+        topSpacerHeight: 0,
+        bottomSpacerHeight: 0
+      };
+  const items = filteredItems.slice(virtualWindow.firstIndex, virtualWindow.endIndex);
+  const topSpacer = renderStashGridSpacer(virtualWindow.topSpacerHeight);
+  const bottomSpacer = renderStashGridSpacer(virtualWindow.bottomSpacerHeight);
+
+  els.stashGrid.innerHTML = `${topSpacer}${items.map((item) => renderStashItem(item)).join("")}${bottomSpacer}`;
+  els.stashGrid.scrollTop = previousScrollTop;
+  setStashGridStatus(filteredItems);
 
   els.stashGrid.querySelectorAll("[data-stash-item-slug]").forEach((button) => {
     const getItem = () => {
@@ -9358,10 +12083,24 @@ function renderStashGrid() {
       return state.stashItems.find((entry) => entry.slug === slug) || null;
     };
 
-    button.addEventListener("mouseenter", () => showStashItemTooltip(button, getItem()));
-    button.addEventListener("focus", () => showStashItemTooltip(button, getItem()));
-    button.addEventListener("mouseleave", hideStashItemTooltip);
-    button.addEventListener("blur", hideStashItemTooltip);
+    const showAnimation = () => setStashItemAnimation(button, true);
+    const showStill = () => setStashItemAnimation(button, false);
+    button.addEventListener("mouseenter", () => {
+      showAnimation();
+      showStashItemTooltip(button, getItem());
+    });
+    button.addEventListener("focus", () => {
+      showAnimation();
+      showStashItemTooltip(button, getItem());
+    });
+    button.addEventListener("mouseleave", () => {
+      showStill();
+      hideStashItemTooltip();
+    });
+    button.addEventListener("blur", () => {
+      showStill();
+      hideStashItemTooltip();
+    });
     button.addEventListener("click", () => {
       const item = getItem();
 
@@ -9371,17 +12110,131 @@ function renderStashGrid() {
       }
     });
   });
+  recordLibraryGridRenderMetric("stash", renderStartedAt, filteredItems.length, items.length, els.stashGrid);
+}
+
+function shouldRenderStashGridAfterMarketUpdate(values) {
+  if (state.itemViewMode !== "stash" || !els.stashGrid) {
+    return false;
+  }
+
+  // A price can reorder the entire filtered catalogue when the active sort is
+  // Market, including items that are currently outside the virtual window.
+  // In every other sort, only cards currently mounted in the viewport need an
+  // immediate repaint; off-screen cards read the updated cache on their next
+  // virtual render.
+  if (state.stashSort.startsWith("market")) {
+    return true;
+  }
+
+  const updatedMarketIds = new Set(
+    Object.keys(values && typeof values === "object" ? values : {})
+      .map((id) => Number(id))
+      .filter(Boolean)
+  );
+  if (updatedMarketIds.size === 0) {
+    return false;
+  }
+
+  return Array.from(els.stashGrid.querySelectorAll("[data-market-id]")).some((button) => (
+    updatedMarketIds.has(Number(button.dataset.marketId))
+  ));
+}
+
+function renderStashGridAfterMarketUpdate(values) {
+  if (shouldRenderStashGridAfterMarketUpdate(values)) {
+    renderStashGrid();
+    return;
+  }
+
+  void recordPerformanceMetric("stash-market-grid-render-deferred", {
+    updatedCount: Object.keys(values && typeof values === "object" ? values : {}).length,
+    reason: state.stashSort.startsWith("market") ? "inactive" : "offscreen"
+  });
+}
+
+function handleStashGridScroll() {
+  if (!els.stashGrid || state.itemViewMode !== "stash") return;
+  scheduleStashGridVirtualRender();
+}
+
+function scheduleStashGridVirtualRender() {
+  if (!els.stashGrid || !state.stashLoaded || state.itemViewMode !== "stash" || state.stashVirtualRenderFrame) {
+    return;
+  }
+
+  state.stashVirtualRenderFrame = window.requestAnimationFrame(() => {
+    state.stashVirtualRenderFrame = null;
+    if (state.itemViewMode !== "stash" || !state.stashLoaded) {
+      return;
+    }
+    renderStashGrid();
+    scheduleStashMarketLoad();
+  });
+}
+
+function getStashGridVirtualWindow(totalItems) {
+  const styles = window.getComputedStyle(els.stashGrid);
+  const cellSize = Number.parseFloat(styles.getPropertyValue("--stash-grid-cell-size")) || STASH_GRID_FALLBACK_CELL_SIZE;
+  const gap = Number.parseFloat(styles.getPropertyValue("--stash-grid-gap")) || STASH_GRID_FALLBACK_GAP;
+  const paddingInline =
+    (Number.parseFloat(styles.paddingLeft) || 0) +
+    (Number.parseFloat(styles.paddingRight) || 0);
+
+  return getFixedGridVirtualWindow({
+    totalItems,
+    itemWidth: cellSize,
+    itemHeight: cellSize,
+    columnGap: gap,
+    rowGap: gap,
+    paddingInline,
+    viewportWidth: els.stashGrid.clientWidth,
+    viewportHeight: els.stashGrid.clientHeight,
+    scrollTop: els.stashGrid.scrollTop,
+    targetRenderedRows: STASH_GRID_TARGET_RENDERED_ROWS
+  });
+}
+
+function renderStashGridSpacer(height) {
+  const roundedHeight = Math.max(0, Math.round(Number(height) || 0));
+  return roundedHeight > 0
+    ? `<div class="stash-virtual-spacer" aria-hidden="true" style="height:${roundedHeight}px"></div>`
+    : "";
 }
 
 function renderStashItem(item) {
   const value = getStashItemValue(item, state.stashValueMode);
   const borderClass = getStashValueClass(value);
 
+  const sprite = item.sprite;
+  const still = sprite
+    ? `<span class="stash-item-static-sprite" aria-hidden="true" style="width:${sprite.tileSize}px;height:${sprite.tileSize}px;background-image:url('${escapeHtml(sprite.src)}');background-size:${sprite.width}px ${sprite.height}px;background-position:-${sprite.x}px -${sprite.y}px"></span>`
+    : "";
+  const imageAttributes = sprite
+    ? `data-stash-animated-src="${escapeHtml(item.imageSrc)}"`
+    : `src="${escapeHtml(item.imageSrc)}"`;
+
   return `
     <button type="button" class="stash-item ${borderClass}" aria-label="${escapeHtml(item.name)}" data-stash-item-slug="${escapeHtml(item.slug)}" data-market-id="${escapeHtml(item.marketId || "")}">
-      <img src="${item.imageSrc}" alt="${escapeHtml(item.name)}">
+      ${still}
+      <img class="stash-item-animated-sprite${sprite ? " is-deferred" : ""}" ${imageAttributes} alt="${escapeHtml(item.name)}" decoding="async">
     </button>
   `;
+}
+
+function setStashItemAnimation(button, active) {
+  const image = button?.querySelector("img[data-stash-animated-src]");
+  const still = button?.querySelector(".stash-item-static-sprite");
+  if (!image || !still) return;
+  if (active) {
+    if (!image.getAttribute("src")) image.setAttribute("src", image.dataset.stashAnimatedSrc || "");
+    image.classList.remove("is-deferred");
+    still.classList.add("is-deferred");
+    return;
+  }
+  image.classList.add("is-deferred");
+  still.classList.remove("is-deferred");
+  image.removeAttribute("src");
 }
 
 function showStashItemTooltip(anchor, item) {
@@ -9463,10 +12316,10 @@ async function previewStashItem(item, { loadMarket = false } = {}) {
   const requestId = ++state.stashPreviewRequestId;
   const loadingMessage = `Carregando ${item.name}...`;
   let loadingShown = false;
-  const loadingTimer = window.setTimeout(() => {
-    loadingShown = true;
-    showGlobalLoading(loadingMessage);
-  }, 180);
+  // Opening a Stash item may require a local catalog read. Show the familiar
+  // loading state immediately so the click always receives visible feedback.
+  loadingShown = true;
+  showGlobalLoading(loadingMessage);
 
   try {
     // The Stash catalog is already in memory. Use it for the first paint so a
@@ -9499,7 +12352,6 @@ async function previewStashItem(item, { loadMarket = false } = {}) {
       setFeedback(error instanceof Error ? error.message : "Falha ao abrir preview do item.", true);
     }
   } finally {
-    window.clearTimeout(loadingTimer);
     if (loadingShown) {
       hideGlobalLoading();
     }
@@ -9537,6 +12389,7 @@ async function hydrateStashPreviewItem(itemSlug, requestId) {
     }
 
     state.currentItem = data;
+    applyItemCurrencyRates(data);
     state.selectedItemSuggestion = {
       slug: data.item.slug,
       name: data.item.wiki_name || data.item.name,
@@ -9546,7 +12399,7 @@ async function hydrateStashPreviewItem(itemSlug, requestId) {
     els.itemInput.value = state.selectedItemSuggestion.name;
     closeItemSuggestions();
     renderItem();
-    refreshItemCurrencyRatesInBackground(data.item.slug, state.currentWorldSlug);
+    showStashItemDetail();
     saveRecentItemInBackground(data.item);
     scheduleWarmItemCache();
     setCurrentNavigationEntry({
@@ -9564,14 +12417,15 @@ async function hydrateStashPreviewItem(itemSlug, requestId) {
   }
 }
 
-function refreshItemCurrencyRatesInBackground(itemSlug, worldSlug) {
-  void refreshCurrencyRates({ worldSlug })
-    .then(() => {
-      if (state.currentWorldSlug === worldSlug && state.currentItem?.item?.slug === itemSlug) {
-        renderItem();
-      }
-    })
-    .catch(() => {});
+function applyItemCurrencyRates(data) {
+  if (!data?.currencyRates || typeof data.currencyRates !== "object") {
+    return;
+  }
+
+  state.currencyRates = {
+    tibiaCoinPrice: data.currencyRates.tibiaCoinPrice ?? null,
+    goldTokenPrice: data.currencyRates.goldTokenPrice ?? null
+  };
 }
 
 function saveRecentItemInBackground(item) {
@@ -9621,11 +12475,8 @@ function setStashGridStatus(items) {
   }
 
   const eligibleCount = items.filter((item) => item.marketId).length;
-  const loadedCount = items.filter((item) => item.marketId && state.stashMarketById[item.marketId]).length;
-  const loadingSuffix = state.stashLoadingMarket ? " carregando..." : "";
-  setStashStatus(
-    `${formatCompactNumber(items.length)} itens exibidos. Market: ${formatCompactNumber(loadedCount)}/${formatCompactNumber(eligibleCount)}${loadingSuffix}`
-  );
+  const freshCount = items.filter((item) => item.marketId && state.stashMarketFreshIds[item.marketId]).length;
+  setStashStatus(`Market: ${formatCompactNumber(freshCount)}/${formatCompactNumber(eligibleCount)}`);
 }
 
 function getStashItemValue(item, mode) {
@@ -9669,8 +12520,11 @@ function scheduleStashMarketLoad() {
     state.itemViewMode !== "stash" ||
     (state.stashValueMode !== "market" && !state.stashSort.startsWith("market"))
   ) {
+    cancelStashMarketBackgroundRefresh();
     return;
   }
+
+  cancelStashMarketBackgroundRefresh();
 
   if (state.stashMarketTimer) {
     window.clearTimeout(state.stashMarketTimer);
@@ -9689,21 +12543,25 @@ async function refreshFilteredStashMarketValues() {
 
   await loadVisibleStashMarketValues({
     forceFresh: true,
-    onlyVisible: false
+    onlyVisible: true,
+    manual: true,
+    continueInBackground: true
   });
 }
 
 function cancelStashMarketLoading() {
-  if (!state.stashLoadingMarket) {
-    return;
-  }
-
   if (state.stashMarketTimer) {
     window.clearTimeout(state.stashMarketTimer);
     state.stashMarketTimer = null;
   }
 
+  cancelStashMarketBackgroundRefresh();
   state.stashMarketRequestId += 1;
+
+  if (!state.stashLoadingMarket) {
+    return;
+  }
+
   state.stashLoadingMarket = false;
   renderStashValueButtons();
   setStashStatus("Atualizacao de market interrompida.");
@@ -9718,11 +12576,23 @@ async function loadVisibleStashMarketValues(options = {}) {
   }
 
   const forceFresh = options?.forceFresh === true;
-  const onlyVisible = options?.onlyVisible === true;
+  const onlyVisible = options?.onlyVisible !== false;
+  const showBlockingProgress = options?.manual === true;
+  const continueInBackground = options?.continueInBackground === true;
   const requestId = ++state.stashMarketRequestId;
+  cancelStashMarketBackgroundRefresh();
+
+  if (!forceFresh) {
+    await loadStashWorldMarketSnapshot(requestId);
+  }
+
+  if (requestId !== state.stashMarketRequestId) {
+    return;
+  }
+
   const targetMarketIds = getTargetStashMarketIds({
     onlyVisible,
-    includeLoaded: forceFresh || onlyVisible
+    includeLoaded: true
   });
   const marketIdsToLoad = [...targetMarketIds];
   const marketSignature = `${state.currentWorldSlug}:${marketIdsToLoad.join(",")}`;
@@ -9733,25 +12603,22 @@ async function loadVisibleStashMarketValues(options = {}) {
     }
     state.stashMarketLoadedSignature = marketSignature;
     renderStashGrid();
+    if (!showBlockingProgress || continueInBackground) {
+      scheduleStashMarketBackgroundRefresh({ preferSnapshot: continueInBackground });
+    }
     return;
   }
 
-  if (!forceFresh) {
-    await loadStashWorldMarketSnapshot(requestId);
-  }
-
-  if (requestId !== state.stashMarketRequestId) {
-    return;
-  }
-
-  const hasMarketEntry = (id) => Object.prototype.hasOwnProperty.call(state.stashMarketById, id);
   const pendingMarketIds = forceFresh
     ? marketIdsToLoad
-    : marketIdsToLoad.filter((id) => !hasMarketEntry(id));
+    : marketIdsToLoad.filter((id) => !state.stashMarketFreshIds[id]);
 
   if (pendingMarketIds.length === 0) {
     state.stashMarketLoadedSignature = marketSignature;
     renderStashGrid();
+    if (!showBlockingProgress || continueInBackground) {
+      scheduleStashMarketBackgroundRefresh({ preferSnapshot: continueInBackground });
+    }
     return;
   }
 
@@ -9759,18 +12626,20 @@ async function loadVisibleStashMarketValues(options = {}) {
   renderStashValueButtons();
   const totalToLoad = pendingMarketIds.length;
   let loadedCount = 0;
-  setGlobalLoadingAction({
-    tooltip: "Interromper Carregamento",
-    onClick: () => {
-      cancelStashMarketLoading();
-    }
-  });
-  showGlobalLoading(forceFresh ? "Atualizando market do stash..." : "Carregando market do stash...");
+  if (showBlockingProgress) {
+    setGlobalLoadingAction({
+      tooltip: "Interromper Carregamento",
+      onClick: () => {
+        cancelStashMarketLoading();
+      }
+    });
+    showGlobalLoading("Atualizando market do stash...");
+  }
   const updateLoadingProgress = () => {
-    const actionLabel = forceFresh ? "Atualizando market" : "Carregando market";
-    const overlayLabel = forceFresh ? "Atualizando market do stash" : "Carregando market do stash";
-    setStashStatus(`${actionLabel}: ${formatCompactNumber(loadedCount)}/${formatCompactNumber(totalToLoad)} itens.`);
-    setGlobalLoadingMessage(`${overlayLabel}: ${formatCompactNumber(loadedCount)}/${formatCompactNumber(totalToLoad)} itens...`);
+    setStashGridStatus(getFilteredStashItems());
+    if (showBlockingProgress) {
+      setGlobalLoadingMessage(`Atualizando market do stash: ${formatCompactNumber(loadedCount)}/${formatCompactNumber(totalToLoad)} itens...`);
+    }
   };
   updateLoadingProgress();
 
@@ -9780,7 +12649,7 @@ async function loadVisibleStashMarketValues(options = {}) {
       const values = await fetchStashMarketValues({
         worldSlug: state.currentWorldSlug,
         marketIds: chunk,
-        forceFresh,
+        forceFresh: true,
         mergeIntoWorldCache: true
       });
 
@@ -9788,15 +12657,15 @@ async function loadVisibleStashMarketValues(options = {}) {
         return;
       }
 
-      state.stashMarketById = {
-        ...state.stashMarketById,
-        ...Object.fromEntries(chunk.map((id) => [id, { current: null, hasActiveOffers: false }])),
-        ...(values || {})
-      };
+      state.stashMarketById = mergeStashMarketValuesPreservingCache(values);
+      state.stashMarketRevision += 1;
+      chunk.forEach((id) => {
+        state.stashMarketFreshIds[id] = true;
+      });
 
       loadedCount += chunk.length;
       updateLoadingProgress();
-      renderStashGrid();
+      renderStashGridAfterMarketUpdate(values);
     }
 
     state.stashMarketLoadedSignature = marketSignature;
@@ -9815,6 +12684,9 @@ async function loadVisibleStashMarketValues(options = {}) {
       hideGlobalLoading();
       if (state.itemViewMode === "stash" && state.stashValueMode === "market") {
         setStashGridStatus(getFilteredStashItems());
+        if (!showBlockingProgress || continueInBackground) {
+          scheduleStashMarketBackgroundRefresh({ preferSnapshot: continueInBackground });
+        }
       }
     }
   }
@@ -9834,7 +12706,8 @@ async function loadStashWorldMarketSnapshot(requestId) {
   try {
     const values = await fetchStashMarketValues({
       worldSlug: state.currentWorldSlug,
-      loadAllCached: true
+      loadAllCached: true,
+      localOnly: true
     });
 
     if (requestId !== state.stashMarketRequestId) {
@@ -9844,11 +12717,9 @@ async function loadStashWorldMarketSnapshot(requestId) {
     state.stashWorldMarketLoadedSlug = state.currentWorldSlug;
 
     if (values && typeof values === "object") {
-      state.stashMarketById = {
-        ...state.stashMarketById,
-        ...values
-      };
-      renderStashGrid();
+      state.stashMarketById = mergeStashMarketValuesPreservingCache(values);
+      state.stashMarketRevision += 1;
+      renderStashGridAfterMarketUpdate(values);
     }
   } catch (_error) {
     if (requestId === state.stashMarketRequestId) {
@@ -9857,6 +12728,162 @@ async function loadStashWorldMarketSnapshot(requestId) {
   } finally {
     if (requestId === state.stashMarketRequestId) {
       state.stashWorldMarketLoading = false;
+    }
+  }
+}
+
+function getStashMarketContextSignature() {
+  return [
+    state.currentWorldSlug,
+    state.stashQuery,
+    state.stashWeeklyOnly ? "weekly" : "all",
+    state.stashCategory,
+    state.stashTrader,
+    state.stashSort,
+    state.stashValueMode
+  ].join("\u0000");
+}
+
+function cancelStashMarketBackgroundRefresh() {
+  if (state.stashMarketBackgroundTimer) {
+    window.clearTimeout(state.stashMarketBackgroundTimer);
+    state.stashMarketBackgroundTimer = null;
+  }
+  state.stashMarketBackgroundRequestId += 1;
+  state.stashMarketBackgroundLoading = false;
+  state.stashMarketBackgroundPreferSnapshot = false;
+}
+
+function scheduleStashMarketBackgroundRefresh({ preferSnapshot = false } = {}) {
+  if (
+    state.itemViewMode !== "stash" ||
+    state.stashValueMode !== "market" ||
+    state.stashLoadingMarket
+  ) {
+    return;
+  }
+
+  state.stashMarketBackgroundPreferSnapshot = preferSnapshot === true;
+  if (state.stashMarketBackgroundTimer) {
+    window.clearTimeout(state.stashMarketBackgroundTimer);
+  }
+
+  const requestId = ++state.stashMarketBackgroundRequestId;
+  const signature = getStashMarketContextSignature();
+  state.stashMarketBackgroundTimer = window.setTimeout(() => {
+    state.stashMarketBackgroundTimer = null;
+    void refreshNextStashMarketBackgroundChunk(requestId, signature);
+  }, 650);
+}
+
+async function refreshNextStashMarketBackgroundChunk(requestId, signature) {
+  if (
+    requestId !== state.stashMarketBackgroundRequestId ||
+    signature !== getStashMarketContextSignature() ||
+    state.itemViewMode !== "stash" ||
+    state.stashValueMode !== "market"
+  ) {
+    return;
+  }
+
+  if (state.stashMarketBackgroundPreferSnapshot) {
+    await refreshStashMarketSnapshotInBackground(requestId, signature);
+    return;
+  }
+
+  const allFilteredIds = getTargetStashMarketIds({ onlyVisible: false, includeLoaded: true });
+  const pendingIds = allFilteredIds.filter((id) => !state.stashMarketFreshIds[id]);
+  if (pendingIds.length === 0) {
+    state.stashMarketBackgroundLoading = false;
+    setStashGridStatus(getFilteredStashItems());
+    return;
+  }
+
+  const chunk = pendingIds.slice(0, 120);
+  state.stashMarketBackgroundLoading = true;
+
+  try {
+    const values = await fetchStashMarketValues({
+      worldSlug: state.currentWorldSlug,
+      marketIds: chunk,
+      forceFresh: true,
+      mergeIntoWorldCache: true
+    });
+
+    if (
+      requestId !== state.stashMarketBackgroundRequestId ||
+      signature !== getStashMarketContextSignature()
+    ) {
+      return;
+    }
+
+    state.stashMarketById = mergeStashMarketValuesPreservingCache(values);
+    chunk.forEach((id) => {
+      state.stashMarketFreshIds[id] = true;
+    });
+    state.stashMarketRevision += 1;
+    renderStashGridAfterMarketUpdate(values);
+
+    setStashGridStatus(getFilteredStashItems());
+  } catch (_error) {
+    state.stashMarketBackgroundLoading = false;
+    setStashGridStatus(getFilteredStashItems());
+    return;
+  }
+
+  state.stashMarketBackgroundLoading = false;
+  state.stashMarketBackgroundTimer = window.setTimeout(() => {
+    state.stashMarketBackgroundTimer = null;
+    void refreshNextStashMarketBackgroundChunk(requestId, signature);
+  }, 450);
+}
+
+async function refreshStashMarketSnapshotInBackground(requestId, signature) {
+  state.stashMarketBackgroundLoading = true;
+
+  try {
+    const values = await fetchStashMarketValues({
+      worldSlug: state.currentWorldSlug,
+      loadAllCached: true,
+      forceFresh: true
+    });
+
+    if (
+      requestId !== state.stashMarketBackgroundRequestId ||
+      signature !== getStashMarketContextSignature()
+    ) {
+      return;
+    }
+
+    state.stashMarketById = mergeStashMarketValuesPreservingCache(values);
+    Object.keys(values && typeof values === "object" ? values : {}).forEach((id) => {
+      state.stashMarketFreshIds[id] = true;
+    });
+    state.stashMarketRevision += 1;
+    renderStashGrid();
+    setStashGridStatus(getFilteredStashItems());
+  } catch (_error) {
+    if (
+      requestId === state.stashMarketBackgroundRequestId &&
+      signature === getStashMarketContextSignature()
+    ) {
+      setStashGridStatus(getFilteredStashItems());
+    }
+  } finally {
+    if (requestId === state.stashMarketBackgroundRequestId) {
+      state.stashMarketBackgroundLoading = false;
+      state.stashMarketBackgroundPreferSnapshot = false;
+    }
+  }
+
+  if (
+    requestId === state.stashMarketBackgroundRequestId &&
+    signature === getStashMarketContextSignature()
+  ) {
+    const pendingIds = getTargetStashMarketIds({ onlyVisible: false, includeLoaded: true })
+      .filter((id) => !state.stashMarketFreshIds[id]);
+    if (pendingIds.length > 0) {
+      scheduleStashMarketBackgroundRefresh();
     }
   }
 }
@@ -9888,29 +12915,102 @@ function getVisibleStashMarketIds(options = {}) {
   return ids.filter((id, index, allIds) => allIds.indexOf(id) === index);
 }
 
+function mergeStashMarketValuesPreservingCache(values) {
+  const next = { ...state.stashMarketById };
+
+  Object.entries(values && typeof values === "object" ? values : {}).forEach(([id, value]) => {
+    const existing = next[id];
+    if (!hasMeaningfulStashMarketValue(value) && hasMeaningfulStashMarketValue(existing)) {
+      return;
+    }
+    next[id] = value;
+  });
+
+  return next;
+}
+
+function hasMeaningfulStashMarketValue(value) {
+  return Boolean(
+    value &&
+    (
+      value.updatedAt ||
+      (value.current !== null && value.current !== undefined && Number.isFinite(Number(value.current))) ||
+      (value.sellOffer !== null && value.sellOffer !== undefined && Number.isFinite(Number(value.sellOffer))) ||
+      (value.buyOffer !== null && value.buyOffer !== undefined && Number.isFinite(Number(value.buyOffer)))
+    )
+  );
+}
+
 function isStashMarketRefreshCoolingDown() {
-  return state.stashMarketRefreshCooldownUntil > Date.now();
+  return state.stashMarketRefreshCooldownDeadline > performance.now();
 }
 
 function getStashMarketRefreshCooldownSeconds() {
-  return Math.max(1, Math.ceil((state.stashMarketRefreshCooldownUntil - Date.now()) / 1000));
+  return Math.max(1, Math.ceil((state.stashMarketRefreshCooldownDeadline - performance.now()) / 1000));
 }
 
-function setStashMarketRefreshCooldown(durationMs) {
-  state.stashMarketRefreshCooldownUntil = Date.now() + Math.max(0, Number(durationMs) || 0);
+function formatStashMarketRefreshCooldown(seconds) {
+  const totalSeconds = Math.max(0, Math.ceil(Number(seconds) || 0));
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const remainder = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${remainder}`;
+}
+
+function getStashMarketRefreshCooldownLabel() {
+  return t("stash.refreshMarketCooldown", {
+    time: formatStashMarketRefreshCooldown(getStashMarketRefreshCooldownSeconds())
+  });
+}
+
+function applyStashMarketRefreshServerState(payload) {
+  const retryAfterMs = Math.max(0, Math.ceil(Number(payload?.retryAfterSeconds) || 0) * 1000);
+  state.stashMarketRefreshCooldownDeadline = retryAfterMs > 0
+    ? performance.now() + retryAfterMs
+    : 0;
 
   if (state.stashMarketRefreshCooldownTimer) {
     window.clearTimeout(state.stashMarketRefreshCooldownTimer);
   }
 
-  state.stashMarketRefreshCooldownTimer = window.setTimeout(() => {
-    state.stashMarketRefreshCooldownUntil = 0;
-    state.stashMarketRefreshCooldownTimer = null;
-    hideStashMarketRefreshWarning();
+  const refreshCooldownVisual = () => {
+    if (!isStashMarketRefreshCoolingDown()) {
+      state.stashMarketRefreshCooldownDeadline = 0;
+      state.stashMarketRefreshCooldownTimer = null;
+      hideStashMarketRefreshWarning();
+      renderStashValueButtons();
+      return;
+    }
+
     renderStashValueButtons();
-  }, Math.max(0, state.stashMarketRefreshCooldownUntil - Date.now()));
+    state.stashMarketRefreshCooldownTimer = window.setTimeout(refreshCooldownVisual, 1000);
+  };
+
+  if (retryAfterMs > 0) {
+    state.stashMarketRefreshCooldownTimer = window.setTimeout(refreshCooldownVisual, 1000);
+  } else {
+    state.stashMarketRefreshCooldownTimer = null;
+  }
 
   renderStashValueButtons();
+}
+
+async function syncStashMarketRefreshCooldown() {
+  if (state.stashValueMode !== "market") {
+    return;
+  }
+
+  state.stashMarketRefreshSyncing = true;
+  renderStashValueButtons();
+
+  try {
+    const status = await fetchStashMarketRefreshStatus();
+    applyStashMarketRefreshServerState(status);
+  } catch (error) {
+    setStashStatus(error instanceof Error ? error.message : "Nao foi possivel consultar o limite do market.");
+  } finally {
+    state.stashMarketRefreshSyncing = false;
+    renderStashValueButtons();
+  }
 }
 
 function showStashMarketRefreshWarning(
@@ -9988,6 +13088,14 @@ function escapeHtml(value) {
 }
 
 async function handleItemSearch(skipInputNormalization = false) {
+  // Item links can originate from entity details while Books or Spells is the
+  // active Library view. The search result belongs to the List view, so make
+  // that transition before the first render instead of leaving the previous
+  // tab visible over a successfully loaded item.
+  if (state.itemViewMode !== "list") {
+    await setItemViewMode("list", { skipHistory: true });
+  }
+
   const rawInput = els.itemInput.value.trim();
   const itemSlug = state.selectedItemSuggestion?.slug
     ? state.selectedItemSuggestion.slug
@@ -10001,17 +13109,30 @@ async function handleItemSearch(skipInputNormalization = false) {
     return;
   }
 
+  const itemSearchStartedAt = performance.now();
   setFeedback("Consultando item...");
   const searchRequestId = ++state.itemSearchRequestId;
-  state.itemSearchLoadingRequestId = searchRequestId;
-  setItemSearchDropdownLoading(true);
   if (state.itemSearchGlobalLoadingRequestId) {
     hideGlobalLoading();
     state.itemSearchGlobalLoadingRequestId = 0;
   }
+  state.itemSearchLoadingRequestId = searchRequestId;
+  setItemSearchDropdownLoading(true);
+  let itemSummaryScrolled = false;
+  const scrollLoadedItemSummary = () => {
+    if (itemSummaryScrolled || searchRequestId !== state.itemSearchRequestId) {
+      return;
+    }
+    itemSummaryScrolled = true;
+    window.requestAnimationFrame(() => scrollItemSummaryIntoView());
+  };
   let itemLoadingShown = false;
+  // Avoid a distracting flash for cached items, while making slower market
+  // lookups feel responsive in both the packaged and local app.
   const itemLoadingTimer = window.setTimeout(() => {
-    if (searchRequestId !== state.itemSearchRequestId) return;
+    if (searchRequestId !== state.itemSearchRequestId) {
+      return;
+    }
     itemLoadingShown = true;
     state.itemSearchGlobalLoadingRequestId = searchRequestId;
     showGlobalLoading(t("common.loading"));
@@ -10022,6 +13143,12 @@ async function handleItemSearch(skipInputNormalization = false) {
       itemSlug,
       worldSlug: state.currentWorldSlug
     }).catch(() => null);
+
+    void recordPerformanceMetric("item-search-static-ready", {
+      itemSlug,
+      elapsedMs: Math.round(performance.now() - itemSearchStartedAt),
+      available: Boolean(staticData)
+    });
 
     if (staticData && searchRequestId === state.itemSearchRequestId) {
       state.currentItem = staticData;
@@ -10034,6 +13161,7 @@ async function handleItemSearch(skipInputNormalization = false) {
       els.itemInput.value = state.selectedItemSuggestion.name;
       closeItemSuggestions();
       renderItem();
+      scrollLoadedItemSummary();
       setFeedback("Item carregado. Consultando market...");
     }
 
@@ -10042,13 +13170,17 @@ async function handleItemSearch(skipInputNormalization = false) {
       worldSlug: state.currentWorldSlug
     });
 
+    void recordPerformanceMetric("item-search-market-ready", {
+      itemSlug,
+      elapsedMs: Math.round(performance.now() - itemSearchStartedAt)
+    });
+
     if (searchRequestId !== state.itemSearchRequestId) {
       return;
     }
 
     state.currentItem = data;
-    refreshItemCurrencyRatesInBackground(data.item.slug, state.currentWorldSlug);
-    saveRecentItemInBackground(data.item);
+    applyItemCurrencyRates(data);
     state.selectedItemSuggestion = {
       slug: data.item.slug,
       name: data.item.wiki_name || data.item.name,
@@ -10057,8 +13189,9 @@ async function handleItemSearch(skipInputNormalization = false) {
     };
     els.itemInput.value = state.selectedItemSuggestion.name;
     closeItemSuggestions();
-    renderRecentItems();
     renderItem();
+    scrollLoadedItemSummary();
+    saveRecentItemInBackground(data.item);
     scheduleWarmItemCache();
     setCurrentNavigationEntry({
       type: "item",
@@ -10069,6 +13202,11 @@ async function handleItemSearch(skipInputNormalization = false) {
     });
     setFeedback("Item carregado.");
   } catch (error) {
+    void recordPerformanceMetric("item-search-failed", {
+      itemSlug,
+      elapsedMs: Math.round(performance.now() - itemSearchStartedAt),
+      message: error instanceof Error ? error.message : "unknown"
+    });
     if (searchRequestId !== state.itemSearchRequestId) {
       return;
     }
@@ -10144,7 +13282,8 @@ async function updateItemSuggestions(options = {}) {
   try {
     const suggestions = await fetchItemSuggestions({
       query,
-      limit: showAll ? 6000 : 8,
+      limit: showAll ? ITEM_SUGGESTIONS_PAGE_SIZE : 8,
+      offset: 0,
       showAll
     });
 
@@ -10155,6 +13294,9 @@ async function updateItemSuggestions(options = {}) {
     state.itemSuggestions = Array.isArray(suggestions) ? suggestions : [];
     state.activeItemSuggestionIndex = state.itemSuggestions.length > 0 ? 0 : -1;
     state.itemSuggestionsOpen = state.itemSuggestions.length > 0;
+    state.itemSuggestionsShowAll = showAll;
+    state.itemSuggestionsHasMore = showAll && state.itemSuggestions.length === ITEM_SUGGESTIONS_PAGE_SIZE;
+    state.itemSuggestionsLoadingMore = false;
     renderItemSuggestions();
   } catch (_error) {
     if (requestId !== state.itemSuggestionRequestId) {
@@ -10165,7 +13307,54 @@ async function updateItemSuggestions(options = {}) {
   }
 }
 
-function renderItemSuggestions() {
+async function loadMoreItemSuggestions() {
+  if (
+    !state.itemSuggestionsShowAll ||
+    !state.itemSuggestionsHasMore ||
+    state.itemSuggestionsLoadingMore
+  ) {
+    return false;
+  }
+
+  const requestId = state.itemSuggestionRequestId;
+  const offset = state.itemSuggestions.length;
+  state.itemSuggestionsLoadingMore = true;
+
+  try {
+    const page = await fetchItemSuggestions({
+      query: els.itemInput.value.trim(),
+      limit: ITEM_SUGGESTIONS_PAGE_SIZE,
+      offset,
+      showAll: true
+    });
+
+    if (requestId !== state.itemSuggestionRequestId) {
+      return false;
+    }
+
+    const nextPage = Array.isArray(page) ? page : [];
+    if (!nextPage.length) {
+      state.itemSuggestionsHasMore = false;
+      return false;
+    }
+
+    state.itemSuggestions = [...state.itemSuggestions, ...nextPage];
+    state.itemSuggestionsHasMore = nextPage.length === ITEM_SUGGESTIONS_PAGE_SIZE;
+    renderItemSuggestions({ preserveScroll: true });
+    return true;
+  } catch (_error) {
+    if (requestId === state.itemSuggestionRequestId) {
+      state.itemSuggestionsHasMore = false;
+    }
+    return false;
+  } finally {
+    if (requestId === state.itemSuggestionRequestId) {
+      state.itemSuggestionsLoadingMore = false;
+    }
+  }
+}
+
+function renderItemSuggestions(options = {}) {
   if (!state.itemSuggestionsOpen || state.itemSuggestions.length === 0) {
     els.itemSuggestions.innerHTML = "";
     els.itemSuggestions.classList.add("hidden");
@@ -10173,13 +13362,18 @@ function renderItemSuggestions() {
     return;
   }
 
+  const previousScrollTop = options.preserveScroll ? els.itemSuggestions.scrollTop : 0;
   els.itemSuggestions.innerHTML = state.itemSuggestions
     .map((suggestion, index) => {
       const activeClass = index === state.activeItemSuggestionIndex ? " active" : "";
+      const sprite = suggestion.sprite;
+      const spriteMarkup = sprite
+        ? `<span class="suggestion-sprite-shell"><span class="suggestion-item-static-sprite" aria-hidden="true" style="width:${sprite.tileSize}px;height:${sprite.tileSize}px;background-image:url('${escapeHtml(sprite.src)}');background-size:${sprite.width}px ${sprite.height}px;background-position:-${sprite.x}px -${sprite.y}px"></span><img class="suggestion-item-animated-sprite is-deferred" data-suggestion-animated-src="${escapeHtml(suggestion.imageSrc)}" alt="${escapeHtml(suggestion.name)}" decoding="async"></span>`
+        : `<img src="${escapeHtml(suggestion.imageSrc)}" alt="${escapeHtml(suggestion.name)}" decoding="async">`;
 
       return `
         <button class="suggestion-button${activeClass}" type="button" data-suggestion-index="${index}">
-          <img src="${suggestion.imageSrc}" alt="${suggestion.name}">
+          ${spriteMarkup}
           <div class="suggestion-meta">
             <strong>${suggestion.name}</strong>
             <span>${suggestion.category}</span>
@@ -10191,8 +13385,15 @@ function renderItemSuggestions() {
     .join("");
 
   showSuggestionsPanel(els.itemSuggestions);
+  if (options.preserveScroll) {
+    els.itemSuggestions.scrollTop = previousScrollTop;
+  }
   els.itemDropdownButton?.classList.add("open");
   els.itemSuggestions.querySelectorAll("[data-suggestion-index]").forEach((button) => {
+    button.addEventListener("pointerenter", () => setItemSuggestionAnimation(button, true));
+    button.addEventListener("pointerleave", () => setItemSuggestionAnimation(button, false));
+    button.addEventListener("focusin", () => setItemSuggestionAnimation(button, true));
+    button.addEventListener("focusout", () => setItemSuggestionAnimation(button, false));
     button.addEventListener("click", async () => {
       const index = Number(button.dataset.suggestionIndex);
       const suggestion = state.itemSuggestions[index];
@@ -10204,6 +13405,21 @@ function renderItemSuggestions() {
       await selectItemSuggestion(suggestion);
     });
   });
+}
+
+function setItemSuggestionAnimation(button, active) {
+  const image = button?.querySelector("img[data-suggestion-animated-src]");
+  const still = button?.querySelector(".suggestion-item-static-sprite");
+  if (!image || !still) return;
+  if (active) {
+    if (!image.getAttribute("src")) image.setAttribute("src", image.dataset.suggestionAnimatedSrc || "");
+    image.classList.remove("is-deferred");
+    still.classList.add("is-deferred");
+    return;
+  }
+  image.classList.add("is-deferred");
+  still.classList.remove("is-deferred");
+  image.removeAttribute("src");
 }
 
 async function selectItemSuggestion(suggestion) {
@@ -10218,6 +13434,9 @@ function closeItemSuggestions() {
   state.itemSuggestionRequestId += 1;
   state.itemSuggestions = [];
   state.itemSuggestionsOpen = false;
+  state.itemSuggestionsShowAll = false;
+  state.itemSuggestionsHasMore = false;
+  state.itemSuggestionsLoadingMore = false;
   state.activeItemSuggestionIndex = -1;
   els.itemDropdownButton?.classList.remove("open");
   hideSuggestionsPanel(els.itemSuggestions);
@@ -10338,7 +13557,7 @@ function syncSkillCalculatorInputs() {
   }
 
   if (els.skillPreviewIcon) {
-    els.skillPreviewIcon.src = skill.icon || SKILL_WEAPON_IMAGE_FALLBACKS[skill.weapon] || "assets/ui/tool-skill-calculator.webp";
+    els.skillPreviewIcon.src = skill.icon || SKILL_WEAPON_IMAGE_FALLBACKS[skill.weapon] || "assets/ui/tools/tool-skill-calculator.webp";
     els.skillPreviewIcon.alt = skill.label;
   }
 
@@ -10391,7 +13610,7 @@ function renderSkillCalculatorLegacyUnused() {
       <h4>NPC</h4>
       <div class="skill-route-bullets">
         <div>
-          <img src="assets/ui/Crystal_Coin.gif" alt="">
+          <img src="assets/ui/economy/Crystal_Coin.gif" alt="">
           <span>Gold</span>
           <strong>${formatGoldValue(result.npcGoldTotal)}</strong>
         </div>
@@ -10412,7 +13631,7 @@ function renderSkillCalculatorLegacyUnused() {
           <strong>${renderCurrencyValue(result.storeTcTotal, "TC")}</strong>
         </div>
         <div>
-          <img src="assets/ui/Crystal_Coin.gif" alt="">
+          <img src="assets/ui/economy/Crystal_Coin.gif" alt="">
           <span>${escapeHtml(t("skill.goldEquivalent"))}</span>
           <strong>${result.storeGoldEquivalent === null ? escapeHtml(t("skill.noWorldTc")) : formatGoldValue(result.storeGoldEquivalent)}</strong>
         </div>
@@ -10490,7 +13709,7 @@ function renderSkillCalculatorCompact() {
           <h4>NPC</h4>
           <div class="skill-route-bullets">
             <div>
-              <img src="assets/ui/Crystal_Coin.gif" alt="">
+              <img src="assets/ui/economy/Crystal_Coin.gif" alt="">
               <span>Gold</span>
               <strong>${formatGoldValue(result.npcGoldTotal)}</strong>
             </div>
@@ -10512,7 +13731,7 @@ function renderSkillCalculatorCompact() {
               <strong>${renderCurrencyValue(result.storeTcTotal, "TC")}</strong>
             </div>
             <div>
-              <img src="assets/ui/Crystal_Coin.gif" alt="">
+              <img src="assets/ui/economy/Crystal_Coin.gif" alt="">
               <span>${escapeHtml(t("skill.goldEquivalent"))}</span>
               <strong>${result.storeGoldEquivalent === null ? escapeHtml(t("skill.noWorldTc")) : formatGoldValue(result.storeGoldEquivalent)}</strong>
             </div>
@@ -10659,7 +13878,7 @@ function calculateSkillWeaponBreakdown(chargesNeeded, skill) {
 }
 
 function getSkillWeaponImage(tierKey, weaponKey) {
-  return SKILL_WEAPON_IMAGES[tierKey]?.[weaponKey] || SKILL_WEAPON_IMAGE_FALLBACKS[weaponKey] || "assets/ui/tool-skill-calculator.webp";
+  return SKILL_WEAPON_IMAGES[tierKey]?.[weaponKey] || SKILL_WEAPON_IMAGE_FALLBACKS[weaponKey] || "assets/ui/tools/tool-skill-calculator.webp";
 }
 
 function getSkillTibiaCoinGoldPrice() {
@@ -10905,11 +14124,17 @@ function setToolTab(tab, options = {}) {
   const validTabs = new Set(["imbuement", "loot-splitter", "find-party", "skill-calculator", "wheel-of-destiny", "screen-vision"]);
   const nextTab = validTabs.has(tab) ? tab : "imbuement";
 
+  if (state.selectedToolTab === "loot-splitter" && nextTab !== "loot-splitter") {
+    cancelLootVisualHydration();
+  }
+
   if (nextTab !== state.selectedToolTab && !options.skipHistory && !state.navigationRestoring) {
     pushCurrentNavigationEntry();
   }
 
   state.selectedToolTab = nextTab;
+  syncMirrorGameSelectorVisibility();
+  const tabOpenedAt = performance.now();
 
   syncToolNavigation();
 
@@ -10931,7 +14156,6 @@ function setToolTab(tab, options = {}) {
   }
 
   if (nextTab === "find-party") {
-    void ensureFindPartySnapshot();
     renderFindParty();
   }
 
@@ -10939,10 +14163,46 @@ function setToolTab(tab, options = {}) {
     syncWheelOfDestinyLocale();
   }
 
+  if (state.selectedSection === "tools") {
+    scheduleActiveToolLiveDataLoad();
+  }
+
   setCurrentNavigationEntry(getCurrentSectionNavigationEntry());
+  void recordPerformanceMetric("tool-tab-opened", {
+    tab: nextTab,
+    elapsedMs: Math.round(performance.now() - tabOpenedAt)
+  });
 }
 
-async function ensureFindPartySnapshot() {
+function scheduleActiveToolLiveDataLoad() {
+  if (state.activeToolLiveDataTimer) {
+    window.clearTimeout(state.activeToolLiveDataTimer);
+  }
+
+  state.activeToolLiveDataTimer = window.setTimeout(() => {
+    state.activeToolLiveDataTimer = null;
+    if (state.selectedSection !== "tools") {
+      return;
+    }
+
+    if (state.selectedToolTab === "imbuement") {
+      void refreshImbuementWorldData().catch(() => {});
+      return;
+    }
+
+    if (state.selectedToolTab === "skill-calculator") {
+      renderSkillCalculator();
+      return;
+    }
+
+    if (state.selectedToolTab === "find-party") {
+      void ensureFindPartySnapshot({ force: true });
+    }
+  }, 0);
+}
+
+async function ensureFindPartySnapshot(options = {}) {
+  const force = options.force === true;
   const selectedWorld = getSelectedWorld();
 
   if (!selectedWorld?.slug) {
@@ -10950,6 +14210,7 @@ async function ensureFindPartySnapshot() {
   }
 
   if (
+    !force &&
     !state.findPartyLoading &&
     state.findPartyLoadedWorldSlug === selectedWorld.slug &&
     state.findPartyWorldName &&
@@ -10968,7 +14229,8 @@ async function ensureFindPartySnapshot() {
 
   try {
     const snapshot = await fetchFindPartySnapshot({
-      worldSlug: selectedWorld.slug
+      worldSlug: selectedWorld.slug,
+      force
     });
 
     if (requestId !== state.findPartyRequestId || state.currentWorldSlug !== selectedWorld.slug) {
@@ -11572,21 +14834,46 @@ function resetLootSplitter() {
 }
 
 function parseAndRenderLootSplitter() {
+  const renderStartedAt = performance.now();
   state.lootAnalyzerText = getActiveLootAnalyzerText();
-  state.lootParsed = state.lootMode === "solo"
+  const parsed = state.lootMode === "solo"
     ? parseSoloHuntAnalyzerText(getActiveLootAnalyzerText())
     : parseLootAnalyzerText(getActiveLootAnalyzerText());
-  applySoloLootPricing(state.lootParsed);
+  state.lootParsed = parsed;
+  applySoloLootPricing(parsed);
   renderLootSplitter();
+  if (state.lootMode === "solo") {
+    void recordPerformanceMetric("solo-loot-initial-rendered", {
+      elapsedMs: Math.round(performance.now() - renderStartedAt),
+      itemCount: parsed?.items?.length || 0,
+      monsterCount: parsed?.monsters?.length || 0
+    });
+  }
 
-  const itemHydrationPromise = hydrateLootParsedItems(state.lootParsed);
+  const itemHydrationPromise = hydrateLootParsedItems(parsed);
+  if (state.lootMode === "solo") {
+    void itemHydrationPromise.then((completed) => recordPerformanceMetric(
+      completed === false ? "solo-loot-items-hydration-cancelled" : "solo-loot-items-hydrated",
+      {
+      elapsedMs: Math.round(performance.now() - renderStartedAt),
+      itemCount: state.lootParsed?.items?.length || 0
+      }
+    ));
+  }
   void itemHydrationPromise;
-  void hydrateLootParsedMonsters(state.lootParsed);
+  const monsterHydrationPromise = hydrateLootParsedMonsters(parsed);
+  if (state.lootMode === "solo") {
+    void monsterHydrationPromise.then(() => recordPerformanceMetric("solo-loot-monsters-hydrated", {
+      elapsedMs: Math.round(performance.now() - renderStartedAt),
+      monsterCount: state.lootParsed?.monsters?.length || 0
+    }));
+  }
+  void monsterHydrationPromise;
 
   if (state.lootMode === "solo") {
-    void enrichSoloLootProfile(state.lootParsed);
+    void enrichSoloLootProfile(parsed);
   } else {
-    void enrichLootPlayerProfiles(state.lootParsed);
+    void enrichLootPlayerProfiles(parsed);
   }
 
   return itemHydrationPromise;
@@ -12155,13 +15442,30 @@ function writeLootAnalyzerDraftsFallback(drafts) {
 
 async function hydrateLootParsedItems(parsed) {
   if (!parsed?.items?.length) {
-    return;
+    return true;
   }
 
   const requestId = ++state.lootItemHydrationRequestId;
+  const hydrationStartedAt = performance.now();
+  let firstResolvedRecorded = false;
   const worldSlug = state.currentWorldSlug || "antica";
 
-  const staticItems = await Promise.all(parsed.items.map(async (item) => {
+  // O Stash já mantém um índice local completo com sprites e valores NPC.
+  // Reutilizá-lo evita uma consulta IPC por item apenas para descobrir a
+  // imagem que já existe no content pack.
+  await ensureStashLoaded().catch(() => {});
+  if (
+    requestId !== state.lootItemHydrationRequestId
+    || state.lootParsed !== parsed
+    || !isLootVisualHydrationActive()
+  ) {
+    return false;
+  }
+
+  let staticItems = await mapLootItemsWithConcurrency(
+    parsed.items,
+    6,
+    async (item) => {
     const quantity = Math.max(1, Number(item.quantity) || 1);
     const fixedUnitValue = getAnalyzerItemUnitValue(item.name);
     const reportedValue = Number(item.reportedValue ?? item.value) || 0;
@@ -12173,6 +15477,36 @@ async function hydrateLootParsedItems(parsed) {
       reportedUnitValue ||
       fixedUnitValue ||
       (reportedValue && quantity ? Math.round(reportedValue / quantity) : 0);
+    const lookupSlug = item.slug || slugifyItemInput(item.name);
+    const localItem = state.stashItemBySlug.get(lookupSlug) || null;
+
+    if (localItem) {
+      const localMarket = state.stashMarketById?.[localItem.marketId] || null;
+      const npcUnitValue = Number(localItem.npcValue) || 0;
+      const marketUnitValue = getBestMarketBuyUnitValue(localMarket);
+      const bestUnitValue = Math.max(npcUnitValue, marketUnitValue, 0);
+      return {
+        ...item,
+        quantity,
+        name: localItem.name || item.name,
+        slug: localItem.slug || item.slug,
+        category: localItem.category || item.category || "",
+        imageSrc: localItem.imageSrc || item.imageSrc || "",
+        marketId: Number(localItem.marketId) || Number(item.marketId) || 0,
+        npcUnitValue,
+        marketUnitValue,
+        reportedUnitValue: reportedUnitValue || fallbackUnitValue,
+        reportedValue: reportedValue || fallbackValue,
+        optimizedUnitValue: bestUnitValue || (item.optimizedUnitValue ?? reportedUnitValue ?? fallbackUnitValue),
+        optimizedValue: bestUnitValue > 0 ? bestUnitValue * quantity : (item.optimizedValue ?? reportedValue ?? fallbackValue),
+        unitValue: reportedUnitValue || fallbackUnitValue,
+        value: reportedValue || fallbackValue,
+        reportedValueSource: item.reportedValueSource || (fixedUnitValue ? "coin" : ""),
+         optimizedValueSource: bestUnitValue && marketUnitValue >= npcUnitValue ? "market" : bestUnitValue ? "npc" : "",
+         valueSource: item.reportedValueSource || (fixedUnitValue ? "coin" : ""),
+         staticResolved: true
+       };
+    }
 
     try {
       const staticData = await fetchItemStatic({
@@ -12205,9 +15539,10 @@ async function hydrateLootParsedItems(parsed) {
         unitValue: reportedUnitValue || fallbackUnitValue,
         value: reportedValue || fallbackValue,
         reportedValueSource: item.reportedValueSource || (fixedUnitValue ? "coin" : ""),
-        optimizedValueSource: priceInfo.bestSource || item.optimizedValueSource || "",
-        valueSource: item.reportedValueSource || (fixedUnitValue ? "coin" : "")
-      };
+         optimizedValueSource: priceInfo.bestSource || item.optimizedValueSource || "",
+         valueSource: item.reportedValueSource || (fixedUnitValue ? "coin" : ""),
+         staticResolved: false
+       };
     } catch (_error) {
       return {
         ...item,
@@ -12216,18 +15551,58 @@ async function hydrateLootParsedItems(parsed) {
         reportedUnitValue: reportedUnitValue || fallbackUnitValue,
         reportedValue: reportedValue || fallbackValue,
         optimizedUnitValue: item.optimizedUnitValue ?? reportedUnitValue ?? fallbackUnitValue,
-        optimizedValue: item.optimizedValue ?? reportedValue ?? fallbackValue,
-        unitValue: reportedUnitValue || fallbackUnitValue,
-        value: reportedValue || fallbackValue,
-        reportedValueSource: item.reportedValueSource || (fixedUnitValue ? "coin" : ""),
-        optimizedValueSource: item.optimizedValueSource || "",
-        valueSource: item.reportedValueSource || (fixedUnitValue ? "coin" : "")
-      };
+         optimizedValue: item.optimizedValue ?? reportedValue ?? fallbackValue,
+         unitValue: reportedUnitValue || fallbackUnitValue,
+         value: reportedValue || fallbackValue,
+         reportedValueSource: item.reportedValueSource || (fixedUnitValue ? "coin" : ""),
+         optimizedValueSource: item.optimizedValueSource || "",
+         valueSource: item.reportedValueSource || (fixedUnitValue ? "coin" : ""),
+         staticResolved: false
+       };
     }
-  }));
+    },
+    (resolvedItems, resolvedIndex) => {
+      if (
+        requestId !== state.lootItemHydrationRequestId
+        || state.lootParsed !== parsed
+        || !isLootVisualHydrationActive()
+      ) {
+        return;
+      }
 
-  if (requestId !== state.lootItemHydrationRequestId || state.lootParsed !== parsed) {
-    return;
+      // A análise continua usando os mesmos dados e preços; só a apresentação
+      // deixa de esperar todos os sprites antes de revelar o primeiro item.
+      parsed.items = resolvedItems.slice();
+      applySoloLootPricing(parsed);
+      if (!firstResolvedRecorded && state.lootMode === "solo") {
+        firstResolvedRecorded = true;
+        void recordPerformanceMetric("solo-loot-first-item-hydrated", {
+          elapsedMs: Math.round(performance.now() - hydrationStartedAt),
+          itemCount: parsed.items.length
+        });
+      }
+      // Não recrie todos os painéis a cada sprite: isso apagava e pintava de
+      // novo itens e criaturas que já estavam visíveis no Solo Hunt.
+      patchLootItemTile(parsed.items[resolvedIndex], resolvedIndex);
+    },
+    {
+      // Uma nova análise invalida esta fila. As requisições já iniciadas não
+      // podem ser abortadas pelo IPC atual, mas nenhuma próxima consulta deve
+      // ser disparada para uma análise que não será mais exibida.
+      shouldContinue: () => (
+        requestId === state.lootItemHydrationRequestId
+        && state.lootParsed === parsed
+        && isLootVisualHydrationActive()
+      )
+    }
+  );
+
+  if (
+    requestId !== state.lootItemHydrationRequestId
+    || state.lootParsed !== parsed
+    || !isLootVisualHydrationActive()
+  ) {
+    return false;
   }
 
   parsed.items = staticItems;
@@ -12236,20 +15611,76 @@ async function hydrateLootParsedItems(parsed) {
   renderLootSplitter();
 
   if (state.lootMode !== "solo") {
-    return;
+    return true;
+  }
+
+  // Known Stash items already have their static name, sprite, NPC value and
+  // Market ID. If only the Market value is missing, resolve those IDs in the
+  // existing batched Market path instead of issuing one full fetchItem request
+  // per item. Unknown names keep the narrow fetchItem fallback below.
+  if (state.lootSoloUseMarket) {
+    const marketIds = [...new Set(
+      staticItems
+        .filter((item) => !item.marketUnitValue && Number(item.marketId) > 0)
+        .map((item) => Number(item.marketId))
+        .filter(Boolean)
+    )];
+
+    if (marketIds.length > 0) {
+      const marketValues = await fetchStashMarketValues({
+        worldSlug,
+        marketIds,
+        forceFresh: true,
+        mergeIntoWorldCache: true
+      }).catch(() => ({}));
+
+      if (
+        requestId !== state.lootItemHydrationRequestId
+        || state.lootParsed !== parsed
+        || !isLootVisualHydrationActive()
+      ) {
+        return false;
+      }
+
+      state.stashMarketById = mergeStashMarketValuesPreservingCache(marketValues);
+      state.stashMarketRevision += 1;
+      staticItems = staticItems.map((item) => {
+        const market = state.stashMarketById?.[item.marketId] || null;
+        const marketUnitValue = getBestMarketBuyUnitValue(market);
+        if (!marketUnitValue) {
+          return item;
+        }
+
+        const npcUnitValue = Number(item.npcUnitValue) || 0;
+        const bestUnitValue = Math.max(npcUnitValue, marketUnitValue, 0);
+        return {
+          ...item,
+          marketUnitValue,
+          optimizedUnitValue: bestUnitValue,
+          optimizedValue: bestUnitValue * (Math.max(1, Number(item.quantity) || 1)),
+          optimizedValueSource: marketUnitValue >= npcUnitValue ? "market" : item.optimizedValueSource
+        };
+      });
+      parsed.items = staticItems;
+      applySoloLootPricing(parsed);
+      renderLootSplitter();
+    }
   }
 
   const itemsNeedingRefresh = staticItems.filter((item) => {
+    if (item.staticResolved) {
+      return false;
+    }
     const needsNpcRefresh = !item.npcUnitValue;
     const needsMarketRefresh = state.lootSoloUseMarket && !item.marketUnitValue;
     return needsNpcRefresh || needsMarketRefresh;
   });
 
   if (!itemsNeedingRefresh.length) {
-    return;
+    return true;
   }
 
-  const enrichedItems = await Promise.all(staticItems.map(async (item) => {
+  const enrichedItems = await mapLootItemsWithConcurrency(staticItems, 6, async (item) => {
     if (!itemsNeedingRefresh.includes(item)) {
       return item;
     }
@@ -12289,16 +15720,61 @@ async function hydrateLootParsedItems(parsed) {
     } catch (_error) {
       return item;
     }
-  }));
+  }, undefined, {
+    shouldContinue: () => (
+      requestId === state.lootItemHydrationRequestId
+      && state.lootParsed === parsed
+      && isLootVisualHydrationActive()
+    )
+  });
 
-  if (requestId !== state.lootItemHydrationRequestId || state.lootParsed !== parsed) {
-    return;
+  if (
+    requestId !== state.lootItemHydrationRequestId
+    || state.lootParsed !== parsed
+    || !isLootVisualHydrationActive()
+  ) {
+    return false;
   }
 
   parsed.items = enrichedItems;
   parsed.pricingHydrated = true;
   applySoloLootPricing(parsed);
   renderLootSplitter();
+  return true;
+}
+
+function isLootVisualHydrationActive() {
+  return state.selectedSection === "tools" && state.selectedToolTab === "loot-splitter";
+}
+
+function cancelLootVisualHydration() {
+  state.lootItemHydrationRequestId += 1;
+  state.lootMonsterHydrationRequestId += 1;
+}
+
+async function mapLootItemsWithConcurrency(items, limit, worker, onProgress, options = {}) {
+  const source = Array.isArray(items) ? items : [];
+  const results = source.slice();
+  const workerCount = Math.min(Math.max(1, Number(limit) || 1), source.length);
+  const shouldContinue = typeof options.shouldContinue === "function" ? options.shouldContinue : null;
+  let nextIndex = 0;
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < source.length) {
+      if (shouldContinue && !shouldContinue()) {
+        return;
+      }
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      results[currentIndex] = await worker(source[currentIndex], currentIndex);
+      if (shouldContinue && !shouldContinue()) {
+        return;
+      }
+      onProgress?.(results, currentIndex);
+    }
+  }));
+
+  return results;
 }
 
 async function hydrateLootParsedMonsters(parsed) {
@@ -12791,6 +16267,12 @@ function getNpcTradeUnitValue(trade) {
     return trade;
   }
 
+  // Points, tokens and barter values cannot be compared to market gold.
+  // A numeric token amount is still a real price, just not a gold price.
+  if (trade?.currency) {
+    return 0;
+  }
+
   const candidates = [
     trade?.price,
     trade?.value,
@@ -12819,13 +16301,13 @@ function renderLootHelp() {
 
   const analyzerName = state.lootMode === "solo" ? "Hunt Analyzer" : "Party Hunt Analyzer";
   const imageSrc = state.lootMode === "solo"
-    ? "assets/ui/hunt-analyzer-help.png"
-    : "assets/ui/party-loot-help.jpg";
+    ? "assets/ui/analyzer/hunt-analyzer-help.png"
+    : "assets/ui/analyzer/party-loot-help.jpg";
   const optimizationMarkup = state.lootMode === "solo"
     ? `
       <div class="loot-help-optimization">
         <p class="loot-help-warning">
-          <img src="assets/ui/15px-Warning_Icon_Yellow.png" alt="">
+          <img src="assets/ui/combat-status/15px-Warning_Icon_Yellow.png" alt="">
           <span>
             <strong>Importante:</strong>&nbsp;Para usar os valores de <strong>Market</strong>&nbsp;otimizado, primeiro defina os valores como <strong>NPC</strong>&nbsp;no loot pessoal do personagem.
           </span>
@@ -12934,15 +16416,15 @@ function renderLootPlayers(players) {
         <small>${renderPlayerSubtitle(player)}</small>
       </div>
       <div class="loot-player-stat-grid">
-        ${renderLootPlayerStatTile({ label: "Loot", value: player.loot, icon: "assets/ui/analyzer-loot.gif" })}
-        ${renderLootPlayerStatTile({ label: "Supplies", value: player.supplies, icon: "assets/ui/analyzer-supplies.gif" })}
-        ${renderLootPlayerStatTile({ label: "Balance", value: player.balance, icon: "assets/ui/analyzer-balance.gif", signed: true })}
-        ${renderLootPlayerStatTile({ label: "Damage", value: player.damage, icon: "assets/ui/analyzer-damage.gif" })}
-        ${renderLootPlayerStatTile({ label: "Healing", value: player.healing, icon: "assets/ui/analyzer-healing.gif" })}
+        ${renderLootPlayerStatTile({ label: "Loot", value: player.loot, icon: "assets/ui/analyzer/analyzer-loot.gif" })}
+        ${renderLootPlayerStatTile({ label: "Supplies", value: player.supplies, icon: "assets/ui/analyzer/analyzer-supplies.gif" })}
+        ${renderLootPlayerStatTile({ label: "Balance", value: player.balance, icon: "assets/ui/analyzer/analyzer-balance.gif", signed: true })}
+        ${renderLootPlayerStatTile({ label: "Damage", value: player.damage, icon: "assets/ui/analyzer/analyzer-damage.gif" })}
+        ${renderLootPlayerStatTile({ label: "Healing", value: player.healing, icon: "assets/ui/analyzer/analyzer-healing.gif" })}
         ${typeof player.xpGain === "number" ? renderLootPlayerStatTile({
           label: "XP",
           value: player.xpGain,
-          icon: player.xpGain < 0 ? "assets/ui/analyzer-death.png" : "assets/ui/analyzer-xp.gif",
+          icon: player.xpGain < 0 ? "assets/ui/analyzer/analyzer-death.png" : "assets/ui/analyzer/analyzer-xp.gif",
           signed: true
         }) : ""}
       </div>
@@ -12965,7 +16447,7 @@ function renderLootPlayerStatTile({ label, value, icon, signed = false }) {
 
 function getLootPlayerStatIcon({ label, numericValue, fallbackIcon }) {
   if (label === "Balance" && numericValue < 0) {
-    return "assets/ui/analyzer-balance-negative.gif";
+    return "assets/ui/analyzer/analyzer-balance-negative.gif";
   }
 
   if (label !== "Loot") {
@@ -12973,18 +16455,55 @@ function getLootPlayerStatIcon({ label, numericValue, fallbackIcon }) {
   }
 
   if (numericValue > 1000000) {
-    return "assets/ui/analyzer-loot-incomprehensible-riches.gif";
+    return "assets/ui/analyzer/analyzer-loot-incomprehensible-riches.gif";
   }
 
   if (numericValue > 500000) {
-    return "assets/ui/analyzer-loot-chest-of-abundance.gif";
+    return "assets/ui/analyzer/analyzer-loot-chest-of-abundance.gif";
   }
 
   if (numericValue > 100000) {
-    return "assets/ui/analyzer-loot-treasure-chest.gif";
+    return "assets/ui/analyzer/analyzer-loot-treasure-chest.gif";
   }
 
   return fallbackIcon;
+}
+
+function getLootItemTileMarkup(item, index) {
+  const quantity = Number(item.quantity) || 1;
+  const isSolo = state.lootMode === "solo";
+  const doubleLootActive = isSolo && Boolean(state.lootSoloDoubleLoot);
+  const preferredUnitValue = isSolo
+    ? (state.lootSoloUseMarket ? Number(item.marketUnitValue) || 0 : Number(item.npcUnitValue) || 0)
+    : 0;
+  const fallbackTotalValue = Number(item.value) || 0;
+  const fallbackUnitValue = Number(item.unitValue) || Number(item.reportedUnitValue)
+    || (fallbackTotalValue && quantity ? Math.round(fallbackTotalValue / quantity) : 0);
+  const baseUnitValue = preferredUnitValue || fallbackUnitValue;
+  const unitValue = doubleLootActive ? baseUnitValue * 2 : baseUnitValue;
+  const totalValue = unitValue > 0 ? unitValue * quantity : (doubleLootActive ? fallbackTotalValue * 2 : fallbackTotalValue);
+
+  return `
+    <button type="button" class="loot-item-tile ${getValueTierClass(totalValue)}" data-loot-item-index="${index}" data-loot-item-name="${escapeHtml(item.name)}" data-tooltip="${escapeHtml(t("common.viewDetails"))}">
+      ${item.imageSrc ? `<img class="loot-tile-icon" src="${escapeHtml(item.imageSrc)}" alt="${escapeHtml(item.name)}">` : ""}
+      <span>${escapeHtml(quantity)}x</span>
+      <strong>${escapeHtml(item.name)}</strong>
+      ${unitValue ? `<small>${renderLootValue(unitValue, "gp")} cada</small>` : "<small>Sem valor</small>"}
+      ${totalValue ? `<small class="loot-tile-total">Total: ${renderLootValue(totalValue, "gp")}</small>` : ""}
+      ${doubleLootActive && unitValue ? '<small class="loot-monster-event">Evento Double</small>' : ""}
+    </button>
+  `;
+}
+
+function patchLootItemTile(item, index) {
+  if (!els.lootItemsGrid || !Number.isInteger(index)) return;
+  const current = els.lootItemsGrid.querySelector(`[data-loot-item-index="${index}"]`);
+  if (!current) {
+    renderLootItems(state.lootParsed?.items || []);
+    return;
+  }
+  current.outerHTML = normalizeUiText(getLootItemTileMarkup(item, index));
+  bindSkillDynamicTooltips(els.lootItemsGrid);
 }
 
 function renderLootItems(items) {
@@ -12999,7 +16518,7 @@ function renderLootItems(items) {
   }
 
   els.lootItemsCard.classList.remove("hidden");
-  els.lootItemsGrid.innerHTML = normalizeUiText(items.map((item) => {
+  els.lootItemsGrid.innerHTML = normalizeUiText(items.map((item, index) => {
     const quantity = Number(item.quantity) || 1;
     const isSolo = state.lootMode === "solo";
     const doubleLootActive = isSolo && Boolean(state.lootSoloDoubleLoot);
@@ -13022,7 +16541,7 @@ function renderLootItems(items) {
       : (doubleLootActive ? fallbackTotalValue * 2 : fallbackTotalValue);
 
     return `
-      <button type="button" class="loot-item-tile ${getValueTierClass(totalValue)}" data-loot-item-name="${escapeHtml(item.name)}" data-tooltip="${escapeHtml(t("common.viewDetails"))}">
+      <button type="button" class="loot-item-tile ${getValueTierClass(totalValue)}" data-loot-item-index="${index}" data-loot-item-name="${escapeHtml(item.name)}" data-tooltip="${escapeHtml(t("common.viewDetails"))}">
         ${item.imageSrc ? `<img class="loot-tile-icon" src="${escapeHtml(item.imageSrc)}" alt="${escapeHtml(item.name)}">` : ""}
         <span>${escapeHtml(quantity)}x</span>
         <strong>${escapeHtml(item.name)}</strong>
@@ -13530,8 +17049,14 @@ function renderSoloLootOutput(parsed) {
 }
 
 function findLocalCreature(name) {
-  const normalized = normalizeSearchText(name);
-  return state.monsterIndex.find((creature) => normalizeSearchText(creature.name) === normalized) || null;
+  const normalizeCreatureReference = (value) => normalizeSearchText(
+    String(value || "").replace(/\s+\((?:Criatura|Creature)\)$/i, "").trim()
+  );
+  const normalized = normalizeCreatureReference(name);
+  return state.monsterIndex.find((creature) => (
+    normalizeCreatureReference(creature.name) === normalized
+    || normalizeCreatureReference(creature.slug) === normalized
+  )) || null;
 }
 
 function getCreatureFallbackImageSrc(name) {
@@ -13563,6 +17088,10 @@ function getRendererCachedImageUrl(category, key, sourceUrl) {
     return normalizedSource;
   }
 
+  if (window.desktopApi?.app?.runtimeChannel === "portable-test") {
+    return normalizedSource;
+  }
+
   return `poioso-cache://${sanitizeCacheSegment(category || "misc")}/${encodeURIComponent(
     sanitizeCacheSegment(key || "asset")
   )}?url=${encodeURIComponent(normalizedSource)}`;
@@ -13579,17 +17108,23 @@ function sanitizeCacheSegment(value) {
 }
 
 async function openLootMonster(name) {
-  if (!name) {
+  const safeName = String(name || "")
+    .replace(/[^\p{L}\p{N} .(),'&-]/gu, "")
+    .trim();
+  if (!safeName) {
     return;
   }
 
-  const local = findLocalCreature(name);
+  const local = findLocalCreature(safeName);
+  if (!local?.name) {
+    return;
+  }
   pushCurrentNavigationEntry();
   switchSection("npcs", { skipHistory: true });
   await setEntityViewMode(local?.bossCategory ? "bosses" : "monsters", {
     skipHistory: true
   });
-  await openMonsterDetail(local?.name || name, { skipHistory: true });
+  await openMonsterDetail(local.name, { skipHistory: true });
 }
 
 async function openLootItem(name) {
@@ -13693,15 +17228,18 @@ function renderToolbarWorldStatus() {
     if (!button || !image) return;
     const label = t(labelKey);
     const name = String(entry?.name || "").trim();
-    const source = getBoostedAnimatedSprite(name) || String(entry?.animatedImage || entry?.image || "").trim();
+    const sources = getBoostedSpriteSources(name, entry);
+    const source = sources[0] || "";
     const tooltip = name ? `${label}: ${name}` : t("toolbar.loadingBoosted");
     button.disabled = !name;
     button.dataset.tooltip = tooltip;
     button.setAttribute("aria-label", tooltip);
     if (source) {
       image.src = source;
+      image.dataset.fallbackSources = JSON.stringify(sources.slice(1));
     } else {
       image.removeAttribute("src");
+      image.removeAttribute("data-fallback-sources");
     }
     image.hidden = !source;
     image.alt = "";
@@ -13752,6 +17290,26 @@ function getBoostedAnimatedSprite(name) {
   ));
 
   return String(entry?.imageSrc || "").trim();
+}
+
+function getBoostedSpriteSources(name, entry) {
+  const normalizedName = normalizeSearchText(name);
+  const matchingEntry = Array.isArray(state.monsterIndex)
+    ? state.monsterIndex.find((candidate) => normalizeSearchText(candidate?.name) === normalizedName)
+    : null;
+  const slug = slugifyItemInput(name);
+  // The local content pack is authoritative for the desktop UI. The daily
+  // Boosted endpoint may carry an external image that is unavailable offline
+  // or blocked by a remote host, so it is only a last-resort fallback.
+  return [...new Set([
+    getBoostedAnimatedSprite(name),
+    String(matchingEntry?.imageSrc || "").trim(),
+    String(matchingEntry?.stillImageSrc || "").trim(),
+    slug ? `assets/data/creatures/${slug}.gif` : "",
+    slug ? `assets/data/library-thumbnails/creatures/${slug}.png` : "",
+    String(entry?.animatedImage || "").trim(),
+    String(entry?.image || "").trim()
+  ].filter(Boolean))];
 }
 
 async function openBoostedEntity(name, entityViewMode) {
@@ -13919,7 +17477,7 @@ function groupMiniWorldChangesCatalog(catalog) {
 function renderMiniWorldChangesMessage(message, kind = "empty") {
   const loading = kind === "loading"
     ? '<span class="global-loading-spinner mini-world-changes-spinner" aria-hidden="true"></span>'
-    : '<img src="assets/ui/world-board.gif" alt="">';
+    : '<img src="assets/ui/navigation/world-board.gif" alt="">';
   return `
     <div class="mini-world-changes-empty">
       ${loading}
@@ -14076,12 +17634,12 @@ function renderMiniWorldChangeRepresentatives(entry, className) {
     : [entry?.representative].filter(Boolean);
   const values = representatives.length
     ? representatives
-    : [{ localPath: "assets/ui/world-board.gif", label: entry?.name || "Mini World Change" }];
+    : [{ localPath: "assets/ui/navigation/world-board.gif", label: entry?.name || "Mini World Change" }];
 
   return `
     <span class="${escapeHtml(className)}">
       ${values.map((representative) => `
-        <img src="${escapeHtml(representative.localPath || "assets/ui/world-board.gif")}" alt="${escapeHtml(representative.label || entry?.name || "")}">
+        <img src="${escapeHtml(representative.localPath || "assets/ui/navigation/world-board.gif")}" alt="${escapeHtml(representative.label || entry?.name || "")}">
       `).join("")}
     </span>
   `;
@@ -14684,12 +18242,31 @@ async function refreshImbuementWorldData() {
   }
 
   const requestId = ++state.imbuementRequestId;
+  const refreshStartedAt = performance.now();
   state.imbuementRequestInFlightWorldSlug = selectedWorld.slug;
+  const ingredientNames = getCurrentIngredients().map((ingredient) => ingredient.name);
+  const metadataStartedAt = performance.now();
+  // Item sprites are local and independent from Market. Start them immediately
+  // from the same in-memory Stash index used by Solo Hunt instead of waiting
+  // for the world-price request to finish first.
+  const ingredientMetadataPromise = ensureIngredientMetadata(ingredientNames)
+    .then(() => {
+      if (requestId === state.imbuementRequestId && state.currentWorldSlug === selectedWorld.slug) {
+        renderImbuement();
+      }
+      return true;
+    })
+    .catch(() => false);
 
   const cachedEntry = await loadStoredImbuementMarket(selectedWorld.name);
   const cachedMarket = cachedEntry?.value || null;
   const hasCachedMarket = Boolean(cachedMarket);
   const shouldShowLoading = !hasCachedMarket;
+  void recordPerformanceMetric("imbuement-cache-ready", {
+    worldSlug: selectedWorld.slug,
+    elapsedMs: Math.round(performance.now() - refreshStartedAt),
+    cached: hasCachedMarket
+  });
 
   if (hasCachedMarket) {
     state.imbuementMarket = cachedMarket;
@@ -14729,6 +18306,12 @@ async function refreshImbuementWorldData() {
       forceFresh: true
     });
 
+    void recordPerformanceMetric("imbuement-market-ready", {
+      worldSlug: selectedWorld.slug,
+      elapsedMs: Math.round(performance.now() - refreshStartedAt),
+      cached: hasCachedMarket
+    });
+
     if (requestId !== state.imbuementRequestId || state.currentWorldSlug !== selectedWorld.slug) {
       return;
     }
@@ -14745,7 +18328,14 @@ async function refreshImbuementWorldData() {
     }
 
     renderImbuement();
-    await ensureIngredientMetadata(getCurrentIngredients().map((ingredient) => ingredient.name));
+    const metadataReady = await ingredientMetadataPromise;
+    void recordPerformanceMetric("imbuement-ingredients-ready", {
+      worldSlug: selectedWorld.slug,
+      elapsedMs: Math.round(performance.now() - refreshStartedAt),
+      metadataElapsedMs: Math.round(performance.now() - metadataStartedAt),
+      ingredientCount: ingredientNames.length,
+      available: metadataReady
+    });
 
     if (requestId !== state.imbuementRequestId || state.currentWorldSlug !== selectedWorld.slug) {
       return;
@@ -14772,6 +18362,11 @@ async function refreshImbuementWorldData() {
 
     void warmImbuementMetadata().catch(() => {});
   } catch (error) {
+    void recordPerformanceMetric("imbuement-refresh-failed", {
+      worldSlug: selectedWorld.slug,
+      elapsedMs: Math.round(performance.now() - refreshStartedAt),
+      stage: state.imbuementMarket ? "market-or-ingredients" : "initial-market"
+    });
     setImbuementLoading({
       active: false,
       message: "",
@@ -14788,23 +18383,84 @@ async function refreshImbuementWorldData() {
   }
 }
 
-async function ensureIngredientMetadata(names = getCurrentIngredients().map((ingredient) => ingredient.name)) {
-  const missingNames = names
+function ensureIngredientMetadata(names = getCurrentIngredients().map((ingredient) => ingredient.name)) {
+  const requestedNames = [...new Set(
+    names
+      .map((name) => String(name || "").trim())
+      .filter(Boolean)
+  )];
+  const missingNames = requestedNames
     .filter((name) => !state.ingredientMetaByName[name]);
 
   if (missingNames.length === 0) {
-    return;
+    return Promise.resolve();
   }
 
-  const metadata = await fetchIngredientMetadata({
-    worldSlug: state.currentWorldSlug,
-    names: missingNames
-  });
+  const worldSlug = state.currentWorldSlug || "";
+  if (ingredientMetadataPromise) {
+    const activePromise = ingredientMetadataPromise;
+    const sameWorld = ingredientMetadataPromiseWorldSlug === worldSlug;
+    const alreadyCovered = sameWorld && missingNames.every((name) => (
+      ingredientMetadataPromiseNames.has(name)
+    ));
 
-  state.ingredientMetaByName = {
-    ...state.ingredientMetaByName,
-    ...metadata
-  };
+    // Reuse the same request when it covers this set.  If another caller
+    // needs additional names, wait for the active request and then re-check
+    // the index; only the genuinely missing remainder starts a follow-up.
+    if (alreadyCovered) {
+      return activePromise;
+    }
+    return activePromise.then(() => ensureIngredientMetadata(requestedNames));
+  }
+
+  ingredientMetadataPromiseNames = new Set(missingNames);
+  ingredientMetadataPromiseWorldSlug = worldSlug;
+
+  const run = (async () => {
+    // Reuse the one complete local index already shared by Stash and Solo
+    // Hunt. This avoids one detailed item materialisation per ingredient and
+    // lets the calculator paint its sprites while Market remains independent.
+    await ensureStashLoaded().catch(() => {});
+    const localMetadata = {};
+    const unresolvedNames = [];
+    for (const name of missingNames) {
+      const lookupSlug = slugifyItemInput(name);
+      const localItem = state.stashItemBySlug.get(lookupSlug) || null;
+      if (!localItem) {
+        unresolvedNames.push(name);
+        continue;
+      }
+      localMetadata[name] = {
+        slug: localItem.slug || lookupSlug,
+        imageSrc: localItem.imageSrc || "",
+        itemName: localItem.name || name
+      };
+    }
+
+    const fallbackMetadata = unresolvedNames.length > 0
+      ? await fetchIngredientMetadata({
+          worldSlug,
+          names: unresolvedNames
+        })
+      : {};
+
+    state.ingredientMetaByName = {
+      ...state.ingredientMetaByName,
+      ...localMetadata,
+      ...fallbackMetadata
+    };
+  })();
+
+  let trackedPromise;
+  trackedPromise = run.finally(() => {
+    if (ingredientMetadataPromise === trackedPromise) {
+      ingredientMetadataPromise = null;
+      ingredientMetadataPromiseNames = new Set();
+      ingredientMetadataPromiseWorldSlug = "";
+    }
+  });
+  ingredientMetadataPromise = trackedPromise;
+  return trackedPromise;
 }
 
 async function warmImbuementMetadata() {
@@ -14924,6 +18580,19 @@ function isCompactGlobalWorldPickerMode() {
     !document.body.classList.contains("desktop-docked-panel-open");
 }
 
+function resetCompactGlobalWorldPickerPosition(content) {
+  if (!content) {
+    return;
+  }
+
+  content.style.removeProperty("width");
+  content.style.removeProperty("max-width");
+  content.style.removeProperty("left");
+  content.style.removeProperty("right");
+  content.style.removeProperty("--global-world-compact-max-height");
+  content.style.removeProperty("--global-world-compact-suggestions-max-height");
+}
+
 function syncGlobalWorldCompactState(open) {
   const shell = els.globalWorldDropdownButton?.closest(".global-world-shell");
   if (!shell) {
@@ -14934,16 +18603,18 @@ function syncGlobalWorldCompactState(open) {
     shell.dataset.compactOpen = "true";
   } else {
     delete shell.dataset.compactOpen;
+    resetCompactGlobalWorldPickerPosition(shell.querySelector(".global-world-dropdown-content"));
   }
 }
 
 function positionCompactGlobalWorldPicker() {
+  const shell = els.globalWorldDropdownButton?.closest(".global-world-shell");
+  const content = shell?.querySelector(".global-world-dropdown-content");
   if (!isCompactGlobalWorldPickerMode()) {
+    resetCompactGlobalWorldPickerPosition(content);
     return;
   }
 
-  const shell = els.globalWorldDropdownButton?.closest(".global-world-shell");
-  const content = shell?.querySelector(".global-world-dropdown-content");
   if (!shell || !content || shell.dataset.compactOpen !== "true") {
     return;
   }
@@ -14964,6 +18635,37 @@ function positionCompactGlobalWorldPicker() {
   content.style.right = "auto";
   content.style.setProperty("--global-world-compact-max-height", `${maxHeight}px`);
   content.style.setProperty("--global-world-compact-suggestions-max-height", `${suggestionsMaxHeight}px`);
+}
+
+function getDesktopGlobalWorldPickerPayload() {
+  return {
+    anchor: (() => {
+      const rect = els.globalWorldDropdownButton?.getBoundingClientRect();
+      return rect
+        ? { left: rect.left, top: rect.top, bottom: rect.bottom }
+        : { left: 0, top: 0, bottom: 0 };
+    })(),
+    height: Math.min(424, Math.max(176, 44 + Math.min(6, state.worlds.length) * 53)),
+    placeholder: t("toolbar.typeWorld"),
+    selectedSlug: state.currentWorldSlug,
+    worlds: state.worlds.map((world) => ({
+      slug: String(world.slug || ""),
+      name: String(world.name || ""),
+      updatedLabel: world.last_update ? formatRelativeTimeFromNow(world.last_update) : "",
+      battleyeIcon: getBattleyeIconPath(world),
+      battleyeLabel: getBattleyeLabel(world),
+      pvpLabel: getWorldPvpLabel(world.pvp_type)
+    })).filter((world) => world.slug && world.name)
+  };
+}
+
+async function toggleDesktopGlobalWorldPicker() {
+  const button = els.globalWorldDropdownButton;
+  if (!button || !window.desktopApi?.globalWorldPicker?.open) return;
+
+  closeWorldSuggestions("global");
+  const response = await window.desktopApi.globalWorldPicker.open(getDesktopGlobalWorldPickerPayload()).catch(() => null);
+  button.classList.toggle("open", Boolean(response?.opened));
 }
 
 function scrollMainNav(direction) {
@@ -15176,10 +18878,24 @@ async function selectWorldSuggestion(field, world) {
 
   state.currentWorldSlug = world.slug;
   state.stashMarketById = {};
+  state.stashMarketFreshIds = {};
+  state.stashMarketRevision += 1;
   state.stashWorldMarketLoadedSlug = "";
   state.stashWorldMarketLoading = false;
   state.stashMarketRequestId += 1;
+  state.stashLoadingMarket = false;
   state.stashMarketLoadedSignature = "";
+  cancelStashMarketBackgroundRefresh();
+  renderStashValueButtons();
+  setGlobalLoadingAction(null);
+  hideGlobalLoading();
+  state.currencyRatesRequestId += 1;
+  state.currencyRates = {
+    tibiaCoinPrice: null,
+    goldTokenPrice: null
+  };
+  state.currencyRatesLoading = false;
+  state.currencyRatesLastAttemptAt = 0;
   state.findPartyPlayers = [];
   state.findPartyGuilds = [];
   state.findPartyWorldName = world.name;
@@ -15195,19 +18911,21 @@ async function selectWorldSuggestion(field, world) {
   closeWorldSuggestions("global");
   closeWorldSuggestions("tool");
   closeWorldSuggestions("loot");
-  renderSkillCalculator();
 
-  void refreshCurrencyRates({ worldSlug: world.slug }).catch(() => {});
-
-  if (field !== "loot") {
-    void refreshImbuementWorldData().catch(() => {});
-  }
-
-  if (field !== "loot" && state.currentItem) {
+  if (
+    field !== "loot" &&
+    state.selectedSection === "item-prices" &&
+    state.itemViewMode === "list" &&
+    state.currentItem
+  ) {
     void handleItemSearch(true);
   }
 
-  if (field !== "loot" && state.itemViewMode === "stash") {
+  if (
+    field !== "loot" &&
+    state.selectedSection === "item-prices" &&
+    state.itemViewMode === "stash"
+  ) {
     renderStashGrid();
     scheduleStashMarketLoad();
   }
@@ -15216,13 +18934,17 @@ async function selectWorldSuggestion(field, world) {
     parseAndRenderLootSplitter();
   }
 
-  if (field !== "loot" && (state.selectedToolTab === "find-party" || state.findPartyRequestId > 0)) {
-    void ensureFindPartySnapshot();
+  if (field !== "loot" && state.selectedSection === "tools") {
+    scheduleActiveToolLiveDataLoad();
   }
 
-  refreshOpenBossTrackerForCurrentWorld();
-  void loadMiniWorldChanges({ force: true });
-  scheduleWarmItemCache();
+  if (field !== "loot" && state.selectedSection === "npcs") {
+    refreshOpenBossTrackerForCurrentWorld();
+  }
+
+  if (field !== "loot" && state.selectedSection === "mini-world-changes") {
+    void loadMiniWorldChanges({ force: true });
+  }
 }
 
 function refreshOpenBossTrackerForCurrentWorld() {
@@ -15389,9 +19111,12 @@ function renderItem() {
     convertPrice(value, state.itemCurrencyMode, state.currencyRates, selectedWorld?.tc_price);
   const hasActiveMarketOffers = marketHasActiveOffers(market);
   const marketExplicitlyDisabled = isItemMarketExplicitlyDisabled(item);
+  const hideCurrentMarketOfferSummary =
+    marketExplicitlyDisabled || shouldHideCurrentMarketOfferSummary(item);
 
   els.itemSummaryEmpty.classList.add("hidden");
   els.itemSummaryContent.classList.remove("hidden");
+  els.npcCard?.classList.remove("hidden");
 
   els.itemImage.src = item.image_src;
   els.itemImage.alt = item.name;
@@ -15401,6 +19126,7 @@ function renderItem() {
   renderItemWikiButton(item);
   renderItemStoreNote(item);
   setItemMarketVisibility(marketExplicitlyDisabled);
+  setCurrentMarketOfferSummaryVisibility(hideCurrentMarketOfferSummary);
   els.connectionStatus.textContent = selectedWorld?.name || "-";
   if (!marketExplicitlyDisabled) {
     els.itemLowestSell.textContent = hasActiveMarketOffers
@@ -15450,11 +19176,24 @@ function renderItem() {
   renderNpcList(els.npcSellList, item.npc_buy, "Nenhum NPC comprador encontrado.");
   renderNpcTabs();
   renderRelatedItems(relatedItems);
+  applyEditorialSectionOrder(els.itemSummaryContent, item.canonicalDocument?.presentation?.template);
 }
 
 function isItemMarketExplicitlyDisabled(item) {
   const value = String(item?.marketableExplicit || item?.marketable || "").trim().toLowerCase();
   return value === "no";
+}
+
+function shouldHideCurrentMarketOfferSummary(item) {
+  const hiddenItems = new Set(["gold coin", "gold coins", "platinum coin", "crystal coin"]);
+  const names = [item?.wiki_name, item?.name]
+    .map((value) => normalizeSearchText(value).trim())
+    .filter(Boolean);
+  return names.some((name) => hiddenItems.has(name));
+}
+
+function setCurrentMarketOfferSummaryVisibility(hidden) {
+  els.itemPriceSpotlightGrid?.classList.toggle("hidden", hidden);
 }
 
 function setItemMarketVisibility(disabled) {
@@ -15488,7 +19227,7 @@ function renderItemStoreNote(item) {
   els.itemStoreNote.innerHTML = `
     <span class="store-note-line">
       <span>Esse item pode ser comprado na Store por</span>
-      <img src="assets/ui/Tibia_Coin_Icon.gif" alt="Tibia Coin">
+      <img src="assets/ui/economy/Tibia_Coin_Icon.gif" alt="Tibia Coin">
       <strong>${escapeHtml(storeTcText)} ${escapeHtml(tcLabel)}</strong>
     </span>
   `;
@@ -15512,9 +19251,16 @@ function renderItemWikiButton(item) {
 
   els.itemOpenWiki.classList.remove("hidden");
   els.itemOpenWiki.dataset.externalUrl = wikiUrl;
-  els.itemOpenWiki.onclick = () => {
-    void openDesktopExternalLink(wikiUrl);
-  };
+  els.itemOpenWiki.onclick = null;
+  if (els.itemOpenWiki.dataset.externalLinkBound !== "true") {
+    els.itemOpenWiki.dataset.externalLinkBound = "true";
+    els.itemOpenWiki.addEventListener("click", () => {
+      const url = String(els.itemOpenWiki?.dataset.externalUrl || "").trim();
+      if (url) {
+        void openDesktopExternalLink(url);
+      }
+    });
+  }
 }
 
 function getPreferredItemWikiUrl(item) {
@@ -15566,21 +19312,42 @@ function renderItemDescription(item) {
   const lines = Array.isArray(item?.description_lines)
     ? item.description_lines.filter((line) => line && !/^Loot de:/i.test(String(line).trim()))
     : [];
+  const technicalLines = Array.isArray(item?.technical_description_lines)
+    ? item.technical_description_lines.filter((line) => line && !/^Loot de:/i.test(String(line).trim()))
+    : [];
   const droppedBy = Array.isArray(item?.droppedBy) ? item.droppedBy.filter(Boolean) : [];
-  const extraMarkup = renderItemExtraDetails(item);
+  const unlinkedDroppedBy = Array.isArray(item?.unlinkedDroppedBy) ? item.unlinkedDroppedBy.filter(Boolean) : [];
+  const editorialSections = {
+    details: [renderItemAttributesSection(item), renderItemCanonicalFactsSection(item)].filter(Boolean).join(""),
+    food: renderItemFoodSection(item),
+    proficiency: renderItemProficiencySection(item),
+    damageTable: [renderItemDamageTableSection(item), renderItemBaseDamageSection(item)].filter(Boolean).join(""),
+    location: renderItemLocationSection(item),
+    notes: renderItemNotesSection(item),
+    tables: renderLibraryDataTables(item.tables)
+  };
+  const hasEditorialContent = Object.values(editorialSections).some(Boolean);
 
-  if (lines.length === 0 && droppedBy.length === 0 && !extraMarkup) {
+  if (lines.length === 0 && technicalLines.length === 0 && droppedBy.length === 0 && unlinkedDroppedBy.length === 0 && !hasEditorialContent) {
     els.itemDescription.innerHTML = "";
     els.itemDescription.classList.add("hidden");
+    els.itemTechnicalDescription?.replaceChildren();
+    els.itemTechnicalDescription?.classList.add("hidden");
     if (els.itemDroppedBy) {
       els.itemDroppedBy.innerHTML = "";
       els.itemDroppedBy.classList.add("hidden");
     }
-    if (els.itemExtraDetails) {
-      els.itemExtraDetails.innerHTML = "";
-      els.itemExtraDetails.classList.add("hidden");
-    }
+    clearItemEditorialSections();
     return;
+  }
+
+  if (els.itemTechnicalDescription) {
+    const technicalMarkup = technicalLines
+      .map((line) => `<p>${escapeHtml(normalizeUiText(line))}</p>`)
+      .join("");
+    els.itemTechnicalDescription.innerHTML = technicalMarkup;
+    els.itemTechnicalDescription.classList.toggle("hidden", technicalMarkup.length === 0);
+    els.itemTechnicalDescription.dataset.librarySection = "technical-description";
   }
 
   const descriptionMarkup = lines
@@ -15588,23 +19355,30 @@ function renderItemDescription(item) {
     .join("");
   els.itemDescription.innerHTML = descriptionMarkup;
   els.itemDescription.classList.toggle("hidden", descriptionMarkup.length === 0);
+  els.itemDescription.dataset.librarySection = "description";
 
   if (els.itemDroppedBy) {
-    const droppedByMarkup = renderItemDroppedBy(droppedBy);
+    const droppedByMarkup = renderItemDroppedBy(droppedBy, unlinkedDroppedBy);
     els.itemDroppedBy.innerHTML = droppedByMarkup;
     els.itemDroppedBy.classList.toggle("hidden", droppedByMarkup.length === 0);
+    els.itemDroppedBy.dataset.librarySection = "loot-sources";
     bindSkillDynamicTooltips(els.itemDroppedBy);
+    bindLibraryCatalogSpriteAnimations(els.itemDroppedBy);
   }
 
-  if (els.itemExtraDetails) {
-    els.itemExtraDetails.innerHTML = extraMarkup;
-    els.itemExtraDetails.classList.toggle("hidden", !extraMarkup);
-  }
+  setItemEditorialSection(els.itemDetails, editorialSections.details);
+  setItemEditorialSection(els.itemFood, editorialSections.food);
+  setItemEditorialSection(els.itemProficiency, editorialSections.proficiency);
+  setItemEditorialSection(els.itemDamageTable, editorialSections.damageTable);
+  setItemEditorialSection(els.itemLocation, editorialSections.location);
+  setItemEditorialSection(els.itemNotes, editorialSections.notes);
+  setItemEditorialSection(els.itemTables, editorialSections.tables);
+  bindEntityDetailActions(els.itemSummaryContent);
 
-  els.itemExtraDetails?.querySelectorAll("[data-item-spoiler-toggle]").forEach((button) => {
+  els.itemSummaryContent?.querySelectorAll("[data-item-spoiler-toggle]").forEach((button) => {
     button.addEventListener("click", () => {
       const key = button.dataset.itemSpoilerToggle;
-      const body = els.itemExtraDetails.querySelector(`[data-item-spoiler-body="${CSS.escape(key)}"]`);
+      const body = els.itemSummaryContent.querySelector(`[data-item-spoiler-body="${CSS.escape(key)}"]`);
       const expanded = button.getAttribute("aria-expanded") === "true";
 
       button.setAttribute("aria-expanded", expanded ? "false" : "true");
@@ -15621,13 +19395,7 @@ function renderItemDescription(item) {
     });
   });
 
-  els.itemExtraDetails?.querySelectorAll("[data-map-url]").forEach((button) => {
-    button.addEventListener("click", () => {
-      void openMapModal(button.dataset.mapUrl, button.dataset.mapTitle || "Mapa");
-    });
-  });
-
-  els.itemExtraDetails?.querySelectorAll("[data-proficiency-option]").forEach((button) => {
+  els.itemSummaryContent?.querySelectorAll("[data-proficiency-option]").forEach((button) => {
     button.addEventListener("click", () => {
       const column = button.closest("[data-proficiency-column]");
       const description = column?.querySelector("[data-proficiency-description]");
@@ -15641,18 +19409,103 @@ function renderItemDescription(item) {
       description.textContent = button.dataset.proficiencyText || "";
     });
   });
+
+  els.itemSummaryContent?.querySelectorAll("[data-item-damage-ammo]").forEach((select) => {
+    select.addEventListener("change", () => {
+      const table = select.closest(".item-base-damage")?.querySelector("[data-item-base-damage-table]");
+      if (!table) return;
+      const baseAttack = Number(select.dataset.baseAttack || 0);
+      const ammoAttack = Number(select.selectedOptions?.[0]?.dataset.ammoAttack || 0);
+      const model = select.dataset.damageModel;
+      table.querySelectorAll("td[data-level][data-skill]").forEach((cell) => {
+        const level = Number(cell.dataset.level || 0);
+        const skill = Number(cell.dataset.skill || 0);
+        cell.textContent = String(model === "melee"
+          ? Math.round(.085 * (baseAttack + ammoAttack) * skill + level / 5)
+          : Math.round(.09 * (baseAttack + ammoAttack) * skill + level / 5));
+      });
+    });
+  });
 }
 
-function renderItemExtraDetails(item = {}) {
-  const sections = [
-    renderItemAttributesSection(item),
-    renderItemProficiencySection(item),
-    renderItemDamageTableSection(item),
-    renderItemLocationSection(item),
-    renderItemNotesSection(item)
-  ].filter(Boolean);
+function setItemEditorialSection(element, markup) {
+  if (!element) return;
+  element.innerHTML = markup || "";
+  element.classList.toggle("hidden", !markup);
+}
 
-  return sections.join("");
+function clearItemEditorialSections() {
+  [els.itemDetails, els.itemFood, els.itemProficiency, els.itemDamageTable, els.itemLocation, els.itemNotes, els.itemTables]
+    .filter(Boolean)
+    .forEach((element) => {
+      element.innerHTML = "";
+      element.classList.add("hidden");
+    });
+}
+
+function renderItemBaseDamageSection(item = {}) {
+  const model = item?.damageModel;
+  // Research candidates remain stored for auditability, but must never be
+  // presented as a player-facing damage table until verified against the
+  // current client/server formula.
+  if (!model || model.sourceStatus !== "verified-by-current-client" || !Number.isFinite(Number(model.attack))) return "";
+  const ui = itemDamageUi();
+  const ammunition = Array.isArray(model.ammunition) ? model.ammunition : [];
+  const selected = ammunition[0] || null;
+  const attack = Number(model.attack) + Number(selected?.attack || 0);
+  const levels = [20, 50, 100, 200, 300, 400, 500];
+  const skills = [40, 60, 80, 90, 100, 120];
+  const calc = (level, skill, currentAttack) => model.model === "melee"
+    ? Math.round(.085 * currentAttack * skill + level / 5)
+    : Math.round(.09 * currentAttack * skill + level / 5);
+  return `<section class="item-extra-section item-damage-section item-base-damage">
+    <h4>${escapeHtml(ui.title)}</h4>
+    ${ammunition.length ? `<label class="item-damage-ammo"><span>${escapeHtml(ui.ammunition)}</span><select data-item-damage-ammo data-base-attack="${escapeHtml(model.attack)}" data-damage-model="${escapeHtml(model.model)}">${ammunition.map((entry) => `<option value="${escapeHtml(entry.slug)}" data-ammo-attack="${escapeHtml(entry.attack)}">${escapeHtml(entry.name)} (+${escapeHtml(entry.attack)})</option>`).join("")}</select></label>` : ""}
+    <div class="item-damage-table-wrap"><table class="item-damage-table" data-item-base-damage-table><thead><tr><th>${escapeHtml(ui.level)} / ${escapeHtml(ui.skill)}</th>${skills.map((skill) => `<th>${skill}</th>`).join("")}</tr></thead><tbody>${levels.map((level) => `<tr><th>${level}</th>${skills.map((skill) => `<td data-level="${level}" data-skill="${skill}">${calc(level, skill, attack)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <small>${escapeHtml(ui.note)}</small>
+  </section>`;
+}
+
+function itemDamageUi() {
+  const locale = state.localeController?.getLocale?.() || "pt-BR";
+  return ({
+    "pt-BR": { title: "Dano base", ammunition: "Munição", level: "Level", skill: "Skill", note: "Valores base calculados para a vocação correspondente, sem Roda do Destino, imbuements, crítico ou mitigação do alvo." },
+    en: { title: "Base damage", ammunition: "Ammunition", level: "Level", skill: "Skill", note: "Calculated base values for the matching vocation; without Wheel, imbuements, critical hits or target mitigation." },
+    de: { title: "Basisschaden", ammunition: "Munition", level: "Stufe", skill: "Skill", note: "Berechnete Basiswerte für die passende Berufung; ohne Schicksalsrad, Imbuements, kritische Treffer oder Zielminderung." }
+  })[locale] || { title: "Dano base", ammunition: "Munição", level: "Level", skill: "Skill", note: "Valores base calculados para a vocação correspondente, sem Roda do Destino, imbuements, crítico ou mitigação do alvo." };
+}
+
+function renderItemFoodSection(item = {}) {
+  const food = item?.food;
+  if (!food || typeof food !== "object" || food.edible !== true) return "";
+
+  const locale = state.localeController?.getLocale?.() || "pt-BR";
+  const labels = {
+    "pt-BR": { title: "Alimento", regeneration: "Regeneração", seconds: "segundos", quest: "Comida de quest", yes: "Sim", no: "Não", effect: "Efeito especial", recipe: "Receita" },
+    en: { title: "Food", regeneration: "Regeneration", seconds: "seconds", quest: "Quest food", yes: "Yes", no: "No", effect: "Special effect", recipe: "Recipe" },
+    de: { title: "Nahrung", regeneration: "Regeneration", seconds: "Sekunden", quest: "Quest-Nahrung", yes: "Ja", no: "Nein", effect: "Spezialeffekt", recipe: "Rezept" }
+  }[locale] || {};
+  const entries = [];
+  if (Number.isFinite(Number(food.regenerationSeconds)) && Number(food.regenerationSeconds) > 0) {
+    entries.push([labels.regeneration, `${food.regenerationSeconds} ${labels.seconds}`]);
+  }
+  if (food.questFood === true || String(food.quests || "").trim()) {
+    entries.push([labels.quest, String(food.quests || labels.yes)]);
+  }
+  if (food.specialEffect) entries.push([labels.effect, String(food.specialEffect)]);
+  if (food.recipe) entries.push([labels.recipe, String(food.recipe)]);
+  const paragraphs = Array.isArray(food.paragraphs)
+    ? food.paragraphs.map((paragraph) => String(paragraph || "").trim()).filter(Boolean)
+    : [];
+  if (!entries.length && !paragraphs.length) return "";
+
+  return `
+    <section class="item-extra-section item-food-section">
+      <h4>${escapeHtml(labels.title)}</h4>
+      ${renderCanonicalFactList(entries, "item-fact-list")}
+      ${paragraphs.map((paragraph) => `<p>${renderLibraryNarrativeInline(paragraph, item.wiki_name || item.name || "Item", "food")}</p>`).join("")}
+    </section>
+  `;
 }
 
 function renderItemProficiencySection(item = {}) {
@@ -15779,6 +19632,44 @@ function renderItemAttributesSection(item = {}) {
   `;
 }
 
+function canonicalFactEntries(facts, excludedLabels = []) {
+  const excluded = new Set(excludedLabels.map((label) => normalizeSearchText(label)));
+  return (Array.isArray(facts) ? facts : [])
+    .map(([label, value]) => [String(label || "").trim(), String(value ?? "").trim()])
+    .filter(([label, value]) => label && value && !excluded.has(normalizeSearchText(label)));
+}
+
+function renderCanonicalFactList(entries, className = "") {
+  if (!entries.length) return "";
+  return `
+    <dl class="library-fact-list ${escapeHtml(className)}">
+      ${entries.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${renderLibraryNarrativeInline(value, "Item", `fact-${label}`)}</dd></div>`).join("")}
+    </dl>
+  `;
+}
+
+function renderItemCanonicalFactsSection(item = {}) {
+  // The app already has dedicated visuals for market, NPC prices, drops,
+  // technical green text, notes, location and proficiency. Only facts that
+  // do not belong to any of those existing surfaces appear here.
+  const entries = canonicalFactEntries(item.canonicalFacts, [
+    "Categoria", "Category", "Kategorie", "Peso", "Weight", "Gewicht",
+    "Notas", "Notes", "Hinweise", "Localização", "Location", "Fundort", "Local", "Ort",
+    "Drop de", "Dropped by", "Fallengelassen von", "Comprado por", "Bought by", "Gekauft von",
+    "Vendido por", "Sold by", "Verkauft von", "Market", "Markt"
+  ]).map(([label, value]) => [
+    ["Implementado", "Implemented", "Implementiert"].includes(label) ? "Adicionado em" : label,
+    value
+  ]);
+  if (!entries.length) return "";
+  return `
+    <section class="item-extra-section item-canonical-facts-section">
+      <h4>Atributos</h4>
+      ${renderCanonicalFactList(entries, "item-fact-list")}
+    </section>
+  `;
+}
+
 function renderItemLocationSection(item = {}) {
   const location = String(item?.location || "").trim();
 
@@ -15786,14 +19677,15 @@ function renderItemLocationSection(item = {}) {
     return "";
   }
 
-  const mapLink = item.map?.url
-    ? ` <span class="inline-map-wrap">(<button type="button" class="inline-map-link" data-map-url="${escapeHtml(item.map.url)}" data-map-title="${escapeHtml(`${item.wiki_name || item.name || "Item"} - ${location}`)}">${escapeHtml(t("common.here"))}<img src="assets/ui/18px-Map_(Colour).gif" alt="Mapa"></button>)</span>`
+  const mapActions = item.map?.url
+    ? renderBossLocationMapActions({ ...item, name: item.wiki_name || item.name || "Item", location })
     : "";
 
   return `
     <section class="item-extra-section">
       <h4>${escapeHtml(t("common.locations"))}</h4>
-      <p>${escapeHtml(location)}${mapLink}</p>
+      <p>${escapeHtml(location)}</p>
+      ${mapActions}
     </section>
   `;
 }
@@ -15801,15 +19693,17 @@ function renderItemLocationSection(item = {}) {
 function renderItemNotesSection(item = {}) {
   const spoilers = normalizeItemSpoilersForUi(item);
   const regularNote = normalizeUiText(stripSpoilerPrefixFromNotes(sanitizeItemNoteForUi(item.notes || "")));
+  const noteImage = String(item?.notes_image || "").trim();
 
-  if (!regularNote && spoilers.length === 0) {
+  if (!regularNote && spoilers.length === 0 && !noteImage) {
     return "";
   }
 
   return `
     <section class="item-extra-section">
       <h4>${escapeHtml(t("common.notes"))}</h4>
-      ${regularNote ? `<div class="npc-spoiler-body item-note-panel">${escapeHtml(regularNote)}</div>` : ""}
+      ${regularNote ? `<div class="npc-spoiler-body item-note-panel">${renderLibraryNarrative(regularNote, item.wiki_name || item.name || "Item")}</div>` : ""}
+      ${noteImage ? `<img class="item-note-image" src="${escapeHtml(noteImage)}" alt="Conversao de Dust e Slivers na Exaltation Forge">` : ""}
       ${spoilers.map((spoiler, index) => renderItemSpoiler(spoiler, index)).join("")}
     </section>
   `;
@@ -16006,8 +19900,8 @@ function renderItemSpoiler(spoiler = {}, index = 0) {
   `;
 }
 
-function renderItemDroppedBy(droppedBy) {
-  if (!Array.isArray(droppedBy) || droppedBy.length === 0) {
+function renderItemDroppedBy(droppedBy, unlinkedDroppedBy = []) {
+  if ((!Array.isArray(droppedBy) || droppedBy.length === 0) && (!Array.isArray(unlinkedDroppedBy) || unlinkedDroppedBy.length === 0)) {
     return "";
   }
 
@@ -16015,14 +19909,15 @@ function renderItemDroppedBy(droppedBy) {
   const tiles = uniqueDrops.map((name) => {
     const creature = findLocalCreature(name);
     const displayName = creature?.name || name;
-    const imageSrc = creature?.imageSrc || getCreatureFallbackImageSrc(displayName);
+    const animatedSrc = creature?.imageSrc || getCreatureFallbackImageSrc(displayName);
+    const stillSrc = creature?.stillImageSrc || animatedSrc;
 
     return `
       <button type="button" class="item-drop-tile" data-item-drop-monster="${escapeHtml(displayName)}" data-tooltip="${escapeHtml(displayName)}">
-        ${imageSrc ? `<img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(displayName)}" onerror="this.style.visibility='hidden'">` : ""}
+        ${stillSrc ? `<img src="${escapeHtml(stillSrc)}" data-library-still-src="${escapeHtml(stillSrc)}" data-library-animated-src="${escapeHtml(animatedSrc)}" alt="${escapeHtml(displayName)}" loading="lazy" decoding="async" onerror="this.style.visibility='hidden'">` : ""}
       </button>
     `;
-  }).join("");
+  }).join("") + [...new Set(unlinkedDroppedBy.map((name) => String(name || "").trim()).filter(Boolean))].map((name) => `<span class="item-drop-tile item-drop-source-text" data-tooltip="${escapeHtml(name)}">${escapeHtml(name)}</span>`).join("");
 
   return `
     <details class="item-drop-details">
@@ -17064,6 +20959,7 @@ function renderImbuementIngredientsLegacy(rows) {
     .map((row) => {
       const slug = row.meta?.slug || "";
       const imageSrc = row.meta?.imageSrc || "";
+      const name = escapeHtml(row.name || "");
       const quantityLabel = state.mixedPurchaseEnabled
         ? `${row.missingQuantity} falta / ${row.quantity} total`
         : row.quantity;
@@ -17079,8 +20975,8 @@ function renderImbuementIngredientsLegacy(rows) {
 
       return `
         <div class="imbuement-row">
-          <button class="ingredient-button" type="button" data-slug="${slug}" data-name="${row.name}" data-image-src="${imageSrc}">
-            <img src="${imageSrc}" alt="${row.name}">
+          <button class="ingredient-button" type="button" data-slug="${escapeHtml(slug)}" data-name="${name}" data-image-src="${escapeHtml(imageSrc)}">
+            <img src="${escapeHtml(imageSrc)}" alt="${name}">
             <div>
               <small class="ingredient-button-kicker">${escapeHtml(t("common.ingredient"))}</small>
               <strong>${name}</strong>
@@ -17574,15 +21470,11 @@ function renderRecentItems() {
   bindShortcutClicks(els.recentItems);
 }
 
-async function renderCurrencyIcons() {
-  const metadata = await fetchIngredientMetadata({
-    worldSlug: state.currentWorldSlug,
-    names: ["Tibia Coins", "Gold Token"]
-  }).catch(() => ({}));
+function renderCurrencyIcons() {
   const iconMap = {
     gold: GOLD_ICON_PATH,
-    tc: metadata["Tibia Coins"]?.imageSrc || "",
-    gt: metadata["Gold Token"]?.imageSrc || ""
+    tc: TIBIA_COINS_CURRENCY_ICON_PATH,
+    gt: GOLD_TOKEN_CURRENCY_ICON_PATH
   };
   state.currencyIconMap = {
     gold: GOLD_ICON_PATH,
@@ -17612,7 +21504,7 @@ async function renderCurrencyIcons() {
       els.imbuementTokenCardIcon.onerror = null;
       els.imbuementTokenCardIcon.src = GOLD_ICON_PATH;
     };
-    els.imbuementTokenCardIcon.src = metadata["Gold Token"]?.imageSrc || GOLD_ICON_PATH;
+    els.imbuementTokenCardIcon.src = GOLD_TOKEN_CURRENCY_ICON_PATH;
   }
 }
 
@@ -17973,7 +21865,7 @@ function renderNpcList(container, npcs, emptyMessage) {
   const npcMarkup = npcs
     .map((npc) => {
       const fallbackImageSrc = getNpcFallbackImagePath(npc?.name);
-      const imageSrc = npc?.image_src || fallbackImageSrc || "";
+      const imageSrc = npc?.image_src || npc?.imageSrc || getNpcTradeImageSrc(npc?.name) || fallbackImageSrc || "";
       const fallbackOnError =
         fallbackImageSrc && imageSrc !== fallbackImageSrc
           ? ` onerror="this.onerror=null;this.src='${fallbackImageSrc}'"`
@@ -17988,7 +21880,7 @@ function renderNpcList(container, npcs, emptyMessage) {
           </div>
           <div class="npc-price">
             <span>Preço</span>
-            <strong>${escapeHtml(formatCurrencyText(npc.price, "gold"))}</strong>
+            <strong>${escapeHtml(formatNpcTradePrice(npc))}</strong>
           </div>
         </button>
       `;
@@ -18003,6 +21895,48 @@ function renderNpcList(container, npcs, emptyMessage) {
       void setEntityViewMode("npcs").then(() => openNpcDetail(button.dataset.openNpcName));
     });
   });
+}
+
+function formatNpcTradePrice(npc) {
+  const rawPrice = String(npc?.price ?? "").trim();
+  const currency = String(npc?.currency || "").trim();
+  const locale = state.localeController?.getLocale?.() || "pt-BR";
+  // Barter has no numeric currency. Keep the factual requirement visible,
+  // e.g. "1 Giant Sword", instead of labelling it as gold.
+  if (currency === "item-barter") return rawPrice || "-";
+  const labels = {
+    "hunting-task-points": { "pt-BR": "Hunting Task Points", en: "Hunting Task Points", de: "Jagdaufgabenpunkte" },
+    "event-points": { "pt-BR": "Event Points", en: "Event Points", de: "Event Points" },
+    "gold-tokens": { "pt-BR": "Gold Tokens", en: "Gold Tokens", de: "Gold Tokens" },
+    "christmas-tokens": { "pt-BR": "Christmas Tokens", en: "Christmas Tokens", de: "Weihnachtstoken" },
+    "theons": { "pt-BR": "Theons", en: "Theons", de: "Theons" },
+    "drome-points": { "pt-BR": "Drome Points", en: "Drome Points", de: "Drome Points" },
+    "arena-badges": { "pt-BR": "Arena Badges", en: "Arena Badges", de: "Arena-Abzeichen" },
+    "minor-crystalline-tokens": { "pt-BR": "Minor Crystalline Tokens", en: "Minor Crystalline Tokens", de: "Minor Crystalline Tokens" },
+    "major-crystalline-tokens": { "pt-BR": "Major Crystalline Tokens", en: "Major Crystalline Tokens", de: "Major Crystalline Tokens" }
+  };
+  if (currency) {
+    const amount = Number(rawPrice.replace(/[^0-9.-]/g, ""));
+    const formatted = Number.isFinite(amount) ? amount.toLocaleString(locale === "de" ? "de-DE" : locale === "en" ? "en-US" : "pt-BR") : rawPrice;
+    return `${formatted} ${labels[currency]?.[locale] || currency}`;
+  }
+  // A Sweaty Cyclops and similar merchants barter named items. Never turn
+  // a value such as "1 Giant Sword" into a fictitious 1 gold price.
+  return /^\s*[0-9][0-9.,]*\s*$/.test(rawPrice) ? formatCurrencyText(rawPrice, "gold") : rawPrice || "-";
+}
+
+// Trade rows are intentionally lean: the factual trade bundle stores only
+// name, location and price. Resolve the sprite from the same local NPC pack
+// used by the NPC browser instead of leaving a broken image or requesting a
+// remote wiki image for every merchant card.
+function getNpcTradeImageSrc(npcName) {
+  // The stored sprite file names separate apostrophe words (Nah'Bob becomes
+  // nah-bob).  Use that canonical spelling for lean trade entries too.
+  const normalizedName = slugifyItemInput(String(npcName || "").replace(/[\u0027\u2019]/g, " "));
+  if (!normalizedName) return "";
+  const indexed = state.npcIndex.find((entry) => slugifyItemInput(entry?.name || "") === normalizedName);
+  if (indexed?.imageSrc || indexed?.stillImageSrc) return indexed.stillImageSrc || indexed.imageSrc;
+  return `assets/data/npcs/${normalizedName}.gif`;
 }
 
 function getNpcFallbackImagePath(npcName) {
@@ -18372,7 +22306,7 @@ async function warmCurrentWorldItemCache() {
 
   for (const itemSlug of warmSlugs) {
     try {
-      await fetchItem({
+      await fetchItemStatic({
         itemSlug,
         worldSlug
       });

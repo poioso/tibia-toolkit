@@ -10,11 +10,12 @@ internal sealed class NativeSelectionManager
     internal async Task<RegionSelectionResult?> SelectRegionAsync(
         RectInfo? initialCaptureBounds = null,
         string mode = "standard",
-        int? fixedSize = null)
+        int? fixedSize = null,
+        string sourceGame = "tibia")
     {
         return await Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            var tibiaInfo = WindowProbe.GetTibiaWindowInfo();
+            var tibiaInfo = WindowProbe.GetGameWindowInfo(sourceGame);
 
             if (tibiaInfo is null)
             {
@@ -28,10 +29,22 @@ internal sealed class NativeSelectionManager
                 return null;
             }
 
-            var iconCropSize = string.Equals(mode, "fixed-icon-crop", StringComparison.OrdinalIgnoreCase)
+            var isFixedIconCrop = string.Equals(mode, "fixed-icon-crop", StringComparison.OrdinalIgnoreCase);
+            var iconCropSize = isFixedIconCrop
                 ? Math.Max(1, fixedSize ?? 32)
                 : (int?)null;
-            var window = new RegionSelectorWindow(overlayBounds, initialCaptureBounds, iconCropSize);
+            var window = new RegionSelectorWindow(
+                overlayBounds,
+                initialCaptureBounds,
+                iconCropSize,
+                sourceHwnd: new IntPtr(tibiaInfo.Hwnd),
+                // Both quick 32x32 crops and manual mirror selections use the
+                // same non-invasive DWM preview. Manual selections add a
+                // center marker so the cursor's exact source point is clear.
+                showMagnifier: true,
+                showCenterMarker: !isFixedIconCrop,
+                allowFixedSizeWheel: false,
+                confirmFixedSelectionOnClick: false);
             var dialogResult = window.ShowDialog();
 
             if (dialogResult != true || window.SelectedCaptureBounds is null)
@@ -41,7 +54,53 @@ internal sealed class NativeSelectionManager
 
             return new RegionSelectionResult
             {
-                CaptureBounds = window.SelectedCaptureBounds
+                CaptureBounds = window.SelectedCaptureBounds,
+                SourceGame = sourceGame,
+                SourceHwnd = tibiaInfo.Hwnd,
+                SourceWindowTitle = tibiaInfo.Title,
+                SourceProcessName = tibiaInfo.ProcessName,
+                SourceBounds = overlayBounds
+            };
+        });
+    }
+
+    internal async Task<RegionSelectionResult?> SelectObsRegionAsync()
+    {
+        return await Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            var picker = new WindowSelectorWindow();
+            if (picker.ShowDialog() != true || picker.SelectedWindow is null)
+            {
+                return null;
+            }
+
+            var source = picker.SelectedWindow;
+            var overlayBounds = ResolveOverlayBounds(source);
+            if (overlayBounds.Width < 1 || overlayBounds.Height < 1)
+            {
+                return null;
+            }
+
+            var selector = new RegionSelectorWindow(
+                overlayBounds,
+                sourceHwnd: new IntPtr(source.Hwnd),
+                showMagnifier: true,
+                showCenterMarker: true,
+                allowFixedSizeWheel: false,
+                confirmFixedSelectionOnClick: false);
+            if (selector.ShowDialog() != true || selector.SelectedCaptureBounds is null)
+            {
+                return null;
+            }
+
+            return new RegionSelectionResult
+            {
+                CaptureBounds = selector.SelectedCaptureBounds,
+                SourceType = "obs-window",
+                SourceHwnd = source.Hwnd,
+                SourceWindowTitle = source.Title,
+                SourceProcessName = source.ProcessName,
+                SourceBounds = overlayBounds
             };
         });
     }

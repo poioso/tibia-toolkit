@@ -1,4 +1,4 @@
-import { bootstrapRendererLocale } from "../../lib/renderer-locale.js";
+import { bootstrapRendererLocale } from "../../lib/i18n/renderer-locale.js";
 
 const params = new URLSearchParams(window.location.search);
 const displayX = parseInteger(params.get("displayX"), 0);
@@ -14,6 +14,8 @@ const els = {
   interactionLayer: document.querySelector("#interaction-layer"),
   selectionBox: document.querySelector("#selection-box"),
   selectionSize: document.querySelector("#selection-size"),
+  selectionActions: document.querySelector("#selection-actions"),
+  selectionCancel: document.querySelector("#selection-cancel"),
   selectionConfirm: document.querySelector("#selection-confirm"),
   floatingTooltip: document.querySelector("#floating-tooltip")
 };
@@ -44,6 +46,7 @@ function bindEvents() {
   document.addEventListener("pointerup", handlePointerUp);
   document.addEventListener("pointercancel", handlePointerCancel);
   document.addEventListener("keydown", handleKeyDown);
+  els.selectionCancel?.addEventListener("click", handleCancelSelection);
   els.selectionConfirm?.addEventListener("click", handleConfirmSelection);
   els.selectionBox?.addEventListener("pointerdown", handleResizeStart);
   bindDynamicTooltips(document);
@@ -62,7 +65,7 @@ function handleDrawStart(event) {
   if (
     !(event.target instanceof Element) ||
     event.target.closest("#selection-box") ||
-    event.target.closest("#selection-confirm") ||
+    event.target.closest("#selection-actions") ||
     event.target.closest(".selector-hud")
   ) {
     return;
@@ -194,6 +197,11 @@ function handleKeyDown(event) {
   }
 }
 
+function handleCancelSelection() {
+  console.log("selector:cancel");
+  void window.screenVisionApi.selection.cancel();
+}
+
 function handleConfirmSelection() {
   if (!state.selection || state.selection.width < minSelectionSize || state.selection.height < minSelectionSize) {
     return;
@@ -239,21 +247,21 @@ function resizeSelection(selection, handle, pointerX, pointerY) {
   const right = selection.x + selection.width;
   const bottom = selection.y + selection.height;
 
-  if (handle === "north") {
+  if (handle === "north" || handle === "north-east" || handle === "north-west") {
     const nextTop = Math.min(pointerY, bottom - minSelectionSize);
     next.height = bottom - nextTop;
     next.y = nextTop;
   }
 
-  if (handle === "south") {
+  if (handle === "south" || handle === "south-east" || handle === "south-west") {
     next.height = Math.max(minSelectionSize, pointerY - selection.y);
   }
 
-  if (handle === "east") {
+  if (handle === "east" || handle === "north-east" || handle === "south-east") {
     next.width = Math.max(minSelectionSize, pointerX - selection.x);
   }
 
-  if (handle === "west") {
+  if (handle === "west" || handle === "north-west" || handle === "south-west") {
     const nextLeft = Math.min(pointerX, right - minSelectionSize);
     next.width = right - nextLeft;
     next.x = nextLeft;
@@ -278,7 +286,7 @@ function renderSelection(selection, options = {}) {
   if (preview && selection.width < previewSelectionSize && selection.height < previewSelectionSize) {
     els.selectionBox?.classList.add("hidden");
     els.selectionSize?.classList.add("hidden");
-    els.selectionConfirm?.classList.add("hidden");
+    els.selectionActions?.classList.add("hidden");
     return;
   }
 
@@ -288,7 +296,7 @@ function renderSelection(selection, options = {}) {
     && selection.width >= minSelectionSize
     && selection.height >= minSelectionSize;
 
-  els.selectionConfirm?.classList.toggle("hidden", !canConfirm);
+  els.selectionActions?.classList.toggle("hidden", !canConfirm);
 
   if (els.selectionBox) {
     els.selectionBox.style.left = `${selection.x}px`;
@@ -303,12 +311,13 @@ function renderSelection(selection, options = {}) {
     els.selectionSize.style.top = `${Math.max(selection.y - 34, 8)}px`;
   }
 
-  if (els.selectionConfirm) {
-    const confirmLeft = selection.x + (selection.width / 2) - 15;
-    const aboveTop = selection.y - 44;
+  if (els.selectionActions) {
+    const actionsWidth = 92;
+    const actionsLeft = clamp(selection.x + (selection.width / 2) - (actionsWidth / 2), 8, displayWidth - actionsWidth - 8);
+    const aboveTop = selection.y - 54;
     const fallbackTop = selection.y + selection.height + 14;
-    els.selectionConfirm.style.left = `${Math.round(confirmLeft)}px`;
-    els.selectionConfirm.style.top = `${Math.round(aboveTop >= 8 ? aboveTop : fallbackTop)}px`;
+    els.selectionActions.style.left = `${Math.round(actionsLeft)}px`;
+    els.selectionActions.style.top = `${Math.round(aboveTop >= 8 ? aboveTop : fallbackTop)}px`;
   }
 }
 
@@ -320,7 +329,7 @@ function resetSelection() {
   state.activeHandle = "";
   els.selectionBox?.classList.add("hidden");
   els.selectionSize?.classList.add("hidden");
-  els.selectionConfirm?.classList.add("hidden");
+  els.selectionActions?.classList.add("hidden");
 }
 
 function releasePointerCapture(pointerId) {

@@ -20,6 +20,9 @@
     "app.js",
     "styles.css",
     "!assets/**/*",
+    "assets/screen-vision/reference/sounds/spells/utura gran.ogg",
+    "assets/screen-vision/reference/sounds/spells/exura gran ico.ogg",
+    "assets/screen-vision/reference/sounds/spells/utito tempo.ogg",
     "assets/ui/Tick.png",
     "assets/ui/Cross.png",
     "assets/ui/tutorial/update.gif",
@@ -57,10 +60,10 @@
     "signAndEditExecutable": false
   },
   "nsis": {
-    "oneClick": true,
+    "oneClick": false,
     "perMachine": false,
     "allowToChangeInstallationDirectory": false,
-    "createDesktopShortcut": "always",
+    "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "Tibia Toolkit",
     "include": "installer.nsh",

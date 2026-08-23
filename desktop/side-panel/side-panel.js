@@ -1,5 +1,5 @@
-import { bootstrapRendererLocale } from "../../lib/renderer-locale.js";
-import { t } from "../../lib/app-i18n.js";
+import { bootstrapRendererLocale } from "../../lib/i18n/renderer-locale.js";
+import { t } from "../../lib/i18n/app-i18n.js";
 
 const params = new URLSearchParams(window.location.search);
 

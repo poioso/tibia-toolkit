@@ -104,7 +104,7 @@ test("world endpoint remains app-compatible without leaking snapshot metadata", 
     miniWorldChangesEnabled: false,
     tickMs: 60_000
   });
-  const address = await app.start();
+  const address = await app.start({ initialRefresh: false });
   t.after(async () => {
     await app.close();
     await fs.rm(dataDir, { recursive: true, force: true });

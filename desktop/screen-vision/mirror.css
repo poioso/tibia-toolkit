@@ -8,7 +8,7 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #000000;
+  background: transparent;
 }
 
 body {
@@ -19,6 +19,39 @@ body {
   position: relative;
   width: 100%;
   height: 100%;
+  padding: 12px;
+}
+
+.mirror-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  border: 3px solid #315fc7;
+  pointer-events: none;
+}
+
+body.mirror-locked .mirror-shell::after {
+  border-width: 1px;
+  border-color: rgba(91, 133, 220, 0.42);
+}
+
+body:not(.mirror-locked) .mirror-shell::before {
+  content: "";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  z-index: 6;
+  width: 0;
+  height: 0;
+  border-left: 15px solid transparent;
+  border-bottom: 15px solid #ffffff;
+  filter: drop-shadow(0 0 1px #808080);
+  pointer-events: none;
+}
+
+body.mirror-glow .mirror-shell {
+  filter: drop-shadow(0 0 var(--mirror-glow-size, 10px) var(--mirror-glow-color, #ffffff));
 }
 
 #mirror-canvas {
@@ -26,6 +59,8 @@ body {
   height: 100%;
   display: block;
   background: #000000;
+  border: 0;
+  border-radius: 0;
 }
 
 .mirror-status {

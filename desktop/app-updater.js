@@ -37,7 +37,7 @@ export function startAppUpdater({
   let downloadInFlight = false;
   let updateInfo = null;
   let initialCheckResolved = false;
-  let resolveInitialCheck = null;
+  let resolveInitialCheck;
   const initialCheck = new Promise((resolve) => {
     resolveInitialCheck = resolve;
   });
@@ -45,7 +45,7 @@ export function startAppUpdater({
   const completeInitialCheck = (result) => {
     if (initialCheckResolved) return;
     initialCheckResolved = true;
-    resolveInitialCheck?.(result);
+    resolveInitialCheck(result);
   };
 
   const tryNextSource = async (previousError = null) => {
@@ -60,6 +60,7 @@ export function startAppUpdater({
       if (activeSourceIndex >= updateUrls.length) {
         onError(previousError || new Error("Nenhum servidor de atualizacao respondeu."));
         completeInitialCheck({ available: false, error: previousError || null });
+        sourceSwitchInFlight = false;
         return;
       }
 

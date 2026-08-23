@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <style>
+    html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}
+    #selector{box-sizing:border-box;width:100%;height:100%;padding:4px;display:grid;gap:4px;border:1px solid rgba(129,146,172,.42);border-radius:9px;background:linear-gradient(145deg,rgba(39,47,62,.96),rgba(18,24,34,.98));box-shadow:0 7px 17px rgba(0,0,0,.34)}
+    #selector.tutorial-focus{border-color:#e8bd47;box-shadow:inset 0 0 0 2px rgba(255,210,80,.96),inset 0 0 9px rgba(255,202,55,.5),0 0 18px rgba(255,202,55,.72),0 7px 17px rgba(0,0,0,.34)}
+    button{padding:0;border:1px solid rgba(134,151,181,.38);border-radius:7px;background:linear-gradient(145deg,#303949,#1e2634);cursor:pointer;display:grid;place-items:center;transition:filter 130ms ease,transform 130ms ease,border-color 130ms ease,box-shadow 130ms ease}
+    button img{width:20px;height:20px;object-fit:contain;image-rendering:auto;pointer-events:none}
+    button.inactive{filter:grayscale(1) saturate(.25);opacity:.65}
+    button.active{border-color:#54d47b;box-shadow:0 0 0 1px rgba(84,212,123,.36),0 0 10px rgba(84,212,123,.26);filter:none;opacity:1}
+    button.unavailable{cursor:not-allowed;filter:grayscale(1) brightness(.42);opacity:.28;background:linear-gradient(145deg,#171b22,#090c11);border-color:rgba(255,96,96,.42);box-shadow:none}
+    button:not(.unavailable):hover{transform:scale(1.06);border-color:#c7d4ed}.status{position:absolute;inset:0;pointer-events:none;border-radius:9px;box-shadow:inset 0 0 0 1px rgba(255,96,96,.55);opacity:0;transition:opacity 150ms ease}.status.error{opacity:1}
+  </style>
+</head>
+<body>
+  <main id="selector" aria-label="Selecionar cliente do Tibia Mirror">
+    <button type="button" data-game="tibia"><img alt="Tibia"></button>
+    <button type="button" data-game="rubinot"><img alt="RubinOT"></button>
+    <button type="button" data-game="medivia"><img alt="Medivia"></button>
+    <span id="status" class="status"></span>
+  </main>
+  <script>
+    const buttons=[...document.querySelectorAll('button[data-game]')];
+    const status=document.querySelector('#status');
+    let data={activeGame:'tibia',labels:{},unavailableLabels:{},icons:{},availability:{tibia:false,rubinot:false,medivia:false}};
+    function render(next={}){data={...data,...next,labels:{...data.labels,...(next.labels||{})},unavailableLabels:{...data.unavailableLabels,...(next.unavailableLabels||{})},icons:{...data.icons,...(next.icons||{})},availability:{...data.availability,...(next.availability||{})}};buttons.forEach((button)=>{const game=button.dataset.game;const active=game===data.activeGame;const unavailable=data.availability[game]!==true;button.classList.toggle('active',active);button.classList.toggle('inactive',!active);button.classList.toggle('unavailable',unavailable);button.setAttribute('aria-disabled',String(unavailable));button.tabIndex=unavailable?-1:0;const label=unavailable?(data.unavailableLabels[game]||game):(data.labels[game]||game);button.setAttribute('aria-label',label);button.dataset.tooltip=label;const image=button.querySelector('img');if(data.icons[game])image.src=data.icons[game];});document.querySelector('#selector').classList.toggle('tutorial-focus',Boolean(data.tutorialFocus));status.classList.toggle('error',Boolean(data.error));}
+    buttons.forEach((button)=>{button.addEventListener('mouseenter',()=>window.mirrorGameSelectorApi.hover(button.dataset.game));button.addEventListener('focus',()=>window.mirrorGameSelectorApi.hover(button.dataset.game));button.addEventListener('mouseleave',()=>window.mirrorGameSelectorApi.leave());button.addEventListener('blur',()=>window.mirrorGameSelectorApi.leave());button.addEventListener('click',async()=>{if(button.getAttribute('aria-disabled')==='true')return;const result=await window.mirrorGameSelectorApi.choose(button.dataset.game);render(result||{});});});
+    window.mirrorGameSelectorApi.onRender(render);
+  </script>
+</body>
+</html>

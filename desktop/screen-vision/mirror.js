@@ -1,5 +1,5 @@
-import { t } from "../../lib/app-i18n.js";
-import { bootstrapRendererLocale } from "../../lib/renderer-locale.js";
+import { t } from "../../lib/i18n/app-i18n.js";
+import { bootstrapRendererLocale } from "../../lib/i18n/renderer-locale.js";
 
 const regionId = new URLSearchParams(window.location.search).get("regionId") || "";
 
@@ -29,6 +29,8 @@ async function boot() {
     return;
   }
 
+  applyMirrorVisualState();
+
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
   window.addEventListener("focus", () => {
@@ -36,6 +38,14 @@ async function boot() {
   });
   renderLoop();
   await ensureCapture();
+}
+
+function applyMirrorVisualState() {
+  const region = state.region || {};
+  document.body.classList.toggle("mirror-locked", Boolean(region.isLocked));
+  document.body.classList.toggle("mirror-glow", Boolean(region.glowEnabled));
+  document.body.style.setProperty("--mirror-glow-color", String(region.glowColor || "#ffffff"));
+  document.body.style.setProperty("--mirror-glow-size", `${Math.max(2, Number(region.glowIntensity) || 10)}px`);
 }
 
 async function ensureCapture() {
@@ -54,23 +64,32 @@ async function ensureCapture() {
 }
 
 async function startCapture() {
-  const tibiaState = await window.screenVisionApi.tibia.getState();
+  const isObsMirror = state.region.sourceType === "obs-window";
+  const tibiaState = isObsMirror ? null : await window.screenVisionApi.tibia.getState();
+  const sourceGame = String(tibiaState?.sourceGame || state.region?.sourceGame || "tibia").trim().toLowerCase();
+  const sourceName = sourceGame === "rubinot" ? "RubinOT" : sourceGame === "medivia" ? "Medivia" : "Tibia";
 
-  if (!tibiaState?.title) {
-    throw new Error(t("screenVision.mirror.openTibiaToStart"));
-  }
+  if (!isObsMirror) {
+    if (!tibiaState?.title) {
+      throw new Error(t("screenVision.mirror.openTibiaToStart", { game: sourceName }));
+    }
 
-  // A focused Tibia window can be intentionally positioned or resized. It is
-  // still a valid capture source as long as Windows reports it visible.
-  if (!tibiaState.isVisible || tibiaState.isMinimized) {
-    throw new Error(t("screenVision.mirror.maximizeTibia"));
+    // A focused Tibia window can be intentionally positioned or resized. It is
+    // still a valid capture source as long as Windows reports it visible.
+    if (!tibiaState.isVisible || tibiaState.isMinimized) {
+      throw new Error(t("screenVision.mirror.maximizeTibia", { game: sourceName }));
+    }
   }
 
   const sources = await window.screenVisionApi.capture.getWindowSources();
-  const source = sources.find((entry) => entry.name === tibiaState.title)
+  const source = sources.find((entry) => entry.id === state.region.sourceCaptureId)
     || sources.find((entry) => entry.name === state.region.sourceWindowTitle)
-    || sources.find((entry) => typeof entry.name === "string" && entry.name.startsWith("Tibia"))
-    || sources[0];
+    || sources.find((entry) => !isObsMirror && entry.name === tibiaState?.title)
+    || sources.find((entry) => entry.name === state.region.sourceWindowTitle)
+    || sources.find((entry) => typeof entry.name === "string" && (isObsMirror
+      ? /obs|projector|preview|program/i.test(entry.name)
+      : entry.name.startsWith("Tibia")))
+    || (!isObsMirror ? sources[0] : null);
 
   if (!source) {
     throw new Error(t("screenVision.mirror.captureWindowMissing"));
@@ -85,8 +104,8 @@ async function startCapture() {
       mandatory: {
         chromeMediaSource: "desktop",
         chromeMediaSourceId: source.id,
-        minWidth: Number(tibiaState.bounds?.width) || 1,
-        minHeight: Number(tibiaState.bounds?.height) || 1,
+        minWidth: Number((isObsMirror ? state.region.sourceBounds : tibiaState?.bounds)?.width) || 1,
+        minHeight: Number((isObsMirror ? state.region.sourceBounds : tibiaState?.bounds)?.height) || 1,
         maxFrameRate: 30
       }
     }
@@ -102,7 +121,7 @@ async function startCapture() {
   els.video.srcObject = state.stream;
   await els.video.play();
   console.info(`mirror-capture-ok source=${state.windowSourceTitle || state.windowSourceId}`);
-  setStatus(state.region.name || t("screenVision.mirror.active"));
+  els.status?.classList.add("hidden");
 }
 
 function renderLoop() {
@@ -152,6 +171,7 @@ function resizeCanvas() {
 
 function setStatus(text) {
   if (els.status) {
+    els.status.classList.remove("hidden");
     els.status.textContent = text;
   }
 }
