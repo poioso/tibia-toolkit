@@ -29,6 +29,27 @@ published.
    output. It verifies the bootstrap assets above as well as the required
    desktop runtime files. Do not substitute a source-tree check for this step.
 
+## Packaged dependency and external-window gate
+
+The installed application must be audited from
+`win-unpacked/resources/app`, not only from the source checkout. Run both
+`npm run verify:packaged-runtime` and
+`node tools/verify-packaged-runtime-modules.mjs` and confirm that every
+runtime dependency imported by the main process, preload scripts, and
+auxiliary windows is present under the packaged `node_modules` tree. In
+particular, `@msgpack/msgpack` must contain its package metadata, its actual
+CommonJS entry point `dist/index.js`, and its packaged ES module entry point;
+an installer that starts with `MODULE_NOT_FOUND` is invalid even when the
+dependency exists in the development checkout.
+
+Exercise or inspect every auxiliary window that loads with `BrowserWindow`.
+Its HTML, scripts, preload markup, and runtime-generated elements must resolve
+media through `tibiatoolkit://app/assets/...` (or the runtime content URL),
+including the supporters/Buy me a Coffee window, window-move handle, and
+ScreenshotToolkit assistant. Physical presence in the Content Pack alone is
+not sufficient: the effective packaged URL and successful load must also be
+verified.
+
 Never point `latest.json` at an archive that has not passed the audit. Never
 publish an app whose new renderer assets have not been promoted in the content
 pack first.

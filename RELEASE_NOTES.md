@@ -1,3 +1,7 @@
+Tibia Toolkit 0.7.4
+
+- Versão completa do aplicativo com o runtime, os recursos e o Content Pack atuais, revalidando o instalador e os assets das janelas externas.
+
 Tibia Toolkit 0.7.3
 
 - Corrigido o fluxo de instalação automática após o download de uma atualização, garantindo que o instalador seja acionado depois do encerramento seguro do aplicativo.
