@@ -1,7 +1,7 @@
 {
   "name": "tibia-toolkit",
   "productName": "Tibia Toolkit",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "author": "Tibia Toolkit",
   "description": "App desktop overlay Tibia Toolkit para consultar precos de Tibia.",
   "type": "module",

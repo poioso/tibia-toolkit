@@ -23,6 +23,7 @@ const requiredFiles = [
   "desktop/build/icon.ico",
   "desktop/screen-vision-native/publish/win-x64/ScreenVision.NativeHost.exe",
   "node_modules/@msgpack/msgpack/package.json",
+  "node_modules/@msgpack/msgpack/dist/index.js",
   "node_modules/@msgpack/msgpack/dist.es5+esm/index.mjs",
   "assets/screen-vision/reference/sounds/spells/utura gran.ogg",
   "assets/screen-vision/reference/sounds/spells/exura gran ico.ogg",

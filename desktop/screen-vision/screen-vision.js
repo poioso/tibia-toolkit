@@ -2154,6 +2154,7 @@ function renderDockedPanel() {
   }
 
   host.innerHTML = renderDockedPanelShell(panelState, copy);
+  bindSupporterPanelAvatarFallback(host);
   bindDynamicTooltips(host);
   initializeSupporterShowcaseCycles(host);
 
@@ -3107,7 +3108,7 @@ function renderSupporterPanelCardMarkup(supporter = {}) {
   const tierMeta = getSupporterPanelTierMeta(supporter.tier || "default");
   const subtitle = buildSupporterPanelSubtitle(supporter);
   const highlightedSubtitle = buildHighlightedSupporterPanelSubtitle(supporter);
-  const avatarPath = getVocationOutfitPath(supporter.vocation, supporter.sex) || PROFILE_PANEL_ASSETS.noVocation;
+  const avatarMarkup = renderSupporterPanelAvatarMarkup(supporter);
   const isHighlighted = supporter.tier && supporter.tier !== "default";
   const showcase = isHighlighted ? resolveSupporterShowcaseConfig(supporter) : null;
   const showcaseAttributes = buildSupporterShowcaseAttributes(showcase);
@@ -3139,7 +3140,7 @@ function renderSupporterPanelCardMarkup(supporter = {}) {
             </div>
             <div class="docked-supporter-identity">
               <div class="docked-profile-avatar-button docked-supporter-avatar" aria-hidden="true">
-                <img src="${escapeHtml(avatarPath)}" alt="${escapeHtml(supporter.vocation || "Vocacao")}">
+                ${avatarMarkup}
               </div>
               <span class="docked-supporter-card-subtitle">${escapeHtml(highlightedSubtitle)}</span>
             </div>
@@ -3147,7 +3148,7 @@ function renderSupporterPanelCardMarkup(supporter = {}) {
         ` : `
           <div class="docked-profile-card-title-row docked-supporter-card-title-row">
             <div class="docked-profile-avatar-button docked-supporter-avatar" aria-hidden="true">
-              <img src="${escapeHtml(avatarPath)}" alt="${escapeHtml(supporter.vocation || "Vocacao")}">
+              ${avatarMarkup}
             </div>
             <div class="docked-profile-card-center docked-supporter-card-center">
               <strong>${escapeHtml(supporter.name || "-")}</strong>
@@ -3162,6 +3163,49 @@ function renderSupporterPanelCardMarkup(supporter = {}) {
       </div>
     </article>
   `;
+}
+
+function renderSupporterPanelAvatarMarkup(supporter = {}) {
+  const avatarUrl = String(supporter.avatarUrl || "").trim();
+  const vocationFallback = getVocationOutfitPath(supporter.vocation, supporter.sex) || PROFILE_PANEL_ASSETS.noVocation;
+
+  if (!avatarUrl) {
+    return `<img src="${escapeHtml(vocationFallback)}" alt="${escapeHtml(supporter.vocation || "Vocacao")}">`;
+  }
+
+  return `<img src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(supporter.vocation || "Avatar do perfil")}" data-supporter-avatar-profile="true" data-supporter-avatar-fallback-src="${escapeHtml(vocationFallback)}" data-supporter-avatar-fallback-initials="${escapeHtml(getSupporterPanelInitials(supporter.name))}">`;
+}
+
+function bindSupporterPanelAvatarFallback(root) {
+  root?.querySelectorAll('[data-supporter-avatar-profile="true"]').forEach((avatar) => {
+    if (avatar.dataset.supporterAvatarFallbackBound === "true") {
+      return;
+    }
+
+    avatar.dataset.supporterAvatarFallbackBound = "true";
+    avatar.addEventListener("error", () => {
+      const fallbackSrc = String(avatar.dataset.supporterAvatarFallbackSrc || "").trim();
+
+      if (fallbackSrc && avatar.dataset.supporterAvatarFallbackApplied !== "true") {
+        avatar.dataset.supporterAvatarFallbackApplied = "true";
+        avatar.src = fallbackSrc;
+        return;
+      }
+
+      const initials = document.createElement("span");
+      initials.textContent = avatar.dataset.supporterAvatarFallbackInitials || "?";
+      avatar.replaceWith(initials);
+    });
+  });
+}
+
+function getSupporterPanelInitials(name) {
+  return String(name || "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "?";
 }
 
 function buildSupporterPanelSubtitle(supporter = {}) {
