@@ -54,13 +54,13 @@
 </head>
 <body>
   <div id="move-handle" role="button" aria-label="Arraste para mover a janela do aplicativo">
-    <img id="move-icon" src="../assets/ui/window-controls/move-window-static.png" alt="">
+    <img id="move-icon" src="tibiatoolkit://app/assets/ui/window-controls/move-window-static.png" alt="">
   </div>
   <script>
     const handle = document.querySelector("#move-handle");
     const icon = document.querySelector("#move-icon");
-    const staticIcon = "../assets/ui/window-controls/move-window-static.png";
-    const grabIcon = "../assets/ui/window-controls/move-window-grab.png";
+    const staticIcon = "tibiatoolkit://app/assets/ui/window-controls/move-window-static.png";
+    const grabIcon = "tibiatoolkit://app/assets/ui/window-controls/move-window-grab.png";
     let dragging = false;
     let activePointerId = null;
     let pendingPoint = null;

@@ -12,18 +12,18 @@ const requiredFiles = [
   "desktop/main.js",
   "desktop/preload.cjs",
   "desktop/alert-audio-runtime.html",
+  "desktop/supporters-showcase.html",
+  "desktop/supporters-showcase-preload.cjs",
+  "desktop/window-move-handle.html",
+  "desktop/window-move-handle-preload.cjs",
   "desktop/screenshot-assistant.html",
-  "desktop/screenshot-assistant.css",
   "desktop/screenshot-assistant.js",
+  "desktop/screenshot-assistant.css",
   "desktop/screenshot-assistant-preload.cjs",
-  "desktop/screenshot-selector.html",
-  "desktop/screenshot-selector.css",
-  "desktop/screenshot-selector.js",
-  "desktop/screenshot-selector-preload.cjs",
-  "desktop/tutorial-popover.html",
-  "desktop/tutorial-popover-preload.cjs",
   "desktop/build/icon.ico",
   "desktop/screen-vision-native/publish/win-x64/ScreenVision.NativeHost.exe",
+  "node_modules/@msgpack/msgpack/package.json",
+  "node_modules/@msgpack/msgpack/dist.es5+esm/index.mjs",
   "assets/screen-vision/reference/sounds/spells/utura gran.ogg",
   "assets/screen-vision/reference/sounds/spells/exura gran ico.ogg",
   "assets/screen-vision/reference/sounds/spells/utito tempo.ogg",
@@ -43,6 +43,28 @@ for (const relativePath of requiredFiles) {
     }
   } catch {
     missing.push(relativePath);
+  }
+}
+
+const externalWindowFiles = [
+  "desktop/supporters-showcase.html",
+  "desktop/window-move-handle.html",
+  "desktop/screenshot-assistant.html",
+  "desktop/screenshot-assistant.js"
+];
+for (const relativePath of externalWindowFiles) {
+  const filePath = path.join(appRoot, relativePath);
+  let source = "";
+  try {
+    source = await (await import("node:fs/promises")).readFile(filePath, "utf8");
+  } catch {
+    continue;
+  }
+  if (/(?:\.\.\/)+assets\//.test(source)) {
+    missing.push(`${relativePath} (relative asset path points to bootstrap)`);
+  }
+  if (!source.includes("tibiatoolkit://app/assets/")) {
+    missing.push(`${relativePath} (runtime asset protocol missing)`);
   }
 }
 

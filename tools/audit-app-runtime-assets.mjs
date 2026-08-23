@@ -8,18 +8,22 @@ import { fileURLToPath } from "node:url";
 // This audit verifies the pack contract, every literal runtime asset reference
 // and the dynamic spell media catalogue without creating a release artefact.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const assetSource = String(process.env.TIBIA_TOOLKIT_ASSET_SOURCE || "").trim();
-const assetsRoot = path.resolve(assetSource || path.join(root, "assets"));
+const assetsRoot = path.join(root, "assets");
 const reportDirectory = path.join(root, ".local", "audits");
 const reportPath = path.join(reportDirectory, "app-runtime-assets-audit.json");
 const issues = [];
 const checked = { literalReferences: 0, assetFiles: 0, imageFiles: 0, webpStoredWithPngExtension: 0, spells: 0, librarySprites: 0, bookImages: 0, proficiencyIcons: 0, intentionallyExcluded: 0 };
 const allowedExtensions = new Set([".css", ".gif", ".html", ".jpg", ".js", ".json", ".md", ".ogg", ".png", ".svg", ".webp"]);
 const imageExtensions = new Set([".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
-const assetPath = (reference) => path.join(assetsRoot, String(reference).replace(/^assets[\\/]/i, ""));
 const runtimeAssetExceptions = new Set([
   "assets/tibia-client/organized/client-ui/images/taskboard/icon-weeklytasks.png",
   "assets/tibia-client/organized/objects/items/painting-equipment/artist-s-palette--item-3133.png"
+]);
+const externalWindowFiles = new Set([
+  "desktop/supporters-showcase.html",
+  "desktop/window-move-handle.html",
+  "desktop/screenshot-assistant.html",
+  "desktop/screenshot-assistant.js"
 ]);
 
 // Keep runtime-generated paths explicit. A source scan cannot see these as
@@ -84,7 +88,7 @@ if (!contentBuilder.includes('archive.addLocalFolder(path.join(projectRoot, "ass
 
 const allAssets = await walk(assetsRoot);
 for (const file of allAssets) {
-  const relative = `assets/${path.relative(assetsRoot, file).replaceAll("\\", "/")}`;
+  const relative = path.relative(root, file).replaceAll("\\", "/");
   if (relative.startsWith("assets/tibia-client/organized/") && !runtimeAssetExceptions.has(relative)) continue;
   const extension = path.extname(file).toLowerCase();
   if (imageExtensions.has(extension)) {
@@ -135,6 +139,14 @@ const references = new Map();
 const referencePattern = /(?:\/?assets\/[^\s"'`<>]+?\.(?:json|html|jpeg|webp|css|gif|jpg|ogg|png|svg|md|js))(?:[?#][^\s"'`<>]*)?/gi;
 for (const file of sourceFiles) {
   const source = await fs.readFile(file, "utf8");
+  const relativeSourcePath = path.relative(root, file).replaceAll("\\", "/");
+  if (externalWindowFiles.has(relativeSourcePath) && /(?:\.\.\/)+assets\//.test(source)) {
+    issues.push({
+      kind: "external-window-relative-asset-path",
+      file: relativeSourcePath,
+      detail: "Janelas externas precisam usar tibiatoolkit://app/assets/...; caminhos relativos apontam para o bootstrap do instalador."
+    });
+  }
   for (const match of source.matchAll(referencePattern)) {
     const reference = normalizeReference(match[0]).replace(/^\//, "");
     if (!reference.startsWith("assets/")) continue;
@@ -149,13 +161,13 @@ for (const file of sourceFiles) {
 }
 for (const [reference, locations] of references) {
   checked.literalReferences += 1;
-  if (!(await exists(assetPath(reference)))) {
+  if (!(await exists(path.join(root, reference)))) {
     issues.push({ kind: "literal-reference-missing", reference, locations: [...new Set(locations)] });
   }
 }
 
 for (const contract of dynamicAssetContracts) {
-  if (!(await exists(assetPath(contract.reference)))) {
+  if (!(await exists(path.join(root, contract.reference)))) {
     issues.push({
       kind: "dynamic-reference-missing",
       reference: contract.reference,
@@ -172,7 +184,7 @@ for (const spell of spells.records || []) {
     const relative = normalizeReference(candidate)
       .replace(/^\/library\/spells\//, "assets/data/spells/")
       .replace(/^library\/spells\//, "assets/data/spells/");
-    if (!(await exists(assetPath(relative)))) {
+    if (!(await exists(path.join(root, relative)))) {
       issues.push({ kind: "spell-media-missing", spell: spell.id, reference: relative });
     }
   }
@@ -183,7 +195,7 @@ for (const kind of ["creatures", "npcs"]) {
   for (const [slug, extension] of Object.entries(spritePaths[kind] || {})) {
     checked.librarySprites += 1;
     const relative = `assets/data/${kind}/${slug}.${extension}`;
-    if (!(await exists(assetPath(relative)))) {
+    if (!(await exists(path.join(root, relative)))) {
       issues.push({ kind: "library-sprite-missing", entityKind: kind, slug, reference: relative });
     }
   }
@@ -201,7 +213,7 @@ for (const book of canonical.records?.books || []) {
   for (const source of sources) {
     checked.bookImages += 1;
     const relative = localBookImage(source);
-    if (!(await exists(assetPath(relative)))) {
+    if (!(await exists(path.join(root, relative)))) {
       issues.push({ kind: "book-image-missing", slug: book.slug, source, reference: relative });
     }
   }
@@ -214,7 +226,7 @@ for (const item of canonical.records?.items || []) {
         if (!filename) continue;
         checked.proficiencyIcons += 1;
         const relative = `assets/data/item-proficiency-icons/${filename}`;
-        if (!(await exists(assetPath(relative)))) {
+        if (!(await exists(path.join(root, relative)))) {
           issues.push({ kind: "proficiency-icon-missing", item: item.slug, reference: relative });
         }
       }
