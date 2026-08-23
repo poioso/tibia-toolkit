@@ -56,15 +56,15 @@ preloads, `openscreenshotfolder.png`, `uncheck.png`, `folder.gif`,
 
 Release artifact hashes:
 
-- `Tibia Toolkit Setup 0.7.0.exe`: 139,186,342 bytes,
-  `651f5c81d4876a777a4a1bf85e896f5980fea5c271f1fa6d08bb8880707b3eaf`
-- `Tibia Toolkit Setup 0.7.0.exe.blockmap`: 147,399 bytes,
-  `979db82101e1427d49ee460697eea854002f1f4e2706640afafb25ec8ea1e24e`
+- `Tibia Toolkit Setup 0.7.0.exe`: 139,191,802 bytes,
+  `ad93053a3f611f3ce4e391fc3668036a1e035f4a820b4e20384c028959cd6bd5`
+- `Tibia Toolkit Setup 0.7.0.exe.blockmap`: 145,733 bytes,
+  `f63d982aff5975188e3715f8518c99cfb7d9ff9682a9097bc5988909f37fe536`
 - `Tibia-Toolkit-Setup.exe`: byte-identical to the versioned installer.
 - `latest.yml`: 5,740 bytes,
-  `000c075105992c156f6da1e9f169dd2bce4d93ffa4bfcc10b50a3c9a21e3e408`
-- `SBOM.cdx.json`: 326,478 bytes,
-  `e3975e2fcd49de0c40f7ad9e54d9a5fb415318e19e1f69dd0cc7d9ef7471b348`
+  `ff359a171d65536afe47a47a18516c1c723f9934e629b17e50dad7ae1288e1f4`
+- `SBOM.cdx.json`: 326,472 bytes,
+  `d227898a7ba827d1ae3a12eddbdb9cb716b92bd99727fc26d11e38dcb0037848`
 
 The actual public update gate remains blocking until a 0.6.7 installation has
 been tested against the promoted 0.7.0 feed. The 0.6.7 installer was downloaded
