@@ -30,7 +30,7 @@
     "rcedit": "^5.0.2"
   },
   "dependencies": {
-    "adm-zip": "^0.5.18",
+    "adm-zip": "^0.6.0",
     "@msgpack/msgpack": "^2.8.0",
     "driver.js": "^1.6.0",
     "electron-updater": "^6.8.9",
@@ -38,5 +38,8 @@
     "leaflet": "^1.9.4",
     "obs-websocket-js": "^5.0.8",
     "playwright": "^1.61.1"
+  },
+  "overrides": {
+    "js-yaml": "^5.3.0"
   }
 }
