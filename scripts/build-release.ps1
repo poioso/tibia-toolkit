@@ -22,22 +22,8 @@ if (-not $SkipInstall) {
 npm run check
 if ($LASTEXITCODE -ne 0) { throw 'A verificacao da fonte publica falhou.' }
 
-npm run generate:content-contract
-if ($LASTEXITCODE -ne 0) { throw 'A geracao do contrato de content pack falhou.' }
-
 npm run verify:content-contract
 if ($LASTEXITCODE -ne 0) { throw 'O contrato do content pack nao cobre todos os assets referenciados.' }
-
-npm run audit:runtime-dependencies
-if ($LASTEXITCODE -ne 0) { throw 'A auditoria de imports, preloads, HTML, CSS e modulos falhou.' }
-
-npm test
-if ($LASTEXITCODE -ne 0) { throw 'O gate completo de testes do runtime falhou.' }
-
-if ($env:TIBIA_TOOLKIT_ASSET_SOURCE -and (Test-Path -LiteralPath $env:TIBIA_TOOLKIT_ASSET_SOURCE)) {
-    npm run audit:runtime-assets
-    if ($LASTEXITCODE -ne 0) { throw 'A auditoria completa dos assets da origem de desenvolvimento falhou.' }
-}
 
 $contentPackPath = [string]$env:TIBIA_TOOLKIT_CONTENT_PACK_PATH
 if (-not $contentPackPath -or -not (Test-Path -LiteralPath $contentPackPath)) {

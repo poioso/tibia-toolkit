@@ -4,6 +4,9 @@ dist/
 output/
 release/
 site/.deploy/
+assets/
+.playwright-cli/
+services/market-cache/
 
 # Local developer runtimes and generated native-host artifacts
 third_party/dotnet/
@@ -20,9 +23,17 @@ desktop-debug.log
 native-host-*.log
 electron-*.log
 .tmp-*.html
+tmp-*.png
+tmp-*.json
+tmp-*.txt
+tmp-*.out.log
+tmp-*.err.log
+pnpm-lock.yaml
+pnpm-workspace.yaml
+.tmp-*.log
 tmp/
 reports/
-.local/
+artifacts/
 .playwright/
 .codex/
 .secrets-temp/
@@ -30,10 +41,8 @@ reports/
 *.zip
 ACESSOS_PRIVADOS_SITE.md
 ACESSOS_PRIVADOS_EMAIL_TIBIA_TOOLKIT.md
-desktop/auth-homologation.local.json
 
 # OS/editor noise
 Thumbs.db
 Desktop.ini
 .DS_Store
-.obsidian/

@@ -49,6 +49,7 @@ try {
   globalThis.fetch = async (url) => {
     if (String(url).endsWith("latest.json")) return new Response(JSON.stringify(remoteManifest), { status: 200 });
     if (String(url).endsWith("items-next.zip")) return new Response(archiveBytes, { status: 200 });
+    if (String(url).endsWith("full-next.zip")) return new Response(fullArchiveBytes, { status: 200 });
     if (String(url).endsWith("item-atlas.zip")) return new Response(atlasBytes, { status: 200 });
     return new Response("missing", { status: 404 });
   };
@@ -75,6 +76,54 @@ try {
   assert.equal(applied.version, "test-next");
   assert.equal(await fs.readFile(path.join(currentRoot, "assets", "data", "item-details.json"), "utf8"), "new-data");
   await assert.rejects(fs.stat(path.join(packRoot, "pending-update.json")));
+
+  // A published pre-chunk pack must not be accepted as a permanent cache.
+  // This reproduces the 0.6.7 manifest found on the affected machine: the
+  // remote full pack is selected and activated before the renderer can use it.
+  const legacyRoot = path.join(root, "legacy-user-data");
+  const legacyCurrentRoot = path.join(legacyRoot, "content-pack", "current");
+  await fs.mkdir(path.join(legacyCurrentRoot, "assets", "ui"), { recursive: true });
+  await fs.writeFile(path.join(legacyCurrentRoot, "assets", "ui", "missing-before.png"), "legacy", "utf8");
+  const legacyManifest = {
+    version: "0.6.7",
+    archiveUrl: "https://content.test/full-legacy.zip",
+    sha256: "1".repeat(64),
+    bytes: 1,
+    unpackedBytes: 6
+  };
+  await fs.writeFile(path.join(legacyCurrentRoot, "content-manifest.json"), JSON.stringify(legacyManifest), "utf8");
+
+  const fullArchive = new AdmZip();
+  fullArchive.addFile("assets/ui/missing-before.png", Buffer.from("current"));
+  fullArchive.addFile("assets/ui/new-icon.png", Buffer.from("icon"));
+  const fullArchivePath = path.join(root, "full-next.zip");
+  fullArchive.writeZip(fullArchivePath);
+  const fullArchiveBytes = await fs.readFile(fullArchivePath);
+  const fullManifest = {
+    version: "0.7.1",
+    archiveUrl: "https://content.test/full-next.zip",
+    sha256: sha256(fullArchiveBytes),
+    bytes: fullArchiveBytes.byteLength,
+    unpackedBytes: 11,
+    chunks: [{
+      id: "ui",
+      archiveUrl: "https://content.test/ui-next.zip",
+      sha256: "2".repeat(64),
+      bytes: 1,
+      unpackedBytes: 1
+    }]
+  };
+  remoteManifest = fullManifest;
+  const legacyResult = await ensureContentPack({
+    appIsPackaged: true,
+    sourceAssetsRoot: path.join(root, "source-assets"),
+    userDataPath: legacyRoot,
+    manifestUrls: ["https://content.test/latest.json"]
+  });
+  assert.equal(legacyResult.source, "download");
+  assert.equal(legacyResult.version, "0.7.1");
+  assert.equal(await fs.readFile(path.join(legacyCurrentRoot, "assets", "ui", "missing-before.png"), "utf8"), "current");
+  assert.equal(await fs.readFile(path.join(legacyCurrentRoot, "assets", "ui", "new-icon.png"), "utf8"), "icon");
 
   // The builder places static item atlases in the same incremental media
   // chunk as item sprites. The runtime must accept that exact grouping.

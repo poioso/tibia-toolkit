@@ -5963,7 +5963,7 @@ async function createDockedBlankSpellAlert(trigger = null) {
     soundKey: "default",
     customSoundPath: "",
     message: "",
-    showVisualAlert: true,
+    showVisualAlert: false,
     reminderEnabled: false,
     retriggerEnabled: true,
     locked: false

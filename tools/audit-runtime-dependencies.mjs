@@ -10,23 +10,12 @@ const issues = [];
 const contentPackAssets = new Set();
 
 async function exists(file) {
-  try {
-    const stat = await fs.stat(file);
-    return stat.isFile() && stat.size > 0;
-  } catch {
-    return false;
-  }
+  try { const stat = await fs.stat(file); return stat.isFile() && stat.size > 0; } catch { return false; }
 }
-
 async function collect(directory) {
   const output = [];
   let entries;
-  try {
-    entries = await fs.readdir(directory, { withFileTypes: true });
-  } catch (error) {
-    if (error?.code === "ENOENT") return output;
-    throw error;
-  }
+  try { entries = await fs.readdir(directory, { withFileTypes: true }); } catch (error) { if (error?.code === "ENOENT") return output; throw error; }
   for (const entry of entries) {
     if (["node_modules", "bin", "obj", "publish", "dist", ".git", ".local"].includes(entry.name)) continue;
     const full = path.join(directory, entry.name);
@@ -35,41 +24,27 @@ async function collect(directory) {
   }
   return output;
 }
-
-function clean(value) {
-  return String(value || "").split(/[?#]/, 1)[0].replaceAll("\\", "/");
-}
-
+function clean(value) { return String(value || "").split(/[?#]/, 1)[0].replaceAll("\\", "/"); }
 function localTarget(raw, sourceFile) {
   const value = clean(raw);
   if (!value || /^(?:[a-z]+:|data:|#|\\\\)/i.test(value)) return null;
   if (value.startsWith("assets/")) return { kind: "asset", path: path.join(assetRoot, value.slice("assets/".length)), reference: value };
   if (value.startsWith("../assets/")) return { kind: "asset", path: path.join(assetRoot, value.slice("../assets/".length)), reference: `assets/${value.slice("../assets/".length)}` };
   if (value.startsWith("/assets/")) return { kind: "asset", path: path.join(assetRoot, value.slice("/assets/".length)), reference: value.slice(1) };
-  if (value.startsWith("desktop/") || value.startsWith("lib/") || value.startsWith("app.js") || value.startsWith("index.html") || value.startsWith("styles.css")) {
-    return { kind: "module", path: path.join(root, value), reference: value };
-  }
+  if (value.startsWith("desktop/") || value.startsWith("lib/") || value.startsWith("app.js") || value.startsWith("index.html") || value.startsWith("styles.css")) return { kind: "module", path: path.join(root, value), reference: value };
   if (value.startsWith("./") || value.startsWith("../")) return { kind: "module", path: path.resolve(path.dirname(sourceFile), value), reference: value };
   return null;
 }
-
 async function resolveModule(candidate) {
-  try {
-    const stat = await fs.stat(candidate);
-    if (stat.isDirectory()) return candidate;
-  } catch {}
+  try { const stat = await fs.stat(candidate); if (stat.isDirectory()) return candidate; } catch {}
   const options = [candidate, `${candidate}.js`, `${candidate}.mjs`, `${candidate}.cjs`, `${candidate}.json`, `${candidate}.css`, `${candidate}.html`];
   for (const option of options) if (await exists(option)) return option;
-  for (const extension of [".js", ".mjs", ".cjs", ".json", ".css", ".html"]) {
-    if (await exists(path.join(candidate, `index${extension}`))) return path.join(candidate, `index${extension}`);
-  }
+  for (const extension of [".js", ".mjs", ".cjs", ".json", ".css", ".html"]) if (await exists(path.join(candidate, `index${extension}`))) return path.join(candidate, `index${extension}`);
   return null;
 }
-
 function addReference(raw, sourceFile, kind) {
   const target = localTarget(raw, sourceFile);
-  if (!target) return;
-  if (/[${}]/.test(String(raw)) || /(?:node_modules|third_party|\.local|auth-homologation\.local\.json|(?:^|[\\/])(?:bin|obj|publish)(?:[\\/]|$))/.test(String(raw))) return;
+  if (!target || /[${}]/.test(String(raw)) || /(?:node_modules|third_party|\.local|auth-homologation\.local\.json|(?:^|[\\/])(?:bin|obj|publish)(?:[\\/]|$))/.test(String(raw))) return;
   target.kind = kind === "asset" ? "asset" : target.kind;
   pending.push({ ...target, sourceFile, raw });
 }
@@ -77,15 +52,8 @@ function addReference(raw, sourceFile, kind) {
 const sourceFiles = [];
 for (const entry of ["app.js", "index.html", "styles.css", "desktop", "lib"]) {
   const candidate = path.join(root, entry);
-  try {
-    const stat = await fs.stat(candidate);
-    if (stat.isFile()) sourceFiles.push(candidate);
-    else sourceFiles.push(...await collect(candidate));
-  } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
-  }
+  try { const stat = await fs.stat(candidate); if (stat.isFile()) sourceFiles.push(candidate); else sourceFiles.push(...await collect(candidate)); } catch (error) { if (error?.code !== "ENOENT") throw error; }
 }
-
 const pending = [];
 for (const sourceFile of sourceFiles) {
   const source = await fs.readFile(sourceFile, "utf8");
@@ -107,9 +75,7 @@ for (const sourceFile of sourceFiles) {
     const reference = parts.join("/");
     const hasAssetSegment = parts.includes("assets");
     const projectRootPath = /\bprojectRoot\b/.test(expression);
-    const normalizedReference = hasAssetSegment
-      ? `assets/${parts.slice(parts.indexOf("assets") + 1).join("/")}`
-      : projectRootPath ? reference : `./${reference}`;
+    const normalizedReference = hasAssetSegment ? `assets/${parts.slice(parts.indexOf("assets") + 1).join("/")}` : projectRootPath ? reference : `./${reference}`;
     addReference(normalizedReference, sourceFile, hasAssetSegment ? "asset" : "module");
   }
 }
@@ -120,22 +86,12 @@ for (const reference of pending) {
   if (seen.has(key)) continue;
   seen.add(key);
   if (reference.kind === "asset") {
-    if (!(await exists(reference.path))) {
-      contentPackAssets.add(reference.reference);
-      if (strictAssets) issues.push({ kind: "missing-asset", reference: reference.reference, source: path.relative(root, reference.sourceFile) });
-    }
+    if (!(await exists(reference.path))) { contentPackAssets.add(reference.reference); if (strictAssets) issues.push({ kind: "missing-asset", reference: reference.reference, source: path.relative(root, reference.sourceFile) }); }
     continue;
   }
   if (!(await resolveModule(reference.path))) issues.push({ kind: "missing-module", reference: reference.raw, source: path.relative(root, reference.sourceFile) });
 }
 
-const result = {
-  root,
-  assetRoot,
-  sourceFiles: sourceFiles.length,
-  references: pending.length,
-  contentPackAssets: [...contentPackAssets].sort(),
-  issues
-};
+const result = { root, assetRoot, sourceFiles: sourceFiles.length, references: pending.length, contentPackAssets: [...contentPackAssets].sort(), issues };
 console.log(JSON.stringify(result, null, 2));
 if (issues.length > 0) process.exitCode = 1;

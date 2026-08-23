@@ -18,6 +18,7 @@ async function collect(directory) {
   }
   return output;
 }
+
 function normalize(value) { return String(value || "").replaceAll("\\", "/").replace(/[?#].*$/, "").replace(/^(?:\.\.\/|\.\/)+/, ""); }
 const references = new Set();
 const pattern = /((?:\.\.?\/)?assets\/[^"'`\s)<>]+?\.(?:json|html|jpeg|webp|css|gif|jpg|ogg|png|svg|md|js))/gi;

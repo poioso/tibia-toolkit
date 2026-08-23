@@ -7796,10 +7796,7 @@ async function openNpcDetail(name, options = {}) {
 }
 
 async function openMonsterDetail(name, options = {}) {
-  const safeName = String(name || "")
-    .replace(/[^\p{L}\p{N} .(),'&-]/gu, "")
-    .trim();
-  if (!safeName) {
+  if (!name) {
     return;
   }
 
@@ -7808,7 +7805,7 @@ async function openMonsterDetail(name, options = {}) {
   }
 
   const requestId = ++state.monsterDetailRequestId;
-  const detailCacheKey = getMonsterDetailMemoryCacheKey(safeName);
+  const detailCacheKey = getMonsterDetailMemoryCacheKey(name);
   const cachedDetail = state.monsterDetailMemoryCache.get(detailCacheKey) || null;
 
   if (cachedDetail) {
@@ -7822,8 +7819,8 @@ async function openMonsterDetail(name, options = {}) {
     scrollEntityDetailIntoView({ behavior: "auto" });
     setCurrentNavigationEntry({
       type: "creature",
-      name: cachedDetail.name || safeName,
-      slug: cachedDetail.slug || slugifyItemInput(cachedDetail.name || safeName),
+      name: cachedDetail.name || name,
+      slug: cachedDetail.slug || slugifyItemInput(cachedDetail.name || name),
       category: cachedDetail.bossCategory ? "boss" : "creature"
     });
     return;
@@ -7832,14 +7829,14 @@ async function openMonsterDetail(name, options = {}) {
   state.currentMonsterDetail = null;
   state.currentBossTracker = null;
   state.bossRespawnHistoryLimit = 10;
-  showEntityLoading(`Carregando ${safeName}...`);
+  showEntityLoading(`Carregando ${name}...`);
   scrollEntityDetailIntoView({ behavior: "auto" });
-  showGlobalLoading(`Carregando ${safeName}...`);
+  showGlobalLoading(`Carregando ${name}...`);
 
   try {
     const selectedWorld = getSelectedWorld();
     const detail = await fetchCreatureDetail({
-      name: safeName,
+      name,
       worldName: selectedWorld?.name || "",
       worldSlug: selectedWorld?.slug || "",
       includeBossTracker: false
@@ -7857,8 +7854,8 @@ async function openMonsterDetail(name, options = {}) {
     scrollEntityDetailIntoView({ behavior: "auto" });
     setCurrentNavigationEntry({
       type: "creature",
-      name: detail.name || safeName,
-      slug: detail.slug || slugifyItemInput(detail.name || safeName),
+      name: detail.name || name,
+      slug: detail.slug || slugifyItemInput(detail.name || name),
       category: detail.bossCategory ? "boss" : "creature"
     });
   } catch (error) {
@@ -17108,23 +17105,17 @@ function sanitizeCacheSegment(value) {
 }
 
 async function openLootMonster(name) {
-  const safeName = String(name || "")
-    .replace(/[^\p{L}\p{N} .(),'&-]/gu, "")
-    .trim();
-  if (!safeName) {
+  if (!name) {
     return;
   }
 
-  const local = findLocalCreature(safeName);
-  if (!local?.name) {
-    return;
-  }
+  const local = findLocalCreature(name);
   pushCurrentNavigationEntry();
   switchSection("npcs", { skipHistory: true });
   await setEntityViewMode(local?.bossCategory ? "bosses" : "monsters", {
     skipHistory: true
   });
-  await openMonsterDetail(local.name, { skipHistory: true });
+  await openMonsterDetail(local?.name || name, { skipHistory: true });
 }
 
 async function openLootItem(name) {
@@ -20959,7 +20950,6 @@ function renderImbuementIngredientsLegacy(rows) {
     .map((row) => {
       const slug = row.meta?.slug || "";
       const imageSrc = row.meta?.imageSrc || "";
-      const name = escapeHtml(row.name || "");
       const quantityLabel = state.mixedPurchaseEnabled
         ? `${row.missingQuantity} falta / ${row.quantity} total`
         : row.quantity;
@@ -20975,8 +20965,8 @@ function renderImbuementIngredientsLegacy(rows) {
 
       return `
         <div class="imbuement-row">
-          <button class="ingredient-button" type="button" data-slug="${escapeHtml(slug)}" data-name="${name}" data-image-src="${escapeHtml(imageSrc)}">
-            <img src="${escapeHtml(imageSrc)}" alt="${name}">
+          <button class="ingredient-button" type="button" data-slug="${slug}" data-name="${row.name}" data-image-src="${imageSrc}">
+            <img src="${imageSrc}" alt="${row.name}">
             <div>
               <small class="ingredient-button-kicker">${escapeHtml(t("common.ingredient"))}</small>
               <strong>${name}</strong>

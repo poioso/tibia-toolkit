@@ -45,28 +45,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "sortIndex": 2
   },
   {
-    "id": "arrow-call",
-    "slug": "arrow-call",
-    "spellId": "arrowcall",
-    "name": "Arrow Call",
-    "words": "exevo infir con",
-    "vocations": [
-      "paladin"
-    ],
-    "group": "Support",
-    "secondaryGroup": "",
-    "category": "suporte",
-    "level": 1,
-    "mana": 30,
-    "cooldownSeconds": 2,
-    "description": "A last resort to any young paladin in a tight corner who has run out of arrows, this spell will conjure up arrows to ward off the worst until you have reached a safer spot and can resupply. This spell was invented after much discussion between the high paladins who deemed it useful that even their paladins-in-training would have a little ace up their sleeves, but thought that granting them the Conjure Arrow spell would be overdoing it at that early stage of paladinhood.",
-    "imagePath": "assets/screen-vision/reference/spells/arrow-call.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 3
-  },
-  {
     "id": "aura-of-exposed-weakness",
     "slug": "aura-of-exposed-weakness",
     "spellId": "exposeweakness",
@@ -287,28 +265,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "sortIndex": 14
   },
   {
-    "id": "bruise-bane",
-    "slug": "bruise-bane",
-    "spellId": "bruisebane",
-    "name": "Bruise Bane",
-    "words": "exura infir ico",
-    "vocations": [
-      "knight"
-    ],
-    "group": "Healing",
-    "secondaryGroup": "",
-    "category": "cura",
-    "level": 1,
-    "mana": 10,
-    "cooldownSeconds": 2,
-    "description": "Specifically crafted for knights out on the battlefields who only need a quick patch-up before venturing back into the fray, this healing spell fills up only a little health - enough so you can finish off your enemies before heading back to safety.",
-    "imagePath": "assets/screen-vision/reference/spells/bruise-bane.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 15
-  },
-  {
     "id": "brutal-strike",
     "slug": "brutal-strike",
     "spellId": "brutalstrike",
@@ -329,28 +285,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "soundLabel": "Brutal Strike",
     "soundPath": "assets/screen-vision/reference/sounds/spells/exori ico.ogg",
     "sortIndex": 16
-  },
-  {
-    "id": "buzz",
-    "slug": "buzz",
-    "spellId": "buzz",
-    "name": "Buzz",
-    "words": "exori infir vis",
-    "vocations": [
-      "sorcerer"
-    ],
-    "group": "Attack",
-    "secondaryGroup": "",
-    "category": "ataque",
-    "level": 1,
-    "mana": 6,
-    "cooldownSeconds": 2,
-    "description": "After some extensive field studies, the magic academy at Edron decided to release a slightly less powerful variant of the Energy Strike for training purposes. From the particular sound it made upon creation, it was called the 'buzz' - and it's all the buzz among apprentice sorcerers, who are specifically called upon to test its effectiveness against roaming monsters. A small bolt of lightning hits any victim standing near the caster with instant energy damage, the extent of which is determined by the caster's magic skill.",
-    "imagePath": "assets/screen-vision/reference/spells/buzz.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 17
   },
   {
     "id": "cancel-invisibility",
@@ -462,28 +396,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "soundLabel": "Charge",
     "soundPath": "assets/screen-vision/reference/sounds/spells/utani tempo hur.ogg",
     "sortIndex": 23
-  },
-  {
-    "id": "chill-out",
-    "slug": "chill-out",
-    "spellId": "chillout",
-    "name": "Chill Out",
-    "words": "exevo infir frigo hur",
-    "vocations": [
-      "druid"
-    ],
-    "group": "Attack",
-    "secondaryGroup": "",
-    "category": "ataque",
-    "level": 1,
-    "mana": 8,
-    "cooldownSeconds": 4,
-    "description": "A lighter version of the Ice Wave , this spell springs forth from the fingertips of any soon-to-be druid, to instantly cool down any enemies unlucky enough to stand too close and in front of the caster. Good in a heated argument with a fire creature, such as fire devils .",
-    "imagePath": "assets/screen-vision/reference/spells/chill-out.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 24
   },
   {
     "id": "chivalrous-challenge",
@@ -2079,72 +1991,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "sortIndex": 112
   },
   {
-    "id": "lesser-ethereal-spear",
-    "slug": "lesser-ethereal-spear",
-    "spellId": "lesseretherealspear",
-    "name": "Lesser Ethereal Spear",
-    "words": "exori infir con",
-    "vocations": [
-      "paladin"
-    ],
-    "group": "Attack",
-    "secondaryGroup": "",
-    "category": "ataque",
-    "level": 0,
-    "mana": 6,
-    "cooldownSeconds": 8,
-    "description": "This slightly less powerful variant of the Ethereal Spear can help young paladins out of a tight spot when they run out of ammunition. Developed on the core principles of its stronger sibling, this spell creates a magic spear out of thin air and launches it onto its victim. The vigour of this incantation depends on the paladin's experience in using ranged weaponry.",
-    "imagePath": "assets/screen-vision/reference/spells/lesser-ethereal-spear.png",
-    "soundKey": "spell:lesser-ethereal-spear",
-    "soundLabel": "Lesser Ethereal Spear",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori infir con.ogg",
-    "sortIndex": 113
-  },
-  {
-    "id": "lesser-front-sweep",
-    "slug": "lesser-front-sweep",
-    "spellId": "lesserfrontsweep",
-    "name": "Lesser Front Sweep",
-    "words": "exori infir min",
-    "vocations": [
-      "knight"
-    ],
-    "group": "Attack",
-    "secondaryGroup": "",
-    "category": "ataque",
-    "level": 0,
-    "mana": 6,
-    "cooldownSeconds": 6,
-    "description": "Knights regularly find themselves swamped by enemies at the frontlines. Similar to its more polished variant Front Sweep, this technique deals a slightly less powerful strike to three targets in front of its user. For knights in training, this spell is a vital resource to create room to breathe before the next wave of enemies takes the place of their slain foes.",
-    "imagePath": "assets/screen-vision/reference/spells/lesser-front-sweep.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 114
-  },
-  {
-    "id": "lesser-mystic-repulse",
-    "slug": "lesser-mystic-repulse",
-    "spellId": "lessermysticrepulse",
-    "name": "Lesser Mystic Repulse",
-    "words": "exori infir amp pug",
-    "vocations": [
-      "monk"
-    ],
-    "group": "Attack",
-    "secondaryGroup": "",
-    "category": "ataque",
-    "level": 6,
-    "mana": 30,
-    "cooldownSeconds": 20,
-    "description": "Reaching levels of focus and inner balance, monks will be able to direct all energy in their body towards distant targets by allowing their mind to transcend and control their body like a weapon for split seconds.",
-    "imagePath": "assets/screen-vision/reference/spells/lesser-mystic-repulse.png",
-    "soundKey": "spell:lesser-mystic-repulse",
-    "soundLabel": "Lesser Mystic Repulse",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori infir amp pug.ogg",
-    "sortIndex": 115
-  },
-  {
     "id": "levitate",
     "slug": "levitate",
     "spellId": "levitate",
@@ -2242,31 +2088,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "soundLabel": "Lightning",
     "soundPath": "assets/screen-vision/reference/sounds/spells/exori amp vis.ogg",
     "sortIndex": 120
-  },
-  {
-    "id": "magic-patch",
-    "slug": "magic-patch",
-    "spellId": "magicpatch",
-    "name": "Magic Patch",
-    "words": "exura infir",
-    "vocations": [
-      "paladin",
-      "druid",
-      "sorcerer",
-      "monk"
-    ],
-    "group": "Healing",
-    "secondaryGroup": "",
-    "category": "cura",
-    "level": 1,
-    "mana": 6,
-    "cooldownSeconds": 1,
-    "description": "Any sorcerer, paladin or druid out on the fields can rely on this quick healing spell to soothe their pain and reduce the hurt until they are back in safety. They can apply this handy magic patch anytime, though of course it won't heal every wound - just enough to keep them going until they're out of the worst.",
-    "imagePath": "assets/screen-vision/reference/spells/magic-patch.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 121
   },
   {
     "id": "magic-rope",
@@ -2426,28 +2247,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "soundLabel": "Master of Thunder",
     "soundPath": "assets/screen-vision/reference/sounds/spells/uteta vis.ogg",
     "sortIndex": 129
-  },
-  {
-    "id": "mud-attack",
-    "slug": "mud-attack",
-    "spellId": "mudattack",
-    "name": "Mud Attack",
-    "words": "exori infir tera",
-    "vocations": [
-      "druid"
-    ],
-    "group": "Attack",
-    "secondaryGroup": "",
-    "category": "ataque",
-    "level": 1,
-    "mana": 6,
-    "cooldownSeconds": 2,
-    "description": "In preparation of the Terra Strike that are to come, young druids-in-training can already test the powers of the earth with this spell. It summons the power of the upper mud strata, to wallow up and attack a foe. For the victim, it feels as if the mossy maws of the earth closed around him, snapping and biting, crushing and inflicting instant damage.",
-    "imagePath": "assets/screen-vision/reference/spells/mud-attack.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 130
   },
   {
     "id": "mystic-repulse",
@@ -2670,28 +2469,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "soundLabel": "Salvation",
     "soundPath": "assets/screen-vision/reference/sounds/spells/exura gran san.ogg",
     "sortIndex": 144
-  },
-  {
-    "id": "scorch",
-    "slug": "scorch",
-    "spellId": "scorch",
-    "name": "Scorch",
-    "words": "exevo infir flam hur",
-    "vocations": [
-      "sorcerer"
-    ],
-    "group": "Attack",
-    "secondaryGroup": "",
-    "category": "ataque",
-    "level": 1,
-    "mana": 8,
-    "cooldownSeconds": 4,
-    "description": "An apprentice sorcerer can rely on this neat little fire wave to burn - or at least singe - the flesh of any opponent who ventures too near into the radius in front of the caster. This is a particularly popular spell among sorcerers-to-be for hunting monsters.",
-    "imagePath": "assets/screen-vision/reference/spells/scorch.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 145
   },
   {
     "id": "shared-conservation",
@@ -3159,28 +2936,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "sortIndex": 170
   },
   {
-    "id": "swift-jab",
-    "slug": "swift-jab",
-    "spellId": "swiftjab",
-    "name": "Swift Jab",
-    "words": "exori infir pug",
-    "vocations": [
-      "monk"
-    ],
-    "group": "Attack",
-    "secondaryGroup": "",
-    "category": "ataque",
-    "level": 0,
-    "mana": 3,
-    "cooldownSeconds": 2,
-    "description": "A quick jab, fast and impactful. Learned and trained by every Monk apprentice and embracer of the Three-Fold Path as part of the initiation.",
-    "imagePath": "assets/screen-vision/reference/spells/swift-jab.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 171
-  },
-  {
     "id": "terra-burst",
     "slug": "terra-burst",
     "spellId": "terraburst",
@@ -3268,28 +3023,6 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "soundLabel": "Thousand Fist Blows",
     "soundPath": "assets/screen-vision/reference/sounds/spells/exori mas amp pug.ogg",
     "sortIndex": 175
-  },
-  {
-    "id": "tiger-clash",
-    "slug": "tiger-clash",
-    "spellId": "tigerclash",
-    "name": "Tiger Clash",
-    "words": "exori infir nia",
-    "vocations": [
-      "monk"
-    ],
-    "group": "Attack",
-    "secondaryGroup": "",
-    "category": "ataque",
-    "level": 0,
-    "mana": 18,
-    "cooldownSeconds": 8,
-    "description": "Inspired by the elegant and smooth movements of wild beasts such as the ferocious tiger, dedicated Monks have mastered their body to pull off a deadly strike that hurts and incapacities their enemies in a devastating clash.",
-    "imagePath": "assets/screen-vision/reference/spells/tiger-clash.png",
-    "soundKey": "default",
-    "soundLabel": "",
-    "soundPath": "",
-    "sortIndex": 177
   },
   {
     "id": "train-party",

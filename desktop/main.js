@@ -47,6 +47,7 @@ import { SCREEN_VISION_POTION_PRESETS } from "./screen-vision/consumable-presets
 import { ObsMirrorSync } from "./obs-integration/obs-mirror-sync.js";
 import { ensureContentPack, inspectContentPackUpdate, prepareContentPackChunkUpdate } from "./content-pack.js";
 import { startAppUpdater } from "./app-updater.js";
+import { migrateLegacyUserDataDirectory } from "./user-data-migration.js";
 import {
   applyLibraryCatalogOverlay,
   createEmptyLibraryCatalogOverlay,
@@ -60,6 +61,7 @@ import {
   pruneLibraryMediaIndex
 } from "../lib/catalog-sync/media-cache.js";
 import { resolveLibraryContentSource } from "./config/library-content-source.js";
+import { normalizeSupporterAvatarUrl } from "../lib/supporters/avatar-url.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -279,6 +281,18 @@ if (isPortableTestRuntime) {
 const runtimeUserDataPath = isPortableTestRuntime
   ? path.join(portableDataRoot, "AppData")
   : path.join(machineAppDataRoot, runtimeIdentity.userDataDirectoryName);
+const legacyUserDataMigration = isProductionRuntime
+  ? migrateLegacyUserDataDirectory({
+    appDataRoot: machineAppDataRoot,
+    targetDirectoryName: runtimeIdentity.userDataDirectoryName,
+    legacyDirectoryNames: ["ScreenVision"]
+  })
+  : {
+    status: "not-needed",
+    legacyPath: "",
+    targetPath: runtimeUserDataPath,
+    conflicts: []
+  };
 app.setPath("userData", runtimeUserDataPath);
 app.setAppUserModelId(runtimeAppUserModelId);
 if (!app.isPackaged) {
@@ -390,8 +404,11 @@ const debugLogPath = path.join(app.getPath("userData"), "desktop-debug.log");
 const performanceMetricsPath = path.join(app.getPath("userData"), "performance-metrics.jsonl");
 const diagnosticsQueuePath = path.join(app.getPath("userData"), "diagnostics-pending.jsonl");
 const diagnosticsConsentStorageKey = "diagnosticsConsent";
-const diagnosticsRemindAtStorageKey = "diagnosticsRemindAt";
+const diagnosticsUploadBatchSize = 50;
+const diagnosticsUploadRetryMs = 5 * 60 * 1000;
 let diagnosticsConsentPromptScheduled = false;
+let diagnosticsUploadTimer = null;
+let diagnosticsUploadInFlight = null;
 const defaultOverlayOpacity = 1;
 const overlayBoundsSaveDelayMs = 250;
 const bootstrapAssetsRoot = path.join(projectRoot, "desktop", "build", "bootstrap");
@@ -1248,8 +1265,8 @@ function normalizeSupportersShowcasePayload(payload = {}) {
       .map((supporter) => ({
         name: String(supporter?.name || "").trim().slice(0, 80),
         tier: String(supporter?.tier || "default").trim().toLowerCase(),
-        medalPath: String(supporter?.medalPath || "").trim(),
-        backgroundPath: String(supporter?.backgroundPath || "").trim()
+        medalPath: getRuntimeContentUrl(supporter?.medalPath),
+        backgroundPath: getRuntimeContentUrl(supporter?.backgroundPath)
       }))
       .filter((supporter) => supporter.name && supporter.medalPath)
   };
@@ -2241,6 +2258,15 @@ if (!hasSingleInstanceLock) {
 } else {
   app.whenReady().then(async () => {
     app.setName(runtimeIdentity.displayName);
+    if (legacyUserDataMigration.status !== "not-needed") {
+      void writeDebugLog(
+        `user-data-migration status=${legacyUserDataMigration.status} `
+        + `legacy=${path.basename(legacyUserDataMigration.legacyPath || "unknown")} `
+        + `target=${path.basename(legacyUserDataMigration.targetPath)} `
+        + `conflicts=${legacyUserDataMigration.conflicts.length} `
+        + `error=${legacyUserDataMigration.errorCode || "none"}`
+      );
+    }
     registerAssetCacheProtocol();
     await migrateLegacyDocumentsDirectory().catch(() => {});
     await ensureRuntimeCacheStoreReady().catch(() => {});
@@ -3839,7 +3865,8 @@ function registerIpcHandlers() {
       syncWindowMoveHandle({ forceShow: true });
       await writeDebugLog(`renderer-ready-show visible=${window.isVisible()} minimized=${window.isMinimized()}`);
       scheduleDeferredNativeRuntimeStartup();
-      if (app.isPackaged && !isPortableTestRuntime) {
+      if (app.isPackaged && isProductionRuntime) {
+        scheduleDiagnosticsUpload(1_000);
         scheduleDiagnosticsConsentPrompt();
       }
     }
@@ -3958,35 +3985,7 @@ function registerIpcHandlers() {
     return appUpdateDownloadPromptPromise;
   });
 
-  function normalizeSupporterAvatarUrlForDesktop(value, avatarAssetId = "") {
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f-]{27}$/i;
-    const rawValue = String(value || "").trim();
-    const rawAssetId = String(avatarAssetId || "").trim();
-    let avatarId = uuidPattern.test(rawAssetId) ? rawAssetId : "";
-
-    try {
-      const parsed = rawValue ? new URL(rawValue, accountSiteFetchBaseUrl) : null;
-      const isSupportedPath = parsed
-        && ["/account-api/product/avatar/public", "/api/product/avatar/public"].includes(parsed.pathname.replace(/\/$/, ""));
-
-      if (parsed && isSupportedPath) {
-        const candidateId = String(parsed.searchParams.get("id") || "").trim();
-        if (uuidPattern.test(candidateId)) {
-          avatarId = candidateId;
-        }
-      }
-    } catch {
-      return "";
-    }
-
-    if (!avatarId) {
-      return "";
-    }
-
-    return new URL(`/account-api/product/avatar/public?id=${encodeURIComponent(avatarId)}`, accountSiteFetchBaseUrl).href;
-  }
-
-  function normalizeSupportersDocumentForDesktop(document) {
+  function normalizeSupportersDocumentForDesktop(document, sourceUrl = "") {
     const supporters = Array.isArray(document)
       ? document
       : document && typeof document === "object" && Array.isArray(document.supporters)
@@ -4004,7 +4003,12 @@ function registerIpcHandlers() {
 
       return {
         ...entry,
-        avatarUrl: normalizeSupporterAvatarUrlForDesktop(entry.avatarUrl, entry.avatarAssetId)
+        avatarUrl: normalizeSupporterAvatarUrl({
+          value: entry.avatarUrl,
+          avatarAssetId: entry.avatarAssetId,
+          sourceUrl,
+          fallbackBaseUrl: accountSiteFetchBaseUrl
+        })
       };
     });
 
@@ -4022,7 +4026,7 @@ function registerIpcHandlers() {
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
-        return normalizeSupportersDocumentForDesktop(await response.json());
+        return normalizeSupportersDocumentForDesktop(await response.json(), url);
       } catch (error) {
         lastError = error;
       }
@@ -13476,6 +13480,9 @@ function buildScreenVisionConfirmDialogHtml(options = {}) {
   const progressMarkup = showProgress
     ? `<div class="dialog-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${initialProgress}"><span style="width:${initialProgress}%"></span></div>`
     : "";
+  const messageMarkup = updateLayout
+    ? `<div class="dialog-message-scroll"><p class="dialog-message">${message}</p></div>`
+    : `<p class="dialog-message">${message}</p>`;
 
   return `
     <!doctype html>
@@ -13547,11 +13554,14 @@ function buildScreenVisionConfirmDialogHtml(options = {}) {
             flex: 0 0 auto;
             margin-bottom: 8px;
           }
-          .dialog-card.update-dialog .dialog-message {
+          .dialog-card.update-dialog .dialog-message-scroll {
             flex: 1 1 auto;
+            width: 100%;
+            min-width: 0;
             min-height: 0;
             margin-bottom: 12px;
             overflow-y: auto;
+            overflow-x: hidden;
             overscroll-behavior: contain;
             padding: 2px 12px 2px 2px;
             scrollbar-gutter: stable;
@@ -13560,14 +13570,20 @@ function buildScreenVisionConfirmDialogHtml(options = {}) {
             touch-action: pan-y;
             cursor: auto;
           }
-          .dialog-card.update-dialog .dialog-message::-webkit-scrollbar {
+          .dialog-card.update-dialog .dialog-message {
+            min-width: 0;
+            max-width: 100%;
+            margin-bottom: 0;
+            overflow-wrap: anywhere;
+          }
+          .dialog-card.update-dialog .dialog-message-scroll::-webkit-scrollbar {
             width: 10px;
           }
-          .dialog-card.update-dialog .dialog-message::-webkit-scrollbar-track {
+          .dialog-card.update-dialog .dialog-message-scroll::-webkit-scrollbar-track {
             background: rgba(10, 14, 20, 0.56);
             border-radius: 6px;
           }
-          .dialog-card.update-dialog .dialog-message::-webkit-scrollbar-thumb {
+          .dialog-card.update-dialog .dialog-message-scroll::-webkit-scrollbar-thumb {
             background: rgba(196, 205, 218, 0.68);
             border: 2px solid rgba(10, 14, 20, 0.48);
             border-radius: 6px;
@@ -13781,7 +13797,7 @@ function buildScreenVisionConfirmDialogHtml(options = {}) {
         <div class="dialog-card${updateLayout ? " update-dialog" : ""}" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
           <h1 class="dialog-title" id="dialog-title">${title}</h1>
           ${warningMarkup}
-          <p class="dialog-message">${message}</p>
+          ${messageMarkup}
           ${progressMarkup}
           ${checkboxMarkup}
           ${hideActions ? "" : `<div class="dialog-actions">
@@ -16451,6 +16467,90 @@ async function queueDiagnosticEvent(type, details = {}) {
     details: safeDetails
   };
   await appendBoundedJsonl(diagnosticsQueuePath, event).catch(() => {});
+  scheduleDiagnosticsUpload(1_000);
+}
+
+function scheduleDiagnosticsUpload(delayMs = 1_000) {
+  if (!app.isPackaged || !isProductionRuntime || appIsQuitting || diagnosticsUploadTimer) return;
+  diagnosticsUploadTimer = setTimeout(() => {
+    diagnosticsUploadTimer = null;
+    void flushDiagnosticsQueue();
+  }, Math.max(0, Number(delayMs) || 0));
+}
+
+async function removeDiagnosticQueuePrefix(raw, prefix) {
+  if (!raw.startsWith(prefix)) return false;
+  const remaining = raw.slice(prefix.length);
+  if (remaining.trim()) {
+    const tempPath = `${diagnosticsQueuePath}.tmp`;
+    await fs.writeFile(tempPath, remaining, "utf8");
+    await fs.rm(diagnosticsQueuePath, { force: true }).catch(() => {});
+    await fs.rename(tempPath, diagnosticsQueuePath);
+  } else {
+    await fs.rm(diagnosticsQueuePath, { force: true });
+  }
+  return true;
+}
+
+async function flushDiagnosticsQueue() {
+  if (diagnosticsUploadInFlight || !app.isPackaged || !isProductionRuntime || appIsQuitting) return;
+  diagnosticsUploadInFlight = (async () => {
+    const stored = await readStorageValue(diagnosticsConsentStorageKey).catch(() => ({}));
+    if (stored?.[diagnosticsConsentStorageKey] !== true) {
+      return;
+    }
+
+    const raw = await fs.readFile(diagnosticsQueuePath, "utf8").catch((error) => {
+      if (error?.code === "ENOENT") return "";
+      throw error;
+    });
+    const lines = raw.split(/\r?\n/).filter(Boolean);
+    if (!lines.length) {
+      return;
+    }
+
+    const batchLines = lines.slice(0, diagnosticsUploadBatchSize);
+    const events = [];
+    for (const line of batchLines) {
+      try {
+        events.push(JSON.parse(line));
+      } catch {
+        const malformedPrefix = `${line}\n`;
+        await removeDiagnosticQueuePrefix(raw, malformedPrefix).catch(() => {});
+        await writeDebugLog("diagnostics-upload-discarded-malformed-line");
+        const remainingRaw = await fs.readFile(diagnosticsQueuePath, "utf8").catch(() => "");
+        if (remainingRaw.trim()) scheduleDiagnosticsUpload(1_000);
+        return;
+      }
+    }
+
+    const installationId = await getAccountInstallationId();
+    const response = await electronNet.fetch(`${accountAuthBaseUrl}/api/product/diagnostics`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ installationId, events }),
+      cache: "no-store"
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(`diagnostics-upload-${response.status}-${String(payload?.error || "failed")}`);
+    }
+
+    const prefix = `${batchLines.join("\n")}\n`;
+    const currentRaw = await fs.readFile(diagnosticsQueuePath, "utf8").catch(() => "");
+    if (currentRaw.startsWith(prefix)) {
+      await removeDiagnosticQueuePrefix(currentRaw, prefix);
+    }
+    await writeDebugLog(`diagnostics-uploaded count=${events.length}`);
+    const remainingRaw = await fs.readFile(diagnosticsQueuePath, "utf8").catch(() => "");
+    if (remainingRaw.trim()) scheduleDiagnosticsUpload(1_000);
+  })().catch((error) => {
+    void writeDebugLog(`diagnostics-upload-error ${error?.message || String(error)}`);
+    scheduleDiagnosticsUpload(diagnosticsUploadRetryMs);
+  }).finally(() => {
+    diagnosticsUploadInFlight = null;
+  });
+  await diagnosticsUploadInFlight;
 }
 
 function scheduleDiagnosticsConsentPrompt() {
@@ -16461,16 +16561,16 @@ function scheduleDiagnosticsConsentPrompt() {
 
   setTimeout(() => {
     void (async () => {
-      const stored = await readStorageValue([diagnosticsConsentStorageKey, diagnosticsRemindAtStorageKey]).catch(() => ({}));
-      if (stored?.[diagnosticsConsentStorageKey] === true || Number(stored?.[diagnosticsRemindAtStorageKey] || 0) > Date.now()) return;
+      const stored = await readStorageValue([diagnosticsConsentStorageKey]).catch(() => ({}));
+      if (stored && Object.prototype.hasOwnProperty.call(stored, diagnosticsConsentStorageKey)) return;
 
       const result = await showScreenVisionConfirmDialog(mainWindow, {
         title: tr("diagnostics.title"),
         message: tr("diagnostics.message"),
         confirmLabel: tr("diagnostics.allow"),
         confirmTooltip: tr("diagnostics.allow"),
-        cancelLabel: tr("diagnostics.remindLater"),
-        cancelTooltip: tr("diagnostics.remindLater"),
+        cancelLabel: tr("diagnostics.deny"),
+        cancelTooltip: tr("diagnostics.deny"),
         tone: "success",
         flat: true,
         width: 440,
@@ -16480,9 +16580,8 @@ function scheduleDiagnosticsConsentPrompt() {
         centerOnDisplay: true
       });
 
-      await writeStorageValue(result?.confirmed
-        ? { [diagnosticsConsentStorageKey]: true, [diagnosticsRemindAtStorageKey]: 0 }
-        : { [diagnosticsConsentStorageKey]: false, [diagnosticsRemindAtStorageKey]: Date.now() + 15 * 24 * 60 * 60 * 1000 });
+      await writeStorageValue({ [diagnosticsConsentStorageKey]: result?.confirmed === true });
+      if (result?.confirmed) scheduleDiagnosticsUpload(1_000);
     })().catch((error) => {
       diagnosticsConsentPromptScheduled = false;
       void writeDebugLog(`diagnostics-consent-prompt-error ${error?.message || String(error)}`);

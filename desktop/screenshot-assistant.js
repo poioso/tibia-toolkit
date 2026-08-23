@@ -83,11 +83,11 @@ function setEnabledBusy(value) {
 
 function setNewScreenshotCount(value) {
   const count = Math.max(0, Number(value) || 0);
-  const icon = els.openFolder.querySelector("img");
-  if (icon) {
-    icon.src = count > 0
-      ? "../assets/ui/tutorial/folder.gif"
-      : "../assets/ui/tutorial/folder-inactive.png";
+    const icon = els.openFolder.querySelector("img");
+    if (icon) {
+      icon.src = count > 0
+      ? "tibiatoolkit://app/assets/ui/tutorial/folder.gif"
+      : "tibiatoolkit://app/assets/ui/tutorial/folder-inactive.png";
   }
   els.openFolder.classList.toggle("has-new-screenshots", count > 0);
   els.openFolderCount.hidden = count < 1;

@@ -7,6 +7,7 @@ import { getContentPackChunkGroup } from "../lib/content-pack/chunk-groups.js";
 const MANIFEST_FILE = "content-manifest.json";
 const PENDING_UPDATE_FILE = "pending-update.json";
 const REMOTE_REQUEST_TIMEOUT_MS = 30_000;
+const LEGACY_MANIFEST_TIMEOUT_MS = 5_000;
 const DOWNLOAD_ATTEMPTS_PER_SOURCE = 3;
 const MAX_ARCHIVE_BYTES = 2 * 1024 * 1024 * 1024;
 const MAX_ARCHIVE_ENTRIES = 25_000;
@@ -508,6 +509,17 @@ export async function ensureContentPack({
     .stat(installedAssetsRoot)
     .then((entry) => entry.isDirectory())
     .catch(() => false);
+  // Content Packs generated before the chunk manifest was introduced are
+  // valid archives, but they are not safe to trust as the active cache: they
+  // cannot be incrementally compared and may be missing assets added later.
+  // Keep modern caches on the fast path, while forcing a complete manifest
+  // check/download for this legacy format.
+  const isLegacyInstalledPack = Boolean(
+    installed?.version
+      && installed?.sha256
+      && hasInstalledAssets
+      && (!Array.isArray(installed.chunks) || installed.chunks.length === 0)
+  );
   const pending = await readJson(path.join(packRoot, PENDING_UPDATE_FILE));
   if (installed?.version && installed?.sha256 && hasInstalledAssets && pending?.manifest) {
     const applied = await applyPendingChunkUpdate({
@@ -523,17 +535,31 @@ export async function ensureContentPack({
       return { assetsRoot: installedAssetsRoot, source: "pending-update", version: String(updated?.version || installed.version) };
     }
   }
-  // A previously verified pack is enough to open immediately. Remote checks are
-  // deliberately moved out of the critical path so a slow CDN cannot delay a
-  // working installed app.
-  if (installed?.version && installed?.sha256 && hasInstalledAssets) {
+  // A previously verified modern pack is enough to open immediately. Remote
+  // checks remain out of the critical path for these packs so a slow CDN
+  // cannot delay a working installed app. Legacy packs are intentionally
+  // excluded: the old manifest has no chunks and must be compared with the
+  // current remote manifest before it can be trusted again.
+  if (installed?.version && installed?.sha256 && hasInstalledAssets && !isLegacyInstalledPack) {
     return { assetsRoot: installedAssetsRoot, source: "cache", version: String(installed.version) };
+  }
+
+  if (isLegacyInstalledPack) {
+    onDiagnostic?.({
+      phase: "legacy-cache",
+      code: "CONTENT_LEGACY_CACHE_REJECTED",
+      error: new Error(`Content Pack legado ${installed.version} sem chunks; sera feita uma verificacao completa.`)
+    });
   }
 
   let manifests = [];
 
   try {
-    manifests = await fetchManifestCandidates(manifestUrls, onDiagnostic);
+    manifests = await fetchManifestCandidates(
+      manifestUrls,
+      onDiagnostic,
+      isLegacyInstalledPack ? { timeoutMs: LEGACY_MANIFEST_TIMEOUT_MS } : {}
+    );
   } catch (error) {
     if (hasInstalledAssets) {
       return {
