@@ -20959,6 +20959,7 @@ function renderImbuementIngredientsLegacy(rows) {
     .map((row) => {
       const slug = row.meta?.slug || "";
       const imageSrc = row.meta?.imageSrc || "";
+      const name = escapeHtml(row.name || "");
       const quantityLabel = state.mixedPurchaseEnabled
         ? `${row.missingQuantity} falta / ${row.quantity} total`
         : row.quantity;
@@ -20974,8 +20975,8 @@ function renderImbuementIngredientsLegacy(rows) {
 
       return `
         <div class="imbuement-row">
-          <button class="ingredient-button" type="button" data-slug="${slug}" data-name="${row.name}" data-image-src="${imageSrc}">
-            <img src="${imageSrc}" alt="${row.name}">
+          <button class="ingredient-button" type="button" data-slug="${escapeHtml(slug)}" data-name="${name}" data-image-src="${escapeHtml(imageSrc)}">
+            <img src="${escapeHtml(imageSrc)}" alt="${name}">
             <div>
               <small class="ingredient-button-kicker">${escapeHtml(t("common.ingredient"))}</small>
               <strong>${name}</strong>
