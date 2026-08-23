@@ -17110,12 +17110,15 @@ async function openLootMonster(name) {
   }
 
   const local = findLocalCreature(name);
+  if (!local?.name) {
+    return;
+  }
   pushCurrentNavigationEntry();
   switchSection("npcs", { skipHistory: true });
   await setEntityViewMode(local?.bossCategory ? "bosses" : "monsters", {
     skipHistory: true
   });
-  await openMonsterDetail(local?.name || name, { skipHistory: true });
+  await openMonsterDetail(local.name, { skipHistory: true });
 }
 
 async function openLootItem(name) {
