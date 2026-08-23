@@ -2476,6 +2476,11 @@ app.on("before-quit", (event) => {
 
   void applicationShutdownPromise.finally(() => {
     applicationShutdownComplete = true;
+    if (appUpdaterController?.install?.()) {
+      void writeDebugLog("app-updater instalacao acionada apos o encerramento dos processos.");
+      app.quit();
+      return;
+    }
     app.quit();
   });
 });
