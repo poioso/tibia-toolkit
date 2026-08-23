@@ -1,6 +1,7 @@
 Tibia Toolkit 0.7.4
 
 - Versão completa do aplicativo com o runtime, os recursos e o Content Pack atuais, revalidando o instalador e os assets das janelas externas.
+- Corrigido um problema que impedia o Top Apoiadores de carregar a skin personalizada do usuário no aplicativo.
 
 Tibia Toolkit 0.7.3
 
