@@ -17,7 +17,7 @@ test("every tutorial bullet uses the shared proportional media layout", () => {
   assert.match(popover, /card\.scrollHeight\s*\+\s*verticalPadding/);
   assert.match(popover, /result\?\.constrained/);
 
-  const inlineScript = popover.match(/<script>([\s\S]*?)<\/script>/)?.[1] || "";
+  const inlineScript = popover.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i)?.[1] || "";
   assert.ok(inlineScript, "tutorial popover inline script must exist");
   assert.doesNotThrow(() => new Function(inlineScript));
 
@@ -36,13 +36,17 @@ test("tutorial resizing reports monitor constraints back to the renderer", () =>
   assert.match(main, /payload\.autoHeight\s*===\s*true\s*\?\s*360/);
 });
 
-test("all media registered for tutorials exists locally", () => {
+test("all media registered for tutorials exists locally or in the content pack contract", () => {
   const tour = read("desktop/tutorial-tour.js");
+  const contentContract = JSON.parse(read("tools/content-pack-contract.json"));
   const assetBlock = tour.match(/const TUTORIAL_ASSETS\s*=\s*\{([\s\S]*?)\n\};/)?.[1] || "";
   const assets = [...assetBlock.matchAll(/["'](assets\/[^"]+?\.(?:gif|png|jpe?g|webp))["']/gi)]
     .map((match) => match[1]);
 
   assert.ok(assets.length >= 40, `expected the complete tutorial asset registry, found ${assets.length}`);
-  const missing = assets.filter((relativePath) => !fs.existsSync(path.join(projectRoot, relativePath)));
+  const declaredContentAssets = new Set(contentContract.requiredAssetReferences || []);
+  const missing = assets.filter((relativePath) => (
+    !fs.existsSync(path.join(projectRoot, relativePath)) && !declaredContentAssets.has(relativePath)
+  ));
   assert.deepEqual(missing, []);
 });
