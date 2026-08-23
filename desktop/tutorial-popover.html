@@ -6,9 +6,15 @@
   <title>Tutorial</title>
   <style>
     * { box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+    html { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
     body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
       padding: 16px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      background: transparent;
       color: #eef5ff;
       font-family: "Nunito", "Trebuchet MS", sans-serif;
       user-select: none;
@@ -18,9 +24,9 @@
       display: flex;
       flex-direction: column;
       width: 100%;
-      height: 100%;
+      height: auto;
       padding: 13px;
-      overflow: hidden;
+      overflow: visible;
       border: 1px solid rgba(88, 196, 112, .78);
       border-radius: 10px;
       background:
@@ -52,19 +58,22 @@
     .gif {
       display: block;
       width: 100%;
+      height: auto;
+      max-width: 100%;
+      max-height: none;
       min-height: 0;
-      flex: 1 1 auto;
+      flex: 0 0 auto;
       margin: 0 auto 10px;
       border: 1px solid rgba(120,139,164,.32);
       border-radius: 7px;
-      object-fit: cover;
+      object-fit: contain;
       image-rendering: pixelated;
     }
     .gif.gif-natural {
       flex: 0 0 auto;
       height: auto;
-      max-height: 240px;
-      object-fit: cover;
+      max-height: none;
+      object-fit: contain;
     }
     .gif[hidden] {
       display: none !important;
@@ -87,8 +96,7 @@
     .card.long-copy {
       padding: 12px;
     }
-    .card.long-copy .gif.gif-natural {
-      max-height: 238px;
+    .card.long-copy .gif {
       margin-bottom: 8px;
     }
     .card.long-copy p {
@@ -167,6 +175,29 @@
     button:active { transform: translateY(0) scale(.98); }
     button:disabled { pointer-events: none; filter: grayscale(.35) brightness(.78); }
     button img { max-width: 38px; max-height: 30px; image-rendering: pixelated; pointer-events: none; }
+    .button-tooltip {
+      position: fixed;
+      z-index: 20;
+      display: none;
+      max-width: 270px;
+      padding: 5px 8px;
+      border: 1px solid rgba(218, 199, 124, .88);
+      border-radius: 0;
+      background: #1b222d;
+      color: #f4f6fa;
+      font: 12px/1.25 "Trebuchet MS", sans-serif;
+      white-space: normal;
+      text-align: center;
+      pointer-events: none;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, .34);
+    }
+    .button-tooltip.visible { display: block; }
+    .restart-note {
+      display: block;
+      margin-top: 8px;
+      color: #ffd65a;
+      font-weight: 900;
+    }
   </style>
 </head>
 <body>
@@ -178,7 +209,8 @@
     <footer>
       <span class="progress" id="step-progress"></span>
       <button id="next-button" type="button"><img id="next-icon" alt=""></button>
-    </footer>
+  </footer>
+  <div class="button-tooltip" id="button-tooltip" role="tooltip" aria-hidden="true"></div>
   </section>
   <script>
     const gif = document.querySelector("#guide-gif");
@@ -188,25 +220,109 @@
     const nextIcon = document.querySelector("#next-icon");
     const cancelButton = document.querySelector("#cancel-button");
     const cancelIcon = document.querySelector("#cancel-icon");
+    const buttonTooltip = document.querySelector("#button-tooltip");
     const card = document.querySelector(".card");
     const supplemental = document.querySelector("#step-supplemental");
-    const footer = document.querySelector("footer");
+    const preloadedTutorialAssets = new Map();
+    let renderSequence = 0;
 
-    function resizeToContentIfNeeded() {
-      const bodyBounds = document.body.getBoundingClientRect();
-      const footerBounds = footer.getBoundingClientRect();
-      const bottomPadding = Number.parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
-      const requiredHeight = Math.ceil(footerBounds.bottom - bodyBounds.top + bottomPadding);
-      window.tutorialPopoverApi.resizeToContent(requiredHeight);
+    function hideButtonTooltip() {
+      buttonTooltip.classList.remove("visible");
+      buttonTooltip.setAttribute("aria-hidden", "true");
     }
 
-    window.tutorialPopoverApi.onRender((payload) => {
+    function showButtonTooltip(button) {
+      const message = String(button.getAttribute("aria-label") || "").trim();
+      if (!message || button.disabled) return;
+      buttonTooltip.textContent = message;
+      buttonTooltip.setAttribute("aria-hidden", "false");
+      buttonTooltip.classList.add("visible");
+
+      const buttonRect = button.getBoundingClientRect();
+      const tooltipRect = buttonTooltip.getBoundingClientRect();
+      const margin = 4;
+      const gap = 5;
+      const topAbove = buttonRect.top - tooltipRect.height - gap;
+      const top = topAbove >= margin ? topAbove : buttonRect.bottom + gap;
+      const left = Math.max(
+        margin,
+        Math.min(
+          buttonRect.left + (buttonRect.width - tooltipRect.width) / 2,
+          window.innerWidth - tooltipRect.width - margin
+        )
+      );
+      buttonTooltip.style.left = `${Math.round(left)}px`;
+      buttonTooltip.style.top = `${Math.round(Math.min(top, window.innerHeight - tooltipRect.height - margin))}px`;
+    }
+
+    for (const button of [nextButton, cancelButton]) {
+      button.addEventListener("pointerenter", () => showButtonTooltip(button));
+      button.addEventListener("pointerleave", hideButtonTooltip);
+      button.addEventListener("focus", () => showButtonTooltip(button));
+      button.addEventListener("blur", hideButtonTooltip);
+    }
+
+    function preloadTutorialAsset(src) {
+      if (!src || preloadedTutorialAssets.has(src)) return;
+      const image = new Image();
+      image.decoding = "async";
+      image.src = src;
+      preloadedTutorialAssets.set(src, image);
+    }
+
+    window.tutorialPopoverApi.onPreloadAssets((assets) => {
+      for (const src of Array.isArray(assets) ? assets : []) {
+        preloadTutorialAsset(src);
+      }
+    });
+
+    function getRequiredHeight() {
+      const bodyStyle = getComputedStyle(document.body);
+      const verticalPadding = (Number.parseFloat(bodyStyle.paddingTop) || 0)
+        + (Number.parseFloat(bodyStyle.paddingBottom) || 0);
+      return Math.ceil(card.scrollHeight + verticalPadding);
+    }
+
+    async function resizeToContentIfNeeded(sequence) {
+      if (sequence !== renderSequence) return;
+
+      const mediaHeight = gif.hidden ? 0 : gif.getBoundingClientRect().height;
+      const requiredHeight = getRequiredHeight();
+      const result = await window.tutorialPopoverApi.resizeToContent(requiredHeight);
+      if (sequence !== renderSequence || !result?.constrained || gif.hidden) return;
+
+      const nonMediaHeight = Math.max(0, requiredHeight - mediaHeight);
+      const availableMediaHeight = Math.max(48, result.height - nonMediaHeight - 2);
+      if (availableMediaHeight >= mediaHeight - 1) return;
+
+      // When the complete tutorial would exceed the monitor, shrink only the
+      // media box. object-fit: contain preserves the whole image and its ratio.
+      gif.style.width = "100%";
+      gif.style.height = `${Math.floor(availableMediaHeight)}px`;
+      gif.style.maxHeight = `${Math.floor(availableMediaHeight)}px`;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      if (sequence !== renderSequence) return;
+      await window.tutorialPopoverApi.resizeToContent(getRequiredHeight());
+    }
+
+    function renderTutorialPopover(payload) {
+      const sequence = ++renderSequence;
+      card.style.visibility = "";
       card.classList.remove("is-entering");
       // Force the browser to commit the removal before starting the next step.
       void card.offsetWidth;
-      gif.src = payload.gif;
-      gif.hidden = payload.hideGif === true;
-      gif.style.objectFit = payload.gifFit === "contain" ? "contain" : "cover";
+      gif.style.width = "100%";
+      gif.style.height = "auto";
+      gif.style.maxHeight = "none";
+      // A troca direta de src preserva o ultimo frame ja decodificado ate o
+      // novo GIF ficar pronto. Em passos consecutivos isso fazia a imagem do
+      // passo anterior aparecer por um instante. Esconda e remova a origem
+      // anterior antes de carregar a proxima, revelando-a so no load atual.
+      const shouldShowGif = payload.hideGif !== true && Boolean(payload.gif);
+      gif.hidden = true;
+      gif.style.visibility = "hidden";
+      gif.removeAttribute("src");
+      gif.style.objectFit = "contain";
       gif.classList.toggle("gif-natural", payload.gifNatural === true);
       supplemental.replaceChildren(...(Array.isArray(payload.supplementalImages)
         ? payload.supplementalImages.filter(Boolean).map((src) => {
@@ -228,29 +344,72 @@
       nextIcon.src = payload.buttonIcon;
       cancelIcon.src = payload.cancelIcon;
       cancelButton.setAttribute("aria-label", payload.cancelLabel);
-      cancelButton.title = payload.cancelLabel;
+      cancelButton.setAttribute("aria-describedby", "button-tooltip");
       cancelButton.disabled = false;
       nextButton.setAttribute("aria-label", payload.buttonLabel);
-      nextButton.title = payload.buttonLabel;
+      nextButton.setAttribute("aria-describedby", "button-tooltip");
       nextButton.disabled = false;
+      hideButtonTooltip();
+      const resizeAfterMedia = () => {
+        if (payload.autoHeight === true) void resizeToContentIfNeeded(sequence);
+      };
+
+      if (shouldShowGif) {
+        const expectedSrc = payload.gif;
+        // Keep only the current and immediately following GIF warm. Loading
+        // the entire tutorial pack at startup made weak machines decode many
+        // large animations before the first step was visible.
+        preloadTutorialAsset(payload.nextGif);
+        const revealGif = () => {
+          if (sequence !== renderSequence || gif.getAttribute("src") !== expectedSrc) return;
+          gif.hidden = false;
+          gif.style.visibility = "";
+          resizeAfterMedia();
+        };
+        gif.addEventListener("load", revealGif, { once: true });
+        gif.src = expectedSrc;
+        if (gif.complete && gif.naturalWidth > 0) {
+          queueMicrotask(revealGif);
+        }
+      }
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          if (payload.autoHeight === true) {
-            resizeToContentIfNeeded();
-          }
+          resizeAfterMedia();
           card.classList.add("is-entering");
         });
       });
-    });
+    }
+
+    function clearTutorialPopover() {
+      // Limpa a superficie ainda visivel antes de a janela ser escondida. Sem
+      // isso o compositor do Windows pode reapresentar o frame anterior quando
+      // a BrowserWindow reutilizada volta a aparecer no proximo passo.
+      renderSequence += 1;
+      card.classList.remove("is-entering");
+      card.style.visibility = "hidden";
+      gif.hidden = true;
+      gif.removeAttribute("src");
+      supplemental.replaceChildren();
+      supplemental.classList.remove("visible");
+    }
+
+    // O processo principal pode preparar o DOM enquanto esta BrowserWindow
+    // ainda esta oculta. Assim, uma janela reutilizada nunca reaparece com o
+    // texto, progresso ou GIF do passo anterior.
+    window.renderTutorialPopover = renderTutorialPopover;
+    window.clearTutorialPopover = clearTutorialPopover;
+    window.tutorialPopoverApi.onRender(renderTutorialPopover);
 
     nextButton.addEventListener("click", () => {
       nextButton.disabled = true;
       cancelButton.disabled = true;
+      hideButtonTooltip();
       window.tutorialPopoverApi.next();
     });
     cancelButton.addEventListener("click", () => {
       cancelButton.disabled = true;
       nextButton.disabled = true;
+      hideButtonTooltip();
       window.tutorialPopoverApi.cancel();
     });
   </script>

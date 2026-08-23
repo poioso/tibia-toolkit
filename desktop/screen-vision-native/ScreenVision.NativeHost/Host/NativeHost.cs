@@ -6,6 +6,7 @@ internal sealed class NativeHost : IDisposable
     private readonly NativeAlertAudioPlayer _alertAudioPlayer;
     private readonly NativeMirrorManager _mirrorManager;
     private readonly NativeSelectionManager _selectionManager;
+    private readonly NativeCursorMagnifierManager _cursorMagnifierManager;
     private readonly NativeGridOverlayManager _gridOverlayManager;
     private readonly NativeVisualCustomizationManager _visualCustomizationManager;
     private readonly PipeServer _pipeServer;
@@ -15,11 +16,13 @@ internal sealed class NativeHost : IDisposable
         _alertAudioPlayer = new NativeAlertAudioPlayer();
         _mirrorManager = new NativeMirrorManager(_eventQueue);
         _selectionManager = new NativeSelectionManager();
+        _cursorMagnifierManager = new NativeCursorMagnifierManager();
         _gridOverlayManager = new NativeGridOverlayManager();
         _visualCustomizationManager = new NativeVisualCustomizationManager(_eventQueue);
         _pipeServer = new PipeServer(
             _mirrorManager,
             _selectionManager,
+            _cursorMagnifierManager,
             _gridOverlayManager,
             _visualCustomizationManager,
             _alertAudioPlayer,
@@ -34,6 +37,7 @@ internal sealed class NativeHost : IDisposable
     public void Dispose()
     {
         _mirrorManager.ClearMirrorsAsync().GetAwaiter().GetResult();
+        _cursorMagnifierManager.Dispose();
         _gridOverlayManager.Dispose();
         _visualCustomizationManager.Dispose();
         _alertAudioPlayer.Dispose();

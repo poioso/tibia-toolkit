@@ -1,5 +1,5 @@
-import { t } from "../../lib/app-i18n.js";
-import { bootstrapRendererLocale } from "../../lib/renderer-locale.js";
+import { t } from "../../lib/i18n/app-i18n.js";
+import { bootstrapRendererLocale } from "../../lib/i18n/renderer-locale.js";
 
 const COUNTDOWN_COLOR_OPTIONS = [
   { value: "gradient", label: "Gradiente", swatch: "linear-gradient(90deg, #4ade80 0%, #ffd84d 48%, #ff5353 100%)" },

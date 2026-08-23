@@ -10,7 +10,7 @@
     <div class="vision-shell" id="vision-shell">
       <header class="vision-titlebar">
         <div class="vision-brand">
-          <img src="../../assets/ui/poioso-app-icon.png" alt="">
+          <img src="../../assets/ui/loading-emblem.png" alt="">
           <strong><span>Screen</span><span>Vision</span></strong>
         </div>
 
@@ -43,7 +43,7 @@
           >
             <span class="svg-icon" data-icon="lock-open"></span>
           </button>
-          <strong class="toolbar-counter" id="region-count">0/&infin;</strong>
+          <strong class="toolbar-counter" id="region-count" role="button" tabindex="0" aria-disabled="false">0/10</strong>
           <span class="vision-toolbar-divider" aria-hidden="true"></span>
           <button
             type="button"
@@ -53,6 +53,15 @@
             data-tooltip="Ativar espelhos no OBS"
           >
             <img src="../../assets/ui/tools/tibia-eye/toolbar/obs.webp" alt="">
+          </button>
+          <button
+            type="button"
+            class="toolbar-state-tile toolbar-action-tile"
+            id="obs-window-mirror-button"
+            aria-label="OBS Mirror"
+            data-tooltip="Criar espelho da janela do OBS"
+          >
+            <img src="../../assets/ui/tools/tibia-eye/toolbar/obs-mirror.png" alt="">
           </button>
           <button type="button" class="toolbar-text-button" id="add-region-button" data-tooltip="Criar uma nova regiao manualmente.">ADD REGION</button>
           <button

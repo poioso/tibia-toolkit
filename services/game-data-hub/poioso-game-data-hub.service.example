@@ -1,0 +1,22 @@
+[Unit]
+Description=Poioso Game Data Hub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=poioso-market
+Group=poioso-market
+WorkingDirectory=/opt/poioso-game-data-hub
+ExecStart=/usr/bin/node /opt/poioso-game-data-hub/services/game-data-hub/server.mjs
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=GAME_DATA_HUB_CONFIG_PATH=/opt/poioso-game-data-hub/services/game-data-hub/config.json
+Environment=PLAYWRIGHT_BROWSERS_PATH=/var/lib/poioso-game-data-hub/playwright
+# Configure the key only on the server; never commit it into config.json.
+Environment=OPENAI_API_KEY=replace-with-the-server-secret
+Environment=OPENAI_TRANSLATION_MODEL=gpt-5-mini
+
+[Install]
+WantedBy=multi-user.target

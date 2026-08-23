@@ -1,86 +1,36 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import AdmZip from "adm-zip";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = path.resolve(import.meta.dirname, "..");
 const archivePath = path.resolve(process.argv[2] || "");
-const sourceFiles = [
-  "app.js",
-  "index.html",
-  "styles.css",
-  "desktop/tutorial-tour.js",
-  "lib/data-service.js",
-  "lib/ui-translations.js"
-];
-const assetReference = /assets\/[^"'`\s)<>]+?\.(?:gif|png|jpg|jpeg|webp|svg|ogg|json|html|css|js)/g;
+if (!archivePath || !fs.existsSync(archivePath)) throw new Error("Informe o caminho de um ZIP de conteudo existente.");
+const contract = JSON.parse(fs.readFileSync(path.join(root, "tools", "content-pack-contract.json"), "utf8"));
+const archive = new AdmZip(archivePath);
+const entries = new Set();
+for (const entry of archive.getEntries()) {
+  if (entry.isDirectory) continue;
+  if (entry.getData().length === 0) throw new Error(`Entrada vazia no Content Pack: ${entry.entryName}`);
+  entries.add(entry.entryName.replaceAll("\\", "/"));
+}
+const required = new Set([...(contract.staticAssetReferences || []), ...(contract.dynamicAssetReferences || []), ...(contract.requiredAssetReferences || [])]);
 const booksCatalogPath = "assets/data/books-documents/tibiawiki.audit.json";
-
-if (!archivePath || !fs.existsSync(archivePath)) {
-  throw new Error("Informe o caminho de um ZIP de conteudo existente.");
-}
-
-const references = new Set();
-for (const relativePath of sourceFiles) {
-  const source = fs.readFileSync(path.join(root, relativePath), "utf8");
-  for (const match of source.matchAll(assetReference)) {
-    references.add(match[0].replaceAll("\\\\", "/"));
-  }
-}
-
-const entries = new Set(
-  new AdmZip(archivePath)
-    .getEntries()
-    .filter((entry) => !entry.isDirectory)
-    .map((entry) => entry.entryName)
-);
-
-function normalizeBookImagePath(source) {
-  const remoteFilename = decodeURIComponent(String(source || "").split("/").at(-1) || "book.gif")
-    .replace(/[?#].*$/, "");
-  const extension = remoteFilename.match(/(\.[a-z0-9]+)$/i)?.[1]?.toLowerCase() || ".gif";
-  const filename = remoteFilename
-    .slice(0, -extension.length)
-    .toLocaleLowerCase("en-US")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-  return `assets/data/books-documents/images/${filename || "book"}${extension}`;
-}
-
-// Book appearance images are resolved from each catalog record at runtime, so
-// they cannot be discovered by the static source scan above. Audit them from
-// the same catalog that the renderer consumes.
+const missing = [...required].filter((reference) => !entries.has(reference)).sort();
+const booksCatalogEntry = archive.getEntry(booksCatalogPath);
 const bookImageReferences = new Set();
-const booksCatalogEntry = new AdmZip(archivePath).getEntry(booksCatalogPath);
-if (!booksCatalogEntry) {
-  bookImageReferences.add(booksCatalogPath);
-} else {
-  const booksCatalog = JSON.parse(booksCatalogEntry.getData().toString("utf8"));
-  for (const record of Array.isArray(booksCatalog?.records) ? booksCatalog.records : []) {
+if (!booksCatalogEntry) missing.push(booksCatalogPath);
+else {
+  const catalog = JSON.parse(booksCatalogEntry.getData().toString("utf8"));
+  for (const record of Array.isArray(catalog?.records) ? catalog.records : []) {
     for (const appearance of Array.isArray(record?.appearances) ? record.appearances : []) {
-      bookImageReferences.add(normalizeBookImagePath(appearance?.source));
+      const source = decodeURIComponent(String(appearance?.source || "").split("/").at(-1) || "book.gif").replace(/[?#].*$/, "");
+      const extension = source.match(/(\.[a-z0-9]+)$/i)?.[1]?.toLowerCase() || ".gif";
+      const filename = source.slice(0, -extension.length).toLocaleLowerCase("en-US").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+      bookImageReferences.add(`assets/data/books-documents/images/${filename || "book"}${extension}`);
     }
   }
 }
-const dynamicReferences = [...references].filter((reference) => reference.includes("${")).sort();
-const requiredReferences = new Set([
-  ...references,
-  ...bookImageReferences
-]);
-const missing = [...requiredReferences]
-  .filter((reference) => !reference.includes("${"))
-  .filter((reference) => !entries.has(reference))
-  .sort();
-
-console.log(JSON.stringify({
-  archive: archivePath,
-  staticReferences: references.size,
-  bookImageReferences: bookImageReferences.size,
-  dynamicReferences,
-  archiveFiles: entries.size,
-  missing
-}, null, 2));
-
-if (missing.length > 0) {
-  process.exitCode = 1;
-}
+for (const reference of bookImageReferences) if (!entries.has(reference)) missing.push(reference);
+const result = { archive: archivePath, archiveFiles: entries.size, requiredReferences: required.size, bookImageReferences: bookImageReferences.size, missing: [...new Set(missing)].sort() };
+console.log(JSON.stringify(result, null, 2));
+if (result.missing.length) process.exitCode = 1;

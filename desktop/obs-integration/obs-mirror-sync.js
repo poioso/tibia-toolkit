@@ -57,17 +57,38 @@ export class ObsMirrorSync {
       }
     }
 
-    const scene = await this.#obs.call("GetCurrentProgramScene");
-    this.#sceneName = String(scene?.currentProgramSceneName || "").trim();
-    if (!this.#sceneName) {
-      throw new Error("OBS nao informou uma cena ativa para receber os espelhos.");
-    }
+    try {
+      const target = await this.#findTibiaSceneTarget();
+      this.#sceneName = target.sceneName;
+      if (!this.#sceneName) {
+        throw createObsMirrorError("OBS_SCENE_UNAVAILABLE", "OBS nao informou uma cena ativa para receber os espelhos.");
+      }
+      if (!target.gameCapture) {
+        throw createObsMirrorError(
+          "OBS_TIBIA_CAPTURE_MISSING",
+          "Adicione uma fonte de Captura de Jogo do Tibia na cena de Programa ou Previa do OBS antes de ativar os espelhos."
+        );
+      }
 
-    this.#enabled = true;
-    this.#lastError = "";
-    await this.#removeLegacyWindowSources();
-    await this.#enqueueSync({ regions, tibiaState });
-    return this.getStatus();
+      this.#enabled = true;
+      this.#lastError = "";
+      await this.#removeLegacyWindowSources();
+      await this.#enqueueSync({ regions, tibiaState });
+      return this.getStatus();
+    } catch (error) {
+      // A failed first sync must not leave the toolbar looking enabled or keep
+      // a client that obs-websocket-js can no longer reconnect reliably.
+      this.#enabled = false;
+      this.#connected = false;
+      this.#sceneName = "";
+      try {
+        await this.#obs?.disconnect();
+      } catch {
+        // The rejected or partially initialized connection may already be gone.
+      }
+      this.#obs = null;
+      throw error;
+    }
   }
 
   async disable() {
@@ -92,6 +113,7 @@ export class ObsMirrorSync {
       } catch {
         // OBS may already have closed the socket.
       }
+      this.#obs = null;
     }
 
     return this.getStatus();
@@ -134,16 +156,22 @@ export class ObsMirrorSync {
       return;
     }
 
-    const activeScene = await this.#obs.call("GetCurrentProgramScene");
-    const latestSceneName = String(activeScene?.currentProgramSceneName || "").trim();
+    const target = await this.#findTibiaSceneTarget();
+    const latestSceneName = target.sceneName;
+    const gameCapture = target.gameCapture;
+    if (!latestSceneName) {
+      throw createObsMirrorError("OBS_SCENE_UNAVAILABLE", "OBS nao informou uma cena ativa para receber os espelhos.");
+    }
+    if (!gameCapture) {
+      throw createObsMirrorError(
+        "OBS_TIBIA_CAPTURE_MISSING",
+        "Adicione uma fonte de Captura de Jogo do Tibia na cena de Programa ou Previa do OBS antes de ativar os espelhos."
+      );
+    }
+
     if (latestSceneName && latestSceneName !== this.#sceneName) {
       await this.#removeManagedItems();
       this.#sceneName = latestSceneName;
-    }
-
-    const gameCapture = await this.#findTibiaGameCapture();
-    if (!gameCapture) {
-      throw new Error("Adicione uma fonte de Captura de Jogo do Tibia na cena ativa do OBS antes de ativar os espelhos.");
     }
 
     const activeIds = new Set();
@@ -186,10 +214,35 @@ export class ObsMirrorSync {
     }
   }
 
-  async #findTibiaGameCapture() {
+  async #findTibiaSceneTarget() {
+    const program = await this.#obs.call("GetCurrentProgramScene");
+    const programSceneName = String(program?.currentProgramSceneName || "").trim();
+    let previewSceneName = "";
+    try {
+      const preview = await this.#obs.call("GetCurrentPreviewScene");
+      previewSceneName = String(preview?.currentPreviewSceneName || "").trim();
+    } catch {
+      // OBS rejects GetCurrentPreviewScene when Studio Mode is disabled.
+    }
+
+    const candidates = [...new Set([programSceneName, previewSceneName].filter(Boolean))];
+    for (const sceneName of candidates) {
+      const gameCapture = await this.#findTibiaGameCapture(sceneName);
+      if (gameCapture) {
+        return { sceneName, gameCapture };
+      }
+    }
+
+    return {
+      sceneName: programSceneName || previewSceneName,
+      gameCapture: null
+    };
+  }
+
+  async #findTibiaGameCapture(sceneName) {
     const [inputs, sceneItems] = await Promise.all([
       this.#obs.call("GetInputList"),
-      this.#getSceneItems()
+      this.#getSceneItems(sceneName)
     ]);
     const managedItemIds = new Set([...this.#managedItems.values()].map((item) => Number(item.sceneItemId)));
     const baseSceneItemBySource = new Map();
@@ -217,7 +270,7 @@ export class ObsMirrorSync {
 
       const sceneItem = baseSceneItemBySource.get(sourceName);
       const transform = await this.#obs.call("GetSceneItemTransform", {
-        sceneName: this.#sceneName,
+        sceneName,
         sceneItemId: Number(sceneItem.sceneItemId)
       });
       if (Number(transform?.sceneItemTransform?.sourceWidth) > 0 && Number(transform?.sceneItemTransform?.sourceHeight) > 0) {
@@ -293,8 +346,8 @@ export class ObsMirrorSync {
     }
   }
 
-  async #getSceneItems() {
-    const result = await this.#obs.call("GetSceneItemList", { sceneName: this.#sceneName });
+  async #getSceneItems(sceneName = this.#sceneName) {
+    const result = await this.#obs.call("GetSceneItemList", { sceneName });
     return Array.isArray(result?.sceneItems) ? result.sceneItems : [];
   }
 
@@ -308,12 +361,22 @@ export class ObsMirrorSync {
   }
 
   #createClient() {
-    this.#obs = new OBSWebSocket();
-    this.#obs.on("ConnectionClosed", () => {
-      this.#connected = false;
-      this.#enabled = false;
+    const client = new OBSWebSocket();
+    this.#obs = client;
+    client.on("ConnectionClosed", () => {
+      if (this.#obs === client) {
+        this.#obs = null;
+        this.#connected = false;
+        this.#enabled = false;
+      }
     });
   }
+}
+
+function createObsMirrorError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 function buildMirrorTransform({ captureBounds, mirrorBounds, tibiaBounds, sourceTransform }) {

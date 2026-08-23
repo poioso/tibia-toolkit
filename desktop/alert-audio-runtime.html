@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; media-src file:; script-src 'unsafe-inline'">
+  <title>Tibia Toolkit Alert Audio</title>
+</head>
+<body>
+  <script>
+    (() => {
+      const queue = [];
+      let playing = false;
+
+      async function playNext() {
+        if (playing || queue.length === 0) return;
+        playing = true;
+        const entry = queue.shift() || {};
+        const audio = new Audio(entry.file || "");
+        audio.volume = Math.max(0, Math.min(1, Number(entry.volume) || 0));
+        let playbackStarted = false;
+
+        await new Promise((finishEntry) => {
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            try { audio.pause(); } catch {}
+            audio.src = "";
+            finishEntry();
+          };
+
+          audio.addEventListener("ended", finish, { once: true });
+          audio.addEventListener("error", finish, { once: true });
+          setTimeout(finish, Math.max(1000, Number(entry.maxDurationMs) || 6000));
+          audio.play().then(() => {
+            playbackStarted = true;
+            entry.resolve?.({ ok: true });
+          }).catch((error) => {
+            entry.resolve?.({ ok: false, error: error?.message || String(error) });
+            finish();
+          });
+        });
+
+        if (!playbackStarted) {
+          entry.resolve?.({ ok: false, error: "audio-did-not-start" });
+        }
+        playing = false;
+        playNext();
+      }
+
+      window.__alertAudioRuntime = {
+        enqueue(entry) {
+          return new Promise((resolve) => {
+            queue.push({ ...(entry || {}), resolve });
+            playNext();
+          });
+        }
+      };
+    })();
+  </script>
+</body>
+</html>

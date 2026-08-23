@@ -7,6 +7,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>ScreenVision.NativeHost</AssemblyName>
     <RootNamespace>ScreenVision.NativeHost</RootNamespace>
+    <!-- Keep the technical executable name because Electron and the installer
+         use it to locate/stop the helper, but expose the product identity in
+         Windows surfaces such as Volume Mixer and Task Manager. -->
+    <AssemblyTitle>Tibia Toolkit</AssemblyTitle>
+    <Product>Tibia Toolkit</Product>
+    <Company>Tibia Toolkit</Company>
+    <Description>Tibia Toolkit audio and overlay service</Description>
+    <ApplicationIcon>..\..\build\icon.ico</ApplicationIcon>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>

@@ -1,0 +1,14 @@
+[Unit]
+Description=Reverse tunnel for Poioso Game Data Hub Oracle 1
+After=network-online.target poioso-game-data-hub.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+ExecStart=/usr/bin/ssh -NT -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -o StrictHostKeyChecking=no -i /home/ubuntu/.ssh/poioso_hospedainfo_tunnel -R 0.0.0.0:4318:127.0.0.1:4318 root@138.117.217.99
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

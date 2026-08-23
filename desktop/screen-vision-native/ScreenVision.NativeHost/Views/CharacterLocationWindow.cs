@@ -93,10 +93,21 @@ internal sealed class CharacterLocationWindow : Window
             }
             else
             {
-                WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                WindowStartupLocation = WindowStartupLocation.Manual;
+                var workArea = SystemParameters.WorkArea;
+                Left = workArea.Left + ((workArea.Width - Width) / 2.0);
+                Top = workArea.Top + ((workArea.Height - Height) / 2.0);
             }
 
             _positionInitialized = true;
+        }
+    }
+
+    internal void BringToFrontNoActivate()
+    {
+        if (_windowHandle != IntPtr.Zero)
+        {
+            WindowStyleInterop.BringWindowToFrontNoActivate(_windowHandle, true);
         }
     }
 
@@ -146,14 +157,14 @@ internal sealed class CharacterLocationWindow : Window
     private void ShowCircleLayers(double size, int layers)
     {
         const double spacing = 6;
-        var extra = 20 + ((layers - 1) * spacing);
+        const double extra = 20;
         Width = size + extra;
         Height = size + extra;
         var borders = new[] { _glowOuter, _glowMid, _glowInner };
 
         for (var i = 0; i < borders.Length; i++)
         {
-            var inset = ((layers - 1) * spacing / 2.0) + 10 + _glowMargins[i];
+            var inset = 10 + _glowMargins[i];
             borders[i].Visibility = Visibility.Visible;
             borders[i].Margin = new Thickness(inset);
             borders[i].BorderThickness = new Thickness(_glowThicknesses[i]);
@@ -174,7 +185,7 @@ internal sealed class CharacterLocationWindow : Window
 
             for (var i = 0; i < _glowMargins.Length; i++)
             {
-                var inset = ((layers - 1) * spacing / 2.0) + 10 + _glowMargins[i] + layerOffset;
+                var inset = 10 + _glowMargins[i] + layerOffset;
                 var diameter = totalSize - (inset * 2.0);
 
                 if (diameter <= 0)

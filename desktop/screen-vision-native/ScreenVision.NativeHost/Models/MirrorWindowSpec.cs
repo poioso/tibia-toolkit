@@ -12,6 +12,18 @@ public sealed class MirrorWindowSpec
 
     public RectInfo RelativeBounds { get; init; } = new();
 
+    public string SourceType { get; init; } = "tibia";
+
+    // Kept separate from SourceType: obs-window remains a distinct capture
+    // family, while normal game mirrors can target Tibia, RubinOT or Medivia.
+    public string SourceGame { get; init; } = "tibia";
+
+    public long SourceHwnd { get; init; }
+
+    public string SourceWindowTitle { get; init; } = "";
+
+    public string SourceProcessName { get; init; } = "";
+
     public int Opacity { get; init; } = 100;
 
     public bool IsLocked { get; init; }

@@ -469,7 +469,7 @@
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: 5px;
-  background: transparent;
+  background: rgba(17, 24, 34, 0.58);
   cursor: pointer;
   transition: border-color 140ms ease, background-color 140ms ease;
   justify-self: center;
@@ -1375,6 +1375,51 @@ select:focus {
   image-rendering: pixelated;
 }
 
+.suggestion-sprite-shell {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+}
+
+.suggestion-sprite-shell > * {
+  grid-area: 1 / 1;
+}
+
+.suggestion-item-static-sprite {
+  display: block;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  transform: scale(1.1875);
+}
+
+.suggestion-sprite-shell .is-deferred {
+  display: none;
+}
+
+.inline-entity-link {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: #58d87d;
+  font: inherit;
+  font-weight: 800;
+  line-height: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.inline-entity-link:hover,
+.inline-entity-link:focus-visible {
+  color: #7cf09b;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .suggestion-meta {
   display: flex;
   flex-direction: column;
@@ -1466,6 +1511,63 @@ select:focus {
   grid-template-columns: minmax(180px, 1.45fr) repeat(4, minmax(118px, 0.8fr));
 }
 
+.spells-toolbar {
+  display: grid;
+  grid-template-columns: minmax(305px, 1.7fr) auto auto auto;
+  align-items: start;
+  gap: 8px;
+  padding: 10px;
+}
+
+.spells-search-sort { display:grid; grid-template-columns:minmax(160px,1.2fr) minmax(142px,.8fr); gap:6px; align-items:end; }
+.spells-toolbar .stash-search { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:15px 30px; gap:3px; align-self:end; }
+.spells-toolbar .stash-search > span { color:#d8b358; font-size:.62rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+.spells-toolbar .stash-search input { min-height: 30px; }
+.spells-sort-field { display:grid; grid-template-rows:15px 30px; gap:3px; align-items:start; }
+.spells-sort-field > span { color:#d8b358; font-size:.62rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; }
+.spells-sort-field select { min-height:30px; padding:0 7px; }
+
+.spells-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.spells-filter-field {
+  display: grid;
+  grid-template-rows: 15px 30px;
+  align-items: start;
+  justify-items: start;
+  gap: 3px;
+}
+
+.spells-filter-field > span {
+  color: #d8b358;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.spell-filter-button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  background: rgba(8, 12, 16, 0.72);
+  cursor: pointer;
+  opacity: 0.45;
+}
+
+.spell-filter-button.is-selected { border-color: #54d67b; opacity: 1; }
+.spell-filter-button:hover { border-color: #d7b44b; opacity: 1; }
+.spell-filter-button img { width: 21px; height: 21px; object-fit: contain; image-rendering: pixelated; }
+.spell-wheel-filter img { width: 24px; height: 24px; }
+
 .books-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -1536,6 +1638,58 @@ select:focus {
 .book-card-copy span { color: #aeb9c8; font-size: 0.74rem; }
 .book-card-copy small { color: #7f93aa; font-size: 0.67rem; }
 .books-empty { grid-column: 1 / -1; }
+
+/* Magias usam um cartão de leitura vertical: ícone, nome e palavras mágicas. */
+#spells-grid {
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  grid-auto-rows: minmax(128px, auto);
+}
+
+#spells-status,
+#books-status {
+  display: block;
+  margin: 0 8px;
+  padding: 9px 0 5px;
+  text-align: left;
+}
+
+#spells-grid .spell-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 128px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+#spells-grid .spell-card > img {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+#spells-grid .spell-card > strong,
+#spells-grid .spell-card > span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#spells-grid .spell-card > strong {
+  color: #f2f2f2;
+  line-height: 1.15;
+}
+
+#spells-grid .spell-card > span {
+  color: #aeb9c8;
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
 
 .books-pagination,
 .books-detail-actions {
@@ -1626,7 +1780,7 @@ select:focus {
 
 .stash-search {
   display: grid;
-  grid-template-columns: 1fr 32px;
+  grid-template-columns: 1fr 32px 32px;
   min-width: 0;
 }
 
@@ -1655,11 +1809,33 @@ select:focus {
   cursor: pointer;
 }
 
-.stash-grid {
+.stash-weekly-filter {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(42px, 42px));
+  place-items: center;
+}
+
+.stash-weekly-filter img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.stash-weekly-filter:hover,
+.stash-weekly-filter.active {
+  border-color: rgba(88, 196, 112, 0.86);
+  background: linear-gradient(145deg, rgba(43, 63, 52, 0.92), rgba(31, 43, 38, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(88, 196, 112, 0.16), 0 4px 10px rgba(0, 0, 0, 0.22);
+}
+
+.stash-grid {
+  --stash-grid-cell-size: 42px;
+  --stash-grid-gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--stash-grid-cell-size), var(--stash-grid-cell-size)));
   align-content: start;
-  gap: 4px;
+  gap: var(--stash-grid-gap);
   min-height: 300px;
   max-height: min(58vh, 560px);
   margin: 0 10px;
@@ -1673,8 +1849,10 @@ select:focus {
 
 .stash-item {
   position: relative;
-  width: 42px;
-  height: 42px;
+  display: grid;
+  place-items: center;
+  width: var(--stash-grid-cell-size);
+  height: var(--stash-grid-cell-size);
   padding: 0;
   border-radius: 0;
   border: 2px solid #777;
@@ -1686,6 +1864,13 @@ select:focus {
     inset -1px -1px 0 rgba(0, 0, 0, 0.65);
   cursor: pointer;
   image-rendering: pixelated;
+}
+
+.stash-virtual-spacer {
+  grid-column: 1 / -1;
+  width: 1px;
+  min-width: 0;
+  pointer-events: none;
 }
 
 .stash-item:hover {
@@ -1712,11 +1897,22 @@ select:focus {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
 }
 
-.stash-item img {
+.stash-item img,
+.stash-item-static-sprite {
   width: 32px;
   height: 32px;
   object-fit: contain;
   image-rendering: pixelated;
+}
+
+.stash-item .stash-item-static-sprite {
+  position: static;
+  display: block;
+  background-repeat: no-repeat;
+}
+
+.stash-item .is-deferred {
+  display: none;
 }
 
 .stash-item span {
@@ -1819,6 +2015,14 @@ select:focus {
 
 .stash-market-refresh-button.blocked {
   cursor: not-allowed;
+  border-color: rgba(255, 96, 96, 0.82);
+  color: #ffaaa6;
+}
+
+.stash-market-refresh-button.blocked:hover,
+.stash-market-refresh-button.blocked:focus-visible {
+  color: #ffe5e5;
+  background: rgba(76, 25, 30, 0.99);
 }
 
 .stash-market-refresh-icon {
@@ -2816,6 +3020,28 @@ button.entity-chip:hover,
   margin-top: 10px;
 }
 
+/* A coordinate cited in Notes owns its own embedded map. It sits directly
+ * under that coordinate's button and does not share the main location panel. */
+.library-note-map-inline {
+  white-space: nowrap;
+}
+
+.library-note-map-block {
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.library-note-map-block > .boss-inline-map {
+  display: block;
+  width: min(760px, calc(100vw - 128px));
+  margin-top: 8px;
+  white-space: normal;
+}
+
+body.desktop-mode .library-note-map-block > .boss-inline-map {
+  width: min(720px, calc(100vw - 150px));
+}
+
 .boss-inline-map-frame-wrap,
 .boss-route-preview-card {
   overflow: hidden;
@@ -3573,63 +3799,60 @@ button.entity-chip:hover,
 .boss-filter-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  min-height: 38px;
+  min-height: 30px;
 }
 
-.boss-filter-group label {
-  display: inline-flex;
-  gap: 5px;
-  align-items: center;
-  color: var(--muted);
-  font-size: 0.78rem;
+.boss-filter-button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 7px;
+  background: linear-gradient(145deg, rgba(43, 50, 62, 0.86), rgba(31, 37, 47, 0.96));
   cursor: pointer;
   user-select: none;
+  overflow: hidden;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
 }
 
-.boss-filter-group input[type="checkbox"] {
-  appearance: none;
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 18px;
+.boss-filter-button input[type="checkbox"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.boss-filter-button img {
   width: 18px;
   height: 18px;
-  min-width: 18px;
-  min-height: 18px;
-  max-width: 18px;
-  max-height: 18px;
-  aspect-ratio: 1;
-  margin: 0;
-  padding: 0;
-  border: 1px solid rgba(141, 153, 174, 0.65);
-  border-radius: 4px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent),
-    #303641;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 1px 2px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
 }
 
-.boss-filter-group input[type="checkbox"]:checked {
+.boss-filter-button:hover,
+.boss-filter-button:has(input:checked) {
   border-color: rgba(88, 196, 112, 0.86);
-  background:
-    url("assets/ui/Tick.png") center / 12px 12px no-repeat,
-    #2f3b37;
-  box-shadow:
-    inset 0 0 0 1px rgba(88, 196, 112, 0.18),
-    0 0 0 2px rgba(88, 196, 112, 0.08);
+  background: linear-gradient(145deg, rgba(43, 63, 52, 0.92), rgba(31, 43, 38, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(88, 196, 112, 0.16), 0 4px 10px rgba(0, 0, 0, 0.22);
+  transform: translateY(-1px);
 }
 
-.boss-filter-group input[type="checkbox"]:hover {
-  border-color: rgba(88, 196, 112, 0.72);
-}
-
-.boss-filter-group input[type="checkbox"]:focus-visible {
+.boss-filter-button:has(input:focus-visible) {
   outline: 2px solid rgba(88, 196, 112, 0.42);
   outline-offset: 2px;
+}
+
+.boss-filter-button:has(input:not(:checked)) {
+  filter: grayscale(0.65) opacity(0.62);
 }
 
 .boss-list {
@@ -4518,7 +4741,7 @@ button.entity-chip:hover,
   margin-bottom: 18px;
 }
 
-.item-description {
+.item-technical-description {
   display: grid;
   gap: 4px;
   margin-top: 6px;
@@ -4526,6 +4749,19 @@ button.entity-chip:hover,
   font-size: 0.86rem;
   font-weight: 800;
   line-height: 1.35;
+}
+
+.item-technical-description p {
+  margin: 0;
+}
+
+.item-description {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  color: #e7eef6;
+  font-size: 0.88rem;
+  line-height: 1.42;
 }
 
 .item-description p {
@@ -4536,9 +4772,9 @@ button.entity-chip:hover,
   margin: 10px 0 14px;
 }
 
-.item-extra-details {
+.item-editorial-section {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   margin: 0 0 14px;
 }
 
@@ -4552,6 +4788,37 @@ button.entity-chip:hover,
   margin: 0;
   color: #dbe7f7;
   line-height: 1.5;
+}
+
+.library-fact-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.library-fact-list > div {
+  display: grid;
+  grid-template-columns: minmax(118px, 0.32fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 170, 200, 0.16);
+  background: rgba(8, 14, 22, 0.34);
+}
+
+.library-fact-list dt {
+  color: #95a9c5;
+  font-weight: 700;
+}
+
+.library-fact-list dd {
+  margin: 0;
+  color: #edf3fa;
+  white-space: pre-wrap;
+}
+
+.entity-fact-section {
+  margin: 14px 0;
 }
 
 .item-proficiency-board,
@@ -4774,6 +5041,14 @@ button.entity-chip:hover,
   font-family: inherit;
 }
 
+.item-note-image {
+  display: block;
+  width: min(100%, 500px);
+  height: auto;
+  margin: 12px auto 0;
+  border: 1px solid rgba(100, 232, 142, 0.35);
+}
+
 .item-drop-details {
   margin-top: 0;
   color: var(--text);
@@ -4855,6 +5130,7 @@ button.entity-chip:hover,
 
 .price-spotlight-grid {
   display: block;
+  margin-top: 8px;
   margin-bottom: 16px;
 }
 
@@ -7414,6 +7690,26 @@ body.desktop-mode .loot-item-tile small.loot-monster-event {
   min-width: 0;
 }
 
+.find-party-vocation-title-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.find-party-refresh-button {
+  flex: 0 0 auto;
+}
+
+.find-party-refresh-button img {
+  display: block;
+  width: 21px;
+  height: 21px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
 .find-party-online-badge {
   flex: 0 0 auto;
 }
@@ -8574,6 +8870,46 @@ body.desktop-mode .desktop-toolbar {
   overflow: visible;
 }
 
+/* Electron treats the toolbar as a drag surface. Keep both compact pickers
+   explicitly interactive, including their absolutely positioned menus. */
+body.desktop-mode .desktop-toolbar .global-world-control,
+body.desktop-mode .desktop-toolbar .global-world-shell,
+body.desktop-mode .desktop-toolbar .global-world-dropdown-content,
+body.desktop-mode .desktop-toolbar .global-world-suggestions,
+body.desktop-mode .desktop-toolbar .locale-switcher,
+body.desktop-mode .desktop-toolbar .locale-switcher-button,
+body.desktop-mode .desktop-toolbar .locale-switcher-menu,
+body.desktop-mode .desktop-toolbar .locale-switcher-option {
+  pointer-events: auto;
+  -webkit-app-region: no-drag !important;
+}
+
+body.desktop-mode .desktop-toolbar .global-world-control,
+body.desktop-mode .desktop-toolbar .locale-switcher {
+  position: relative;
+  z-index: 200;
+}
+
+body.desktop-mode .desktop-toolbar .global-world-dropdown-content,
+body.desktop-mode .desktop-toolbar .locale-switcher-menu {
+  z-index: 201;
+}
+
+body.desktop-mode #global-world-dropdown-button {
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  z-index: 202;
+  color: #9eb0ca !important;
+  pointer-events: auto;
+  -webkit-app-region: no-drag !important;
+}
+
+body.desktop-mode #global-world-dropdown-button::before {
+  display: block;
+  z-index: 2;
+}
+
 body.desktop-mode .desktop-toolbar strong,
 body.desktop-mode .desktop-toolbar span {
   color: inherit;
@@ -8676,6 +9012,7 @@ body.desktop-mode .desktop-toolbar span {
 }
 
 .desktop-toolbar-brand {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -8685,6 +9022,11 @@ body.desktop-mode .desktop-toolbar span {
   height: 100%;
   text-align: center;
   -webkit-app-region: drag;
+}
+
+body.desktop-mode .desktop-toolbar-brand {
+  width: 34px;
+  min-width: 34px;
 }
 
 .desktop-brand-mark {
@@ -8708,6 +9050,9 @@ body.desktop-mode .desktop-toolbar span {
 }
 
 .desktop-update-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -8719,6 +9064,7 @@ body.desktop-mode .desktop-toolbar span {
   cursor: pointer;
   -webkit-app-region: no-drag;
   animation: desktop-update-available 1.8s ease-in-out infinite;
+  transform: translate(-50%, -50%);
 }
 
 .desktop-update-button[hidden] {
@@ -8745,6 +9091,40 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
 
 .desktop-update-button:hover img,
 .desktop-update-button:focus-visible img {
+  transform: translateY(-1px) scale(1.06);
+  filter: brightness(1.14);
+}
+
+.desktop-library-content-update-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  animation: desktop-update-available 1.8s ease-in-out infinite;
+}
+
+.desktop-library-content-update-button[hidden] {
+  display: none;
+}
+
+.desktop-library-content-update-button img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+
+.desktop-library-content-update-button:hover img,
+.desktop-library-content-update-button:focus-visible img {
   transform: translateY(-1px) scale(1.06);
   filter: brightness(1.14);
 }
@@ -8851,6 +9231,14 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
   width: 100%;
   flex: 1 1 180px;
   max-width: 220px;
+}
+
+body.desktop-mode .desktop-supporters-slot {
+  display: none !important;
+}
+
+body.desktop-mode .desktop-coffee-button {
+  display: none !important;
 }
 
 .desktop-supporters-button {
@@ -8965,6 +9353,11 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
 
 .desktop-supporters-button:hover .desktop-supporters-marquee-track,
 .desktop-supporters-button:focus-visible .desktop-supporters-marquee-track {
+  animation-play-state: paused;
+}
+
+body.app-inactive .desktop-supporters-marquee-track,
+body.app-inactive .desktop-supporters-button::before {
   animation-play-state: paused;
 }
 
@@ -9154,6 +9547,7 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
   align-items: center;
   justify-content: center;
   width: 28px;
+  min-width: 28px;
   height: 28px;
   padding: 0;
   border: 0;
@@ -9237,6 +9631,14 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
   -webkit-app-region: no-drag;
 }
 
+.locale-switcher-menu.locale-switcher-menu-portal {
+  position: fixed;
+  right: auto;
+  z-index: 2147483646;
+  pointer-events: auto;
+  -webkit-app-region: no-drag !important;
+}
+
 .locale-switcher-option {
   display: inline-flex;
   align-items: center;
@@ -9264,9 +9666,35 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
 
 @media (max-width: 980px) {
   body.desktop-mode .locale-switcher-button {
-    width: 26px;
+    width: 28px;
+    min-width: 28px;
     height: 26px;
   }
+}
+
+/* Keep the language control inside the visible compact toolbar. */
+body.desktop-mode.desktop-main-width-narrow .desktop-toolbar-right .global-world-control {
+  order: -2;
+}
+
+body.desktop-mode.desktop-main-width-narrow .desktop-toolbar-right .locale-switcher {
+  order: -1;
+  display: inline-flex !important;
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  -webkit-app-region: no-drag !important;
+}
+
+body.desktop-mode.desktop-main-width-narrow .desktop-toolbar-right .locale-switcher-button {
+  display: inline-flex !important;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  -webkit-app-region: no-drag !important;
 }
 
 .desktop-toolbar-link {
@@ -9467,6 +9895,218 @@ body.desktop-mode .sidebar {
   background: #20242d;
   box-shadow: none;
   -webkit-app-region: drag;
+}
+
+body.desktop-mode .desktop-context-actions {
+  /* The host must not generate a full-size drag box over the navigation.
+     Its children remain absolutely positioned against the sidebar itself. */
+  display: contents;
+}
+
+body.desktop-mode .desktop-context-actions .tt-tour-context-button {
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+/* Window dragging only on exposed backgrounds and headers
+   -------------------------------------------------------
+   The dark surfaces behind/between content blocks remain useful as window
+   handles. Every real content block is no-drag so wheel, clicks and text
+   selection continue to work normally over tools, lists and cards. */
+body.desktop-mode .app-shell,
+body.desktop-mode .main-content,
+body.desktop-mode .main-content > .panel.active,
+body.desktop-mode .desktop-docked-panel-content,
+body.desktop-mode .desktop-docked-panel-header {
+  -webkit-app-region: drag;
+}
+
+body.desktop-mode .main-content > .panel.active > *,
+body.desktop-mode .desktop-docked-panel-content > * {
+  -webkit-app-region: no-drag;
+}
+
+body.desktop-mode :is(
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  label,
+  summary,
+  iframe,
+  canvas,
+  video,
+  audio,
+  [contenteditable="true"],
+  [draggable="true"],
+  [role="button"],
+  [role="link"],
+  [role="tab"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="slider"],
+  [role="switch"],
+  [role="menuitem"],
+  [tabindex]:not([tabindex="-1"]),
+  [data-tooltip],
+  [data-account-action],
+  [data-account-report-kind],
+  [data-account-report-remove],
+  [data-account-report-select],
+  [data-find-party-copy-name],
+  [data-find-party-guild-name],
+  [data-find-party-remove-guild],
+  [data-imbuement-key],
+  [data-imbuement-market-price-mode],
+  [data-imbuement-shrine-fee-toggle],
+  [data-locale-option],
+  [data-loot-item-name],
+  [data-loot-monster-name],
+  [data-manual-ingredient-price],
+  [data-manual-ingredient-toggle],
+  [data-mini-world-change-entity],
+  [data-mini-world-change-id],
+  [data-mini-world-change-image],
+  [data-mini-world-change-map],
+  [data-mixed-purchase-toggle],
+  [data-monster-category],
+  [data-owned-ingredient-quantity],
+  [data-proficiency-column],
+  [data-settings-action],
+  [data-timer-action],
+  [data-transfer-command],
+  [data-weakness-filter],
+  [data-weakness-toggle]
+) {
+  -webkit-app-region: no-drag;
+}
+
+/* Custom clickable cards and tiles that are not always native buttons. */
+body.desktop-mode :is(
+  .mini-world-change-active-card,
+  .mini-world-change-catalog-row,
+  .mini-world-change-entity-link,
+  .book-card,
+  .stash-item,
+  .entity-tab,
+  .monster-category-card,
+  .entity-row,
+  .entity-chip,
+  .entity-link-chip,
+  .inline-map-link,
+  .creature-element-card,
+  .boss-filter-button,
+  .weakness-filter-toggle,
+  .weakness-filter-button,
+  .boss-route-floor-tab,
+  .boss-chart-mode-toggle,
+  .boss-card,
+  .npc-spoiler-toggle,
+  .creature-loot-item,
+  .creature-gear-slot:not(.empty),
+  .npc-trade-item,
+  .item-proficiency-option,
+  .item-drop-tile,
+  .npc-row,
+  .loot-subtab,
+  .loot-item-tile,
+  .loot-output-transfer-line,
+  .slide-switch,
+  .imbuement-picker-option,
+  .imbuement-price-choice,
+  .locale-switcher-option,
+  .desktop-toolbar-link,
+  .docked-alert-tile,
+  .docked-alert-sound-option,
+  .docked-alert-color-picker-native,
+  .countdown-color-orb,
+  .countdown-color-chip,
+  .docked-supporter-card.is-clickable,
+  .docked-tibia-coins-package
+) {
+  -webkit-app-region: no-drag;
+}
+
+body.desktop-mode :is(
+  .nav-scroll-shell,
+  .desktop-toolbar-brand,
+  .desktop-history-actions,
+  .desktop-window-actions,
+  .desktop-toolbar-right,
+  .global-world-control,
+  .locale-switcher,
+  .item-view-tabs,
+  .mini-tabs,
+  .tool-tabs,
+  .loot-subtabs,
+  .tool-category-subtabs,
+  .entity-tabs,
+  .stash-toolbar,
+  .books-toolbar,
+  .spells-toolbar,
+  .tool-controls,
+  .item-actions-row,
+  .currency-switch,
+  .imbuement-picker-panel,
+  .imbuement-route-controls,
+  .loot-topbar,
+  .loot-solo-controls-row,
+  .loot-splitter-controls,
+  .find-party-filters-card,
+  .find-party-filters-row,
+  .skill-picker-row,
+  .entity-toolbar,
+  .weakness-filter-bar,
+  .boss-route-floor-tabs,
+  .boss-map-controls,
+  .boss-chart-actions,
+  .creature-gear-controls,
+  .timer-editor-actions,
+  .timer-card-actions,
+  .vision-toolbar,
+  .desktop-settings-social-buttons,
+  .desktop-settings-paired-buttons,
+  .desktop-screenshot-summary-actions,
+  .desktop-screenshot-extra-actions,
+  .desktop-report-kind-options,
+  .desktop-report-actions,
+  .desktop-account-actions,
+  .desktop-account-proof-actions,
+  .docked-alert-card-actions,
+  .docked-alert-card-control-row,
+  .docked-alerts-toolbar,
+  .docked-alert-magic-vocations,
+  .docked-alert-master-volume,
+  .docked-alert-inline-volume,
+  .docked-auth-inline-actions,
+  .docked-profile-card-actions,
+  .docked-coffee-pix-actions,
+  .docked-coffee-proof-actions,
+  .suggestions-panel,
+  .books-grid,
+  .stash-grid,
+  .entity-list,
+  .boss-list,
+  .npc-list,
+  .npc-trade-items,
+  .imbuement-picker-grid,
+  .loot-output-lines,
+  .mini-world-change-table-scroll,
+  .mini-world-change-image-viewer-body,
+  .boss-chart-scroll,
+  .item-damage-table-wrap,
+  .desktop-report-selected-elements,
+  .docked-alert-sound-menu,
+  .tt-tour-welcome-overlay,
+  .tt-tour-confirm-overlay,
+  .tt-tour-welcome-card,
+  .tt-tour-confirm-card,
+  .screen-vision-embedded-root,
+  .tibia-eye-panel,
+  .leaflet-container
+) {
+  -webkit-app-region: no-drag;
 }
 
 body.desktop-mode .brand {
@@ -9834,7 +10474,8 @@ body.desktop-mode .desktop-docked-panel-content {
   flex: 1;
   min-height: 0;
   padding: 16px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 body.desktop-mode .desktop-settings-panel {
@@ -9888,6 +10529,194 @@ body.desktop-mode .desktop-settings-image-button:focus-visible {
 body.desktop-mode .desktop-settings-image-button:active {
   transform: translateY(0) scale(0.992);
   filter: brightness(0.98);
+}
+
+body.desktop-mode .desktop-settings-account-button-option {
+  gap: 0;
+}
+
+body.desktop-mode .desktop-settings-account-button {
+  width: min(100%, 332px);
+  pointer-events: auto;
+}
+
+/* The artwork must never become the pointer target: click and hover always
+   belong to the My Account button so both actions work over the full image. */
+body.desktop-mode .desktop-settings-account-button img {
+  pointer-events: none;
+}
+
+body.desktop-mode .desktop-settings-social-option {
+  gap: 7px;
+}
+
+body.desktop-mode .desktop-settings-group {
+  gap: 7px;
+}
+
+body.desktop-mode .desktop-settings-social-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 180px));
+  justify-content: center;
+  column-gap: 4px;
+  row-gap: 8px;
+}
+
+body.desktop-mode .desktop-settings-paired-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 180px));
+  justify-content: center;
+  column-gap: 4px;
+  row-gap: 8px;
+}
+
+body.desktop-mode .desktop-settings-social-buttons .desktop-settings-image-button {
+  justify-content: center;
+}
+
+body.desktop-mode .desktop-settings-paired-buttons .desktop-settings-image-button {
+  justify-content: center;
+}
+
+body.desktop-mode .desktop-settings-social-buttons .desktop-settings-image-button img {
+  width: 100%;
+  max-width: 180px;
+}
+
+body.desktop-mode .desktop-settings-paired-buttons .desktop-settings-image-button img {
+  width: 100%;
+  max-width: 180px;
+}
+
+body.desktop-mode .desktop-screenshot-option {
+  order: 10;
+  gap: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.025), rgba(0,0,0,0.06));
+}
+
+body.desktop-mode .desktop-screenshot-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 10px;
+}
+
+body.desktop-mode .desktop-screenshot-edit,
+body.desktop-mode .desktop-screenshot-manual-button {
+  flex: 0 0 auto;
+}
+body.desktop-mode .desktop-screenshot-config { display: grid; gap: 10px; margin: 0; padding: 10px; border: 0; border-radius: 0 0 10px 10px; }
+body.desktop-mode .desktop-screenshot-config[hidden],
+body.desktop-mode .desktop-screenshot-legacy-controls[hidden] { display: none !important; }
+body.desktop-mode .desktop-screenshot-hotkey-row,
+body.desktop-mode .desktop-screenshot-directory-row:not([data-tutorial-focus]),
+body.desktop-mode .desktop-screenshot-folder-button,
+body.desktop-mode .desktop-screenshot-actions { display: none !important; }
+body.desktop-mode .desktop-screenshot-option .desktop-screenshot-manual-button { display: none; }
+body.desktop-mode .desktop-screenshot-summary-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+body.desktop-mode .desktop-screenshot-summary-actions .docked-alert-magic-vocation-button { flex: 0 0 auto; }
+body.desktop-mode .desktop-screenshot-summary-actions .desktop-screenshot-tutorial,
+body.desktop-mode .desktop-screenshot-summary-actions .desktop-screenshot-folder-icon { display: none; }
+body.desktop-mode .desktop-screenshot-extra-actions { display: flex; align-items: center; gap: 7px; }
+body.desktop-mode .desktop-screenshot-extra-actions .docked-alert-magic-vocation-button { flex: 0 0 auto; }
+body.desktop-mode .desktop-screenshot-folder-icon { position: relative; }
+body.desktop-mode .desktop-screenshot-folder-count {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  color: #f8fafc;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: -1px -1px 0 #111, 1px -1px 0 #111, -1px 1px 0 #111, 1px 1px 0 #111;
+  pointer-events: none;
+}
+body.desktop-mode .desktop-screenshot-folder-icon.has-new-screenshots {
+  border-color: rgba(88, 196, 112, .92);
+  box-shadow: 0 0 0 1px rgba(103, 201, 137, .35), inset 0 0 14px rgba(57, 168, 100, .15);
+}
+/* This destructive toggle deliberately overrides the shared green "active"
+   state used by alert image buttons. Keep the selector more specific because
+   the generic active rule is declared later in this stylesheet. */
+body.desktop-mode .desktop-screenshot-extra-actions .docked-alert-magic-vocation-button.desktop-screenshot-delete-icon.active {
+  border-color: rgba(255, 103, 103, 0.94) !important;
+  box-shadow: 0 0 0 1px rgba(255, 103, 103, 0.38), inset 0 0 14px rgba(210, 55, 55, 0.18) !important;
+}
+body.desktop-mode .desktop-screenshot-option:not(.screenshot-enabled) .desktop-screenshot-select-icon { filter: grayscale(1) contrast(0.78); opacity: 0.62; }
+body.desktop-mode .desktop-screenshot-option.screenshot-enabled .desktop-screenshot-select-icon { border-color: #67c989; box-shadow: 0 0 0 1px rgba(103, 201, 137, 0.35), inset 0 0 14px rgba(57, 168, 100, 0.15); }
+body.desktop-mode .desktop-screenshot-option.screenshot-needs-selection .desktop-screenshot-select-icon { border-color: #e4bd4f; box-shadow: 0 0 0 1px rgba(228, 189, 79, 0.38), inset 0 0 14px rgba(194, 145, 34, 0.18); }
+body.desktop-mode .desktop-screenshot-hotkey-row > div { display: grid; gap: 6px; }
+body.desktop-mode .desktop-screenshot-hotkey-row strong,
+body.desktop-mode .desktop-screenshot-directory-row strong { color: #eef4fc; font-size: 0.76rem; font-weight: 800; }
+body.desktop-mode .desktop-screenshot-hotkey-button,
+body.desktop-mode .desktop-screenshot-directory-value { min-height: 34px; padding: 7px 10px; border: 1px solid #465970; border-radius: 7px; background: #202833; color: #cbd7e7; font-size: 0.75rem; text-align: left; cursor: pointer; }
+body.desktop-mode .desktop-screenshot-manual-button { align-self: center; }
+body.desktop-mode .desktop-screenshot-directory-row { display: grid; grid-template-columns: 114px minmax(0,1fr); gap: 10px; align-items: center; }
+body.desktop-mode .desktop-screenshot-directory-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.desktop-mode .desktop-screenshot-upscale-row {
+  display: grid;
+  grid-template-columns: 114px 236px;
+  gap: 10px;
+  align-items: center;
+  min-width: 360px;
+}
+body.desktop-mode .desktop-screenshot-upscale-row > strong { color: #eef4fc; font-size: 0.76rem; font-weight: 800; }
+body.desktop-mode .desktop-screenshot-upscale-control {
+  justify-self: start;
+  width: 236px !important;
+  min-width: 236px;
+  max-width: 236px;
+  flex: 0 0 236px;
+}
+body.desktop-mode .desktop-screenshot-upscale-control input { flex: 1 1 auto; width: auto; min-width: 0; }
+body.desktop-mode .desktop-screenshot-folder-button { justify-self: start; min-height: 32px; padding: 6px 11px; border: 1px solid #4a5d73; border-radius: 7px; background: #222c38; color: #f5f7fb; font-weight: 800; cursor: pointer; }
+body.desktop-mode .desktop-screenshot-folder-button span { color: #d7ad42; margin-right: 6px; }
+body.desktop-mode .desktop-screenshot-hotkey-button:hover,
+body.desktop-mode .desktop-screenshot-directory-value:hover,
+body.desktop-mode .desktop-screenshot-folder-button:hover { border-color: #8fa8c8; filter: brightness(1.1); }
+body.desktop-mode .desktop-screenshot-status { margin: 0; color: #aebfd2; font-size: 0.73rem; line-height: 1.35; }
+
+body.desktop-mode .desktop-screenshot-option [data-settings-action="open-screenshot-assistant"].screenshot-action-busy,
+body.desktop-mode .desktop-screenshot-option [data-settings-action="capture-screenshot"].screenshot-action-busy,
+body.desktop-mode .desktop-report-select-action[data-settings-action="capture-screenshot"].screenshot-action-busy,
+body.desktop-mode #tt-screenshot-context-button.screenshot-action-busy {
+  position: relative;
+  pointer-events: none;
+  cursor: wait;
+}
+
+body.desktop-mode .desktop-screenshot-option [data-settings-action="open-screenshot-assistant"].screenshot-action-busy img,
+body.desktop-mode .desktop-screenshot-option [data-settings-action="capture-screenshot"].screenshot-action-busy img,
+body.desktop-mode .desktop-report-select-action[data-settings-action="capture-screenshot"].screenshot-action-busy img,
+body.desktop-mode #tt-screenshot-context-button.screenshot-action-busy img {
+  opacity: 0.34;
+  filter: blur(0.65px);
+}
+
+body.desktop-mode .desktop-screenshot-option [data-settings-action="open-screenshot-assistant"].screenshot-action-busy::after,
+body.desktop-mode .desktop-screenshot-option [data-settings-action="capture-screenshot"].screenshot-action-busy::after,
+body.desktop-mode .desktop-report-select-action[data-settings-action="capture-screenshot"].screenshot-action-busy::after,
+body.desktop-mode #tt-screenshot-context-button.screenshot-action-busy::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid rgba(238, 244, 252, 0.32);
+  border-top-color: #73e48a;
+  border-radius: 50%;
+  animation: desktop-screenshot-spinner 720ms linear infinite;
+  content: "";
+}
+
+@keyframes desktop-screenshot-spinner {
+  to { transform: rotate(360deg); }
 }
 
 body.desktop-mode .desktop-docked-panel-empty-card {
@@ -10071,6 +10900,13 @@ body.desktop-mode .docked-alert-tile:focus-visible {
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
 }
 
+body.desktop-mode .docked-alert-tile.active {
+  border-color: rgba(88, 196, 112, 0.86);
+  box-shadow:
+    inset 0 0 0 1px rgba(88, 196, 112, 0.18),
+    0 0 0 1px rgba(88, 196, 112, 0.18);
+}
+
 body.desktop-mode .docked-alert-tile.attention-shake {
   animation: screenVisionAttentionShake 620ms ease;
 }
@@ -10226,6 +11062,84 @@ body.desktop-mode .docked-alert-magic-spell-button {
 body.desktop-mode .docked-alert-magic-spell-button img {
   width: 100%;
   height: 100%;
+}
+
+body.desktop-mode .docked-alert-consumable-panel {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+body.desktop-mode .docked-alert-consumable-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+body.desktop-mode .docked-alert-consumable-heading h4 {
+  margin: 0;
+  color: #f4f8ff;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+body.desktop-mode .docked-alert-consumable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+body.desktop-mode .docked-alert-consumable-button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(43, 50, 62, 0.9), rgba(31, 37, 47, 0.98));
+  color: #f4f8ff;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+body.desktop-mode .docked-alert-consumable-button:hover,
+body.desktop-mode .docked-alert-consumable-button:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(88, 196, 112, 0.7);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.24);
+}
+
+body.desktop-mode .docked-alert-consumable-button img {
+  grid-row: 1 / span 2;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+body.desktop-mode .docked-alert-consumable-button span,
+body.desktop-mode .docked-alert-consumable-button small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desktop-mode .docked-alert-consumable-button span {
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+body.desktop-mode .docked-alert-consumable-button small {
+  color: #9fb0c8;
+  font-size: 0.68rem;
+  font-weight: 800;
 }
 
 body.desktop-mode .docked-alert-sound-panel {
@@ -12564,6 +13478,35 @@ body.desktop-mode .books-toolbar {
   grid-template-columns: 1.25fr repeat(4, minmax(100px, 0.8fr));
 }
 
+/* Keep the complete toolbar on one row in the desktop window.  The content
+   pane is compact, but the icon groups are deliberately fixed-size and the
+   search/sort pair owns the remaining space. */
+body.desktop-mode .spells-toolbar { grid-template-columns: minmax(280px, 1fr) max-content max-content max-content; gap: 6px; padding: 7px; }
+body.desktop-mode .spells-search-sort { grid-template-columns:minmax(126px,1.1fr) minmax(120px,.9fr); gap:5px; }
+body.desktop-mode .spells-toolbar .stash-search input { min-height: 26px; padding: 0 7px; }
+body.desktop-mode .spells-toolbar .stash-search { grid-template-rows:13px 26px; gap:2px; }
+body.desktop-mode .spells-toolbar .stash-search > span { font-size:.55rem; }
+body.desktop-mode .spells-sort-field { grid-template-rows:13px 26px; gap:2px; }
+body.desktop-mode .spells-sort-field > span { font-size:.55rem; }
+body.desktop-mode .spells-sort-field select { min-height:26px; padding:0 5px; font-size:.65rem; }
+
+/* Narrow desktop: search and sort share the first row; vocation, type and
+   Wheel of Destiny stay together in the second row. */
+@media (max-width: 680px) {
+  body.desktop-mode .spells-toolbar { grid-template-columns:minmax(0,1fr) max-content max-content; gap:5px; align-items:start; }
+  body.desktop-mode .spells-search-sort { display:contents; }
+  body.desktop-mode .spells-toolbar .stash-search { min-width:0; }
+  body.desktop-mode .spells-toolbar .stash-search input { width:100%; min-width:0; box-sizing:border-box; }
+  body.desktop-mode .spells-search-sort > .stash-search { grid-column:1 / 3; }
+  body.desktop-mode .spells-search-sort > .spells-sort-field { grid-column:3; width:auto; }
+}
+body.desktop-mode .spell-filter-group { gap: 3px; }
+body.desktop-mode .spells-filter-field { grid-template-rows: 13px 26px; gap: 2px; }
+body.desktop-mode .spells-filter-field > span { font-size: 0.55rem; }
+body.desktop-mode .spell-filter-button { width: 26px; height: 26px; padding: 2px; }
+body.desktop-mode .spell-filter-button img { width: 18px; height: 18px; }
+body.desktop-mode .spell-wheel-filter img { width: 21px; height: 21px; }
+
 body.desktop-mode .books-grid {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   grid-auto-rows: minmax(64px, auto);
@@ -12589,6 +13532,25 @@ body.desktop-mode .book-card-art img {
 body.desktop-mode .book-card-copy span { font-size: 0.66rem; }
 body.desktop-mode .book-card-copy small { font-size: 0.6rem; }
 
+body.desktop-mode #spells-grid {
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  grid-auto-rows: minmax(92px, auto);
+}
+
+body.desktop-mode #spells-grid .spell-card {
+  min-height: 92px;
+  gap: 4px;
+  padding: 7px 5px;
+}
+
+body.desktop-mode #spells-grid .spell-card > img {
+  width: 34px;
+  height: 34px;
+}
+
+body.desktop-mode #spells-grid .spell-card > strong { font-size: 0.72rem; }
+body.desktop-mode #spells-grid .spell-card > span { font-size: 0.66rem; }
+
 body.desktop-mode .stash-toolbar input,
 body.desktop-mode .stash-toolbar select,
 body.desktop-mode .stash-search button {
@@ -12598,8 +13560,8 @@ body.desktop-mode .stash-search button {
 }
 
 body.desktop-mode .stash-grid {
-  grid-template-columns: repeat(auto-fill, minmax(38px, 38px));
-  gap: 3px;
+  --stash-grid-cell-size: 38px;
+  --stash-grid-gap: 3px;
   min-height: 260px;
   max-height: min(56vh, 500px);
   margin: 0 8px;
@@ -12611,9 +13573,16 @@ body.desktop-mode .stash-item {
   height: 38px;
 }
 
-body.desktop-mode .stash-item img {
+body.desktop-mode .stash-item img,
+body.desktop-mode .stash-item-static-sprite {
   width: 30px;
   height: 30px;
+}
+
+body.desktop-mode .stash-item .stash-item-static-sprite {
+  width: 32px;
+  height: 32px;
+  transform: scale(0.9375);
 }
 
 body.desktop-mode .stash-footer {
@@ -13005,21 +13974,6 @@ body.desktop-mode .boss-route-preview-map {
   border-color: rgba(255, 255, 255, 0.08);
 }
 
-body.desktop-mode .boss-filter-group label {
-  color: #c4cedd;
-}
-
-body.desktop-mode .boss-filter-group input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  min-height: 18px;
-  max-width: 18px;
-  max-height: 18px;
-  padding: 0;
-  border-radius: 4px;
-}
-
 body.desktop-mode .boss-list {
   min-height: 220px;
   max-height: 70vh;
@@ -13317,12 +14271,20 @@ body.desktop-mode .item-dropped-by {
   margin: 12px 0 12px;
 }
 
-body.desktop-mode .item-description {
+body.desktop-mode .item-technical-description {
   margin-top: 4px;
   color: #82d893;
   font-size: 0.64rem;
   font-weight: 700;
   line-height: 1.25;
+}
+
+body.desktop-mode .item-description {
+  margin-top: 7px;
+  color: #edf3fa;
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1.32;
 }
 
 body.desktop-mode .price-spotlight span {
@@ -14017,6 +14979,11 @@ body.desktop-mode .related-button img {
   height: 28px;
 }
 
+body.desktop-mode .suggestion-button .suggestion-sprite-shell img {
+  width: 38px;
+  height: 38px;
+}
+
 body.desktop-mode .imbuement-icon {
   width: 48px;
   height: 48px;
@@ -14061,8 +15028,9 @@ body.desktop-mode .ingredient-image-button img {
 }
 
 body.desktop-mode .npc-image {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
+  transform: none;
 }
 
 body.desktop-mode .suggestions-panel,
@@ -14078,17 +15046,33 @@ body.desktop-mode #item-suggestions {
 }
 
 body.desktop-mode .npc-list {
-  grid-template-columns: repeat(auto-fit, minmax(218px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 12px;
   padding-right: 6px;
 }
 
 body.desktop-mode .npc-row {
-  grid-template-columns: 30px minmax(0, 1fr) auto;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   min-height: 66px;
   padding: 8px 10px;
   background: #2c313b;
   border-color: rgba(255, 255, 255, 0.06);
+}
+
+body.desktop-mode .npc-meta {
+  min-width: 0;
+}
+
+body.desktop-mode .npc-meta strong,
+body.desktop-mode .npc-meta span {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+body.desktop-mode .npc-meta span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body.desktop-mode .npc-row:hover,
@@ -14556,12 +15540,12 @@ body.desktop-mode .manual-token-input {
 
   .stash-toolbar,
   body.desktop-mode .stash-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .books-toolbar,
   body.desktop-mode .books-toolbar {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .book-appearance-card {
@@ -14674,7 +15658,7 @@ body.desktop-mode .manual-token-input {
 
 @media (max-width: 516px) {
   body.desktop-mode .npc-list {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   body.desktop-mode .creature-status-panel,
@@ -14903,23 +15887,22 @@ body.desktop-mode .desktop-opacity-control span:not(.desktop-opacity-icon) {
 
 @media (min-width: 521px) and (max-width: 760px) {
   body.desktop-mode .desktop-toolbar {
-    grid-template-columns: 88px 50px auto minmax(96px, 1fr) auto auto auto auto auto auto auto;
+    grid-template-columns: 34px 50px auto minmax(96px, 1fr) auto auto auto auto auto auto auto;
     gap: 4px;
   }
 
   body.desktop-mode .desktop-toolbar-brand {
-    width: 88px;
-    min-width: 88px;
+    width: 34px;
+    min-width: 34px;
   }
 
-  body.desktop-mode .desktop-brand-logo {
-    width: 72px;
-  }
-
-  body.desktop-mode .desktop-brand-caption {
+  body.desktop-mode .desktop-brand-mark {
     display: block;
-    font-size: 0.52rem;
-    white-space: nowrap;
+  }
+
+  body.desktop-mode .desktop-brand-logo,
+  body.desktop-mode .desktop-brand-caption {
+    display: none;
   }
 
   body.desktop-mode .desktop-history-actions {
@@ -15207,7 +16190,7 @@ body.desktop-mode.desktop-main-width-at-most-470 .tool-stat-grid {
 }
 
 body.desktop-mode.desktop-main-width-at-most-516 .npc-list {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 body.desktop-mode.desktop-main-width-at-most-516 .creature-status-panel,
@@ -15229,7 +16212,11 @@ body.desktop-mode.desktop-main-width-at-least-560 .imbuement-picker-field {
 }
 
 body.desktop-mode.desktop-main-width-at-most-620 .stash-toolbar {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body.desktop-mode.desktop-main-width-at-most-620 .books-toolbar {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 body.desktop-mode.desktop-main-width-at-most-620 .entity-toolbar {
@@ -15765,18 +16752,31 @@ body.desktop-mode.desktop-main-width-medium .desktop-toolbar {
 }
 
 body.desktop-mode.desktop-main-width-medium .desktop-toolbar-brand {
-  width: 88px;
-  min-width: 88px;
+  width: 34px;
+  min-width: 34px;
 }
 
-body.desktop-mode.desktop-main-width-medium .desktop-brand-logo {
-  width: 30px;
-}
-
-body.desktop-mode.desktop-main-width-medium .desktop-brand-caption {
+body.desktop-mode.desktop-main-width-medium .desktop-brand-mark {
   display: block;
-  font-size: 0.52rem;
-  white-space: nowrap;
+}
+
+body.desktop-mode.desktop-main-width-medium .desktop-brand-logo,
+body.desktop-mode.desktop-main-width-medium .desktop-brand-caption {
+  display: none;
+}
+
+body.desktop-mode.desktop-main-width-wide .desktop-toolbar-brand {
+  width: 34px;
+  min-width: 34px;
+}
+
+body.desktop-mode.desktop-main-width-wide .desktop-brand-mark {
+  display: block;
+}
+
+body.desktop-mode.desktop-main-width-wide .desktop-brand-logo,
+body.desktop-mode.desktop-main-width-wide .desktop-brand-caption {
+  display: none;
 }
 
 body.desktop-mode.desktop-main-width-medium .desktop-history-actions {
@@ -15810,6 +16810,27 @@ body.desktop-mode.desktop-main-width-medium .desktop-opacity-control input {
 body.desktop-mode.desktop-main-width-medium .desktop-opacity-control strong {
   min-width: 28px;
   font-size: 0.66rem;
+}
+
+/* The screenshot scale is intentionally fixed in the medium dock as well.
+   It shares the opacity-control base class, so the generic medium rule above
+   would otherwise shrink it with the rest of the toolbar sliders. */
+body.desktop-mode.desktop-main-width-medium .desktop-screenshot-upscale-row {
+  grid-template-columns: 114px 236px;
+  min-width: 360px;
+}
+
+body.desktop-mode.desktop-main-width-medium .desktop-screenshot-upscale-control {
+  width: 236px !important;
+  min-width: 236px;
+  max-width: 236px;
+  flex: 0 0 236px;
+}
+
+body.desktop-mode.desktop-main-width-medium .desktop-screenshot-upscale-control input {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 body.desktop-mode.desktop-main-width-medium .global-world-control {
@@ -16474,6 +17495,58 @@ body.desktop-mode .docked-coffee-card {
   padding: 12px;
 }
 
+body.desktop-mode .docked-coffee-intro-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+body.desktop-mode .docked-coffee-livepix-frame {
+  min-width: 0;
+  min-height: 0;
+  padding: 8px;
+  align-self: start;
+  overflow: hidden;
+  border: 1px solid rgba(120, 139, 164, 0.24);
+  border-radius: 8px;
+  background: rgba(17, 24, 34, 0.58);
+}
+
+body.desktop-mode .docked-coffee-livepix-shell {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+body.desktop-mode .docked-coffee-livepix-qr,
+body.desktop-mode .docked-coffee-livepix-qr-fallback,
+body.desktop-mode .docked-coffee-livepix-qr-remote {
+  grid-area: 1 / 1;
+  display: block;
+  width: min(140px, 100%);
+  max-width: 140px;
+  max-height: 140px;
+  height: auto;
+  object-fit: contain;
+  background: transparent;
+}
+
+body.desktop-mode .docked-coffee-livepix-qr-remote {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+body.desktop-mode .docked-coffee-livepix-qr-remote[data-loaded="true"] {
+  opacity: 1;
+}
+
+body.desktop-mode .docked-coffee-livepix-qr-remote[data-error="true"] {
+  display: none;
+}
+
 body.desktop-mode .docked-coffee-hero {
   display: block;
   width: 100%;
@@ -16488,7 +17561,11 @@ body.desktop-mode .docked-coffee-hero {
 body.desktop-mode .docked-coffee-copy,
 body.desktop-mode .docked-coffee-method {
   display: grid;
-  gap: 8px;
+  gap: 4px;
+}
+
+body.desktop-mode .docked-coffee-copy {
+  align-content: start;
 }
 
 body.desktop-mode .docked-coffee-copy p,
@@ -16511,10 +17588,24 @@ body.desktop-mode .docked-coffee-highlight {
 }
 
 body.desktop-mode .docked-coffee-supporter-note {
+  margin: 0;
   padding: 8px 10px;
   border-left: 2px solid rgba(88, 196, 112, 0.7);
   background: rgba(88, 196, 112, 0.07);
   color: #d9e7f8 !important;
+}
+
+body.desktop-mode .docked-coffee-intro-pix {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+body.desktop-mode .docked-coffee-intro-pix img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  image-rendering: pixelated;
 }
 
 body.desktop-mode .docked-coffee-inline-method {
@@ -16575,56 +17666,18 @@ body.desktop-mode .docked-coffee-character-copy .copy-sprite-stack {
   height: 15px;
 }
 
-body.desktop-mode .docked-coffee-pix-actions {
-  display: flex;
-  align-items: center;
+body.desktop-mode .docked-coffee-pix-method {
+  padding-top: 0;
+}
+
+body.desktop-mode .docked-coffee-pix-links {
+  display: grid;
+  gap: 8px;
+}
+
+body.desktop-mode .docked-coffee-pix-links .docked-coffee-pix-link {
+  width: 100%;
   justify-content: center;
-  gap: 10px;
-}
-
-body.desktop-mode .docked-coffee-icon-button {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 36px;
-  padding: 0;
-  border: 1px solid rgba(120, 139, 164, 0.26);
-  border-radius: 7px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015)),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0 4px, transparent 4px 10px);
-  cursor: pointer;
-}
-
-body.desktop-mode .docked-coffee-icon-button:hover,
-body.desktop-mode .docked-coffee-icon-button.active {
-  border-color: rgba(88, 196, 112, 0.62);
-  filter: brightness(1.1);
-}
-
-body.desktop-mode .docked-coffee-icon-button .desktop-window-icon-stack {
-  width: 22px;
-  height: 22px;
-}
-
-body.desktop-mode .docked-coffee-icon-button img {
-  object-fit: contain;
-}
-
-body.desktop-mode .docked-coffee-pix-qr {
-  display: grid;
-  place-items: center;
-  padding: 10px;
-  border: 1px solid rgba(120, 139, 164, 0.24);
-  border-radius: 8px;
-  background: rgba(17, 24, 34, 0.58);
-}
-
-body.desktop-mode .docked-coffee-pix-qr img {
-  display: block;
-  width: min(240px, 100%);
-  height: auto;
-  border-radius: 4px;
 }
 
 body.desktop-mode .docked-coffee-donation-card {
@@ -16643,7 +17696,8 @@ body.desktop-mode .docked-coffee-donation-card:last-child:nth-child(odd) {
   grid-column: 1 / -1;
 }
 
-body.desktop-mode .docked-coffee-discord-button {
+body.desktop-mode .docked-coffee-discord-button,
+body.desktop-mode .desktop-account-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -16661,21 +17715,52 @@ body.desktop-mode .docked-coffee-discord-button {
   transition: border-color 120ms ease, filter 120ms ease, transform 120ms ease;
 }
 
-body.desktop-mode .docked-coffee-discord-button:hover {
+body.desktop-mode .docked-coffee-discord-button:hover,
+body.desktop-mode .desktop-account-action:hover {
   border-color: rgba(88, 196, 112, 0.62);
   filter: brightness(1.12);
   transform: translateY(-1px);
 }
 
-body.desktop-mode .docked-coffee-discord-button img {
+body.desktop-mode .docked-coffee-discord-button img,
+body.desktop-mode .desktop-account-action img {
   width: 21px;
   height: 21px;
   object-fit: contain;
 }
 
-body.desktop-mode .docked-coffee-discord-button strong {
+body.desktop-mode .docked-coffee-discord-button strong,
+body.desktop-mode .desktop-account-action strong {
   font-size: 0.72rem;
   font-weight: 900;
+}
+
+body.desktop-mode .docked-coffee-proof-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 8px;
+}
+
+body.desktop-mode .docked-coffee-proof-actions .docked-coffee-discord-button {
+  width: 100%;
+}
+
+body.desktop-mode .docked-coffee-proof-actions .docked-coffee-proof-button {
+  min-width: 0;
+  gap: 5px;
+  padding-inline: 7px;
+}
+
+body.desktop-mode .docked-coffee-proof-actions .docked-coffee-proof-button img {
+  image-rendering: pixelated;
+}
+
+body.desktop-mode .docked-coffee-proof-actions .docked-coffee-proof-button strong {
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 0.64rem;
+  letter-spacing: -0.01em;
 }
 
 body.desktop-mode .docked-coffee-thank-you {
@@ -16889,6 +17974,19 @@ body.desktop-mode .docked-coffee-thank-you-title {
   left: auto;
 }
 
+/* Keep the screenshot action anchored to its own slot even while it is busy. */
+.tt-screenshot-context-button {
+  left: 60px;
+  right: auto;
+}
+
+/* Reports remain on the opposite side of the tutorial/news pair, inside the
+   same navigation row. */
+.tt-report-context-button {
+  left: 14px;
+  right: auto;
+}
+
 .tt-tour-context-button:hover,
 .tt-tour-context-button:focus-visible {
   border-color: rgba(88, 196, 112, 0.72);
@@ -16930,6 +18028,231 @@ body.desktop-mode .tt-news-context-button {
   right: 60px;
   left: auto;
 }
+
+body.desktop-mode .tt-report-context-button {
+  left: 14px;
+  right: auto;
+}
+
+body.desktop-mode .tt-screenshot-context-button {
+  left: 60px;
+  right: auto;
+}
+
+body.desktop-mode #tt-screenshot-context-button.screenshot-enabled {
+  border-color: rgba(103, 201, 137, 0.92);
+  box-shadow: 0 0 0 1px rgba(103, 201, 137, 0.35), inset 0 0 14px rgba(57, 168, 100, 0.15);
+}
+
+body.desktop-mode #tt-screenshot-context-button.screenshot-enabled:hover,
+body.desktop-mode #tt-screenshot-context-button.screenshot-enabled:focus-visible {
+  border-color: rgba(115, 228, 138, 0.98);
+  box-shadow: 0 0 0 1px rgba(115, 228, 138, 0.45), inset 0 0 16px rgba(57, 168, 100, 0.2);
+}
+
+body.desktop-mode #tt-screenshot-context-button.screenshot-needs-selection {
+  border-color: rgba(228, 189, 79, 0.96);
+  box-shadow: 0 0 0 1px rgba(228, 189, 79, 0.38), inset 0 0 14px rgba(194, 145, 34, 0.18);
+}
+
+body.desktop-mode #tt-screenshot-context-button.screenshot-needs-selection:hover,
+body.desktop-mode #tt-screenshot-context-button.screenshot-needs-selection:focus-visible {
+  border-color: rgba(245, 211, 106, 0.98);
+  box-shadow: 0 0 0 1px rgba(245, 211, 106, 0.45), inset 0 0 16px rgba(194, 145, 34, 0.22);
+}
+
+/* The contextual screenshot control has one fixed toolbar slot. Do not let
+   hover/active transforms (or the busy spinner) change that slot. */
+body.desktop-mode #tt-screenshot-context-button,
+body.desktop-mode #tt-screenshot-context-button:hover,
+body.desktop-mode #tt-screenshot-context-button:focus-visible,
+body.desktop-mode #tt-screenshot-context-button:active {
+  position: absolute;
+  transform: translateY(-50%);
+}
+
+body.desktop-mode #tt-screenshot-context-button.screenshot-action-busy {
+  position: absolute;
+}
+
+/* Disabled means the automatic crop is off: show the static, inactive
+   polaroid and keep it visibly monochrome. The settings-panel control has its
+   own rules and is intentionally not affected here. */
+body.desktop-mode #tt-screenshot-context-button.screenshot-disabled {
+  filter: grayscale(1) contrast(0.78);
+  opacity: 0.62;
+}
+
+body.desktop-mode #tt-screenshot-context-button.screenshot-disabled:hover,
+body.desktop-mode #tt-screenshot-context-button.screenshot-disabled:focus-visible {
+  filter: grayscale(1) contrast(0.78);
+  opacity: 0.78;
+}
+
+body.desktop-mode .desktop-account-panel,
+body.desktop-mode .desktop-report-panel {
+  display: grid;
+  gap: 14px;
+}
+
+body.desktop-mode .desktop-account-panel header,
+body.desktop-mode .desktop-account-panel dl,
+body.desktop-mode .desktop-account-actions,
+body.desktop-mode .desktop-report-panel label {
+  display: grid;
+  gap: 6px;
+}
+
+body.desktop-mode .desktop-account-panel header strong {
+  color: #f3f7ff;
+  font-size: 1rem;
+}
+
+body.desktop-mode .desktop-account-panel .desktop-account-identity {
+  grid-template-columns: 58px minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 10px;
+}
+
+body.desktop-mode .desktop-account-identity > div:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+body.desktop-mode .desktop-account-identity > div:nth-child(2) > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.desktop-mode .desktop-account-avatar-frame {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  padding: 5px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 7px;
+  background: linear-gradient(145deg, rgba(43, 50, 62, 0.86), rgba(31, 37, 47, 0.96));
+}
+
+body.desktop-mode .desktop-account-avatar-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: pixelated;
+  transform-origin: center;
+  transition: transform .12s ease-out;
+}
+
+body.desktop-mode .desktop-account-edit-character {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  padding: 5px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 7px;
+  background: linear-gradient(145deg, rgba(43, 50, 62, 0.86), rgba(31, 37, 47, 0.96));
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+body.desktop-mode .desktop-account-edit-character:hover,
+body.desktop-mode .desktop-account-edit-character:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(88, 196, 112, 0.58);
+}
+
+body.desktop-mode .desktop-account-edit-character img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+body.desktop-mode .desktop-account-panel header span,
+body.desktop-mode .desktop-account-panel dt,
+body.desktop-mode .desktop-account-status,
+body.desktop-mode .desktop-report-panel label span {
+  color: #97a4b7;
+  font-size: 0.72rem;
+}
+
+body.desktop-mode .desktop-account-panel dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+body.desktop-mode .desktop-account-panel .desktop-account-benefit {
+  grid-column: 1 / -1;
+}
+
+body.desktop-mode .desktop-account-panel dl div {
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 6px;
+  background: #2c313b;
+}
+
+body.desktop-mode .desktop-account-panel dd { margin: 0; color: #f3f7ff; font-weight: 800; }
+body.desktop-mode .desktop-account-panel .desktop-remove-ads-action { width: 100%; margin-top: 2px; }
+body.desktop-mode .desktop-account-proof-actions { display: grid; gap: 7px; }
+body.desktop-mode .desktop-account-proof-actions h2 { margin: 0; color: #f3f7ff; font-family: inherit; font-size: .82rem; font-weight: 800; letter-spacing: .02em; }
+body.desktop-mode .desktop-account-proof-actions > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+body.desktop-mode .desktop-account-actions > .desktop-account-action { justify-self: stretch; width: 100%; }
+body.desktop-mode .desktop-account-proof-actions .desktop-account-action { width: 100%; }
+body.desktop-mode .desktop-account-image-action { display: block; width: min(100%, 250px); margin: 12px auto 0; padding: 0; border: 0; background: transparent; cursor: pointer; pointer-events: auto; -webkit-app-region: no-drag; transition: transform 140ms ease, filter 140ms ease; }
+body.desktop-mode .desktop-account-image-action img { display: block; width: 100%; height: auto; pointer-events: none; }
+body.desktop-mode .desktop-account-image-action:hover { transform: translateY(-1px) scale(1.012); filter: brightness(1.06); }
+body.desktop-mode .desktop-account-image-action:active { transform: translateY(0) scale(.992); filter: brightness(.98); }
+body.desktop-mode .desktop-account-image-action:focus-visible { outline: 2px solid #63e69a; outline-offset: 3px; border-radius: 6px; }
+body.desktop-mode .desktop-report-panel input,
+body.desktop-mode .desktop-report-panel select,
+body.desktop-mode .desktop-report-panel textarea { width: 100%; box-sizing: border-box; }
+body.desktop-mode .desktop-report-panel textarea {
+  min-height: 120px;
+  padding: 10px 11px;
+  line-height: 1.42;
+  resize: vertical;
+}
+
+/* Reports deliberately reuse the site's three audited choices and element
+   picker icon, but fit the existing desktop side panel rather than creating a
+   second visual language. */
+body.desktop-mode .desktop-report-panel fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+body.desktop-mode .desktop-report-panel legend { margin-bottom: 7px; color: #e7ddc8; font-size: .72rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+body.desktop-mode .desktop-report-kind-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+body.desktop-mode .desktop-report-kind-options button { display: grid; min-height: 60px; place-items: center; border: 1px solid rgba(120, 139, 164, .32); border-radius: 6px; background: #272c35; cursor: pointer; }
+body.desktop-mode .desktop-report-kind-options button:hover,
+body.desktop-mode .desktop-report-kind-options button.is-selected { border-color: rgba(88, 196, 112, .8); background: linear-gradient(145deg, #304653, #1c232c); }
+body.desktop-mode .desktop-report-kind-options img { width: 27px; height: 27px; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+body.desktop-mode .desktop-report-selected-elements { display: grid; max-height: 158px; gap: 6px; overflow-y: auto; }
+body.desktop-mode .desktop-report-selected-elements[hidden] { display: none; }
+body.desktop-mode .desktop-report-selected-elements > div { display: grid; min-height: 52px; grid-template-columns: minmax(0,1fr) auto; gap: 3px 8px; align-items: center; padding: 7px 8px; border-left: 2px solid #d8b358; background: rgba(52,43,21,.3); }
+body.desktop-mode .desktop-report-selected-elements strong { overflow: hidden; color: #f4da91; font-size: .74rem; text-overflow: ellipsis; white-space: nowrap; }
+body.desktop-mode .desktop-report-selected-elements span { grid-column: 1 / -1; overflow: hidden; color: #aab3c1; font-size: .62rem; text-overflow: ellipsis; white-space: nowrap; }
+body.desktop-mode .desktop-report-selected-elements button { grid-column: 2; grid-row: 1; display: grid; width: 25px; height: 25px; place-items: center; padding: 0; border: 1px solid rgba(120, 139, 164, .42); border-radius: 4px; background: #242a33; cursor: pointer; }
+body.desktop-mode .desktop-report-selected-elements button img { width: 14px; height: 14px; object-fit: contain; image-rendering: pixelated; }
+body.desktop-mode .desktop-report-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+/* Matches the existing item-detail “Abrir Wiki” action: same compact pill,
+   typography, neutral surface and hover state. */
+body.desktop-mode .desktop-report-submit { min-width: 0; min-height: 30px; }
+body.desktop-mode .desktop-report-select-action { display: grid; width: 38px; height: 38px; place-items: center; padding: 0; border: 1px solid rgba(120,139,164,.54); border-radius: 6px; background: linear-gradient(145deg,#2b3440,#1b222b); cursor: pointer; }
+body.desktop-mode .desktop-report-select-action:hover { border-color: rgba(88,196,112,.82); background: linear-gradient(145deg,#3a4c5c,#202a34); }
+body.desktop-mode .desktop-report-select-action img { width: 19px; height: 19px; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+body.desktop-mode .desktop-report-picker-hud { position: fixed; z-index: 2147483647; top: 16px; left: 50%; padding: 9px 13px; border: 1px solid rgba(88,196,112,.86); border-radius: 6px; color: #f3f7ff; background: #202731; box-shadow: 0 8px 24px rgba(0,0,0,.62); font-size: .82rem; pointer-events: none; transform: translateX(-50%); }
+body.desktop-mode .desktop-report-picker-hud small { margin-left: 8px; color: #aab3c1; font-size: .68rem; }
+body.desktop-mode .desktop-report-element-highlight { position: fixed; z-index: 2147483646; box-sizing: border-box; border: 2px solid #f2c64c; outline: 1px solid rgba(255,242,185,.82); background: rgba(216,179,88,.11); box-shadow: 0 0 0 4px rgba(216,179,88,.16); pointer-events: none; }
+body.desktop-mode.desktop-report-element-picker-active,
+body.desktop-mode.desktop-report-element-picker-active * { cursor: url("assets/ui/feedback/select-element.png") 8 8, crosshair !important; }
 
 body.desktop-mode .tt-tour-context-button:hover,
 body.desktop-mode .tt-tour-context-button:focus-visible {
@@ -17032,6 +18355,35 @@ body.driver-active::after {
 
 body.driver-active .driver-active-element {
   pointer-events: none !important;
+}
+
+/* Global tutorial focus frame. It follows Driver.js' highlighted cut-out
+   without replacing borders or pseudo-elements owned by the target itself. */
+#tt-tutorial-external-focus-anchor {
+  position: fixed;
+  left: -40px;
+  top: -40px;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.tt-tour-highlight-frame {
+  position: fixed;
+  z-index: 1000000002;
+  border: 1px solid rgba(236, 190, 77, 0.96);
+  border-radius: 7px;
+  box-shadow:
+    0 0 0 1px rgba(30, 22, 8, 0.94),
+    0 0 0 3px rgba(236, 190, 77, 0.82),
+    inset 0 0 0 3px rgba(255, 215, 99, 0.38),
+    0 0 18px rgba(236, 190, 77, 0.2);
+  pointer-events: none !important;
+  transition:
+    left 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .driver-popover.tt-tour-driver-popover .driver-popover-title,

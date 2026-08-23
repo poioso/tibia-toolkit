@@ -16,7 +16,10 @@ const forbiddenPaths = [
 const requiredBaseAssets = new Set([
   "assets/ui/Tick.png",
   "assets/ui/Cross.png",
-  "assets/ui/tutorial/update.gif"
+  "assets/ui/tutorial/update.gif",
+  "assets/screen-vision/reference/sounds/spells/utura gran.ogg",
+  "assets/screen-vision/reference/sounds/spells/exura gran ico.ogg",
+  "assets/screen-vision/reference/sounds/spells/utito tempo.ogg"
 ]);
 const jsExtensions = new Set([".js", ".mjs", ".cjs"]);
 

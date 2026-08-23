@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mundos</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, Segoe UI, sans-serif; }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; background: transparent; overflow: hidden; }
+      .picker { height: 100%; padding: 4px; border: 1px solid rgba(112, 130, 157, .58); border-radius: 9px; background: linear-gradient(160deg, #323944, #252b34 72%); box-shadow: 0 14px 30px rgba(0,0,0,.46); }
+      #query { width: 100%; height: 34px; padding: 0 10px; border: 1px solid rgba(125, 147, 184, .4); border-radius: 6px; outline: 0; background: rgba(28,34,44,.98); color: #f5f8ff; font: 800 12px/1 Inter, Segoe UI, sans-serif; }
+      #query:focus { border-color: rgba(88,196,112,.85); box-shadow: 0 0 0 2px rgba(88,196,112,.15); }
+      #list { display: grid; gap: 5px; max-height: calc(100% - 39px); margin-top: 5px; overflow-y: auto; padding-right: 1px; }
+      .world { width: 100%; min-height: 48px; padding: 7px 9px; border: 1px solid transparent; border-radius: 6px; background: rgba(48,55,67,.94); color: #f5f8ff; text-align: left; cursor: pointer; }
+      .world:hover, .world.active { border-color: rgba(88,196,112,.74); background: linear-gradient(145deg, rgba(57,76,88,.98), rgba(37,45,55,.98)); }
+      .world strong { display: block; overflow: hidden; color: #fff; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+      .meta { display: flex; min-height: 15px; align-items: center; gap: 7px; margin-top: 4px; color: #b4c2d3; font-size: 10px; font-weight: 650; }
+      .meta img { width: 12px; height: 12px; image-rendering: pixelated; object-fit: contain; }
+      .empty { padding: 18px 10px; color: #aebaca; text-align: center; font-size: 11px; }
+      #list::-webkit-scrollbar { width: 7px; }
+      #list::-webkit-scrollbar-thumb { border-radius: 8px; background: rgba(143,164,194,.38); }
+    </style>
+  </head>
+  <body>
+    <main class="picker">
+      <input id="query" type="text" autocomplete="off" spellcheck="false">
+      <section id="list" aria-label="Mundos"></section>
+    </main>
+    <script src="world-picker.js"></script>
+  </body>
+</html>

@@ -43,6 +43,23 @@ contextBridge.exposeInMainWorld("screenVisionApi", {
       return ipcRenderer.invoke("screen-vision:open", { tool, options });
     }
   },
+  account: {
+    getState() {
+      return ipcRenderer.invoke("account:get-state");
+    },
+    getCampaigns() {
+      return ipcRenderer.invoke("account:get-campaigns");
+    },
+    connect() {
+      return ipcRenderer.invoke("account:connect");
+    },
+    disconnect() {
+      return ipcRenderer.invoke("account:disconnect");
+    },
+    openPage(page) {
+      return ipcRenderer.invoke("account:open-page", page);
+    }
+  },
   tutorial: {
     resetAll() {
       return ipcRenderer.invoke("screen-vision:tutorial:reset-all");
@@ -60,6 +77,9 @@ contextBridge.exposeInMainWorld("screenVisionApi", {
     }
   },
   obs: {
+    isWindowAvailable() {
+      return ipcRenderer.invoke("screen-vision:obs-window:is-available");
+    },
     getStatus() {
       return ipcRenderer.invoke("screen-vision:obs:get-status");
     },
@@ -107,11 +127,17 @@ contextBridge.exposeInMainWorld("screenVisionApi", {
     list() {
       return ipcRenderer.invoke("screen-vision:regions:list");
     },
+    getCount() {
+      return ipcRenderer.invoke("screen-vision:regions:count");
+    },
     get(regionId) {
       return ipcRenderer.invoke("screen-vision:regions:get", { regionId });
     },
     add() {
       return ipcRenderer.invoke("screen-vision:regions:add");
+    },
+    addObs() {
+      return ipcRenderer.invoke("screen-vision:regions:add-obs");
     },
     addFixed() {
       return ipcRenderer.invoke("screen-vision:regions:add-fixed");
@@ -175,17 +201,6 @@ contextBridge.exposeInMainWorld("screenVisionApi", {
       return ipcRenderer.invoke("screen-vision:grid:toggle");
     }
   },
-  selection: {
-    complete(payload) {
-      return ipcRenderer.invoke("screen-vision:selection:complete", payload);
-    },
-    cancel() {
-      return ipcRenderer.invoke("screen-vision:selection:cancel");
-    },
-    getCursorPoint() {
-      return ipcRenderer.invoke("screen-vision:selection:get-cursor-point");
-    }
-  },
   tibia: {
     getState() {
       return ipcRenderer.invoke("screen-vision:tibia:get-state");
@@ -202,6 +217,9 @@ contextBridge.exposeInMainWorld("screenVisionApi", {
   timers: {
     getRuntime() {
       return ipcRenderer.invoke("screen-vision:timers:get-runtime");
+    },
+    previewSound(payload) {
+      return ipcRenderer.invoke("screen-vision:timers:preview-sound", payload);
     },
     start(payload) {
       return ipcRenderer.invoke("screen-vision:timers:start", payload);

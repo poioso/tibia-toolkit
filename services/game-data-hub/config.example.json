@@ -4,6 +4,20 @@
   "stateFilePath": "./data/state.json",
   "tickMs": 1000,
   "timeoutMs": 20000,
+  "security": {
+    "trustProxy": false,
+    "miniWorldChangesRateLimit": {
+      "windowMs": 60000,
+      "maxRequests": 90
+    }
+  },
+  "miniWorldChanges": {
+    "enabled": true,
+    "sourceBase": "https://tibiatrade.gg/trpc",
+    "timeZone": "Europe/Berlin",
+    "serverSaveTime": "10:00",
+    "bootstrapWhenEmpty": true
+  },
   "refresh": {
     "tibiaStatisticWorldsMs": 60000,
     "boostedMs": 60000,

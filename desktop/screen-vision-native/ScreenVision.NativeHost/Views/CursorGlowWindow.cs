@@ -93,6 +93,14 @@ internal sealed class CursorGlowWindow : Window
         }
     }
 
+    internal void BringToFrontNoActivate()
+    {
+        if (_windowHandle != IntPtr.Zero)
+        {
+            Interop.WindowStyleInterop.BringWindowToFrontNoActivate(_windowHandle, true);
+        }
+    }
+
     private void StartTracking()
     {
         _trackingTimer?.Stop();

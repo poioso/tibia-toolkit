@@ -3,13 +3,13 @@ import {
   createDefaultOverlayToolsState,
   normalizeOverlayToolsState,
   OVERLAY_TOOLS_STORAGE_KEY
-} from "../../lib/overlay-tools-state.js";
+} from "../../lib/overlay/overlay-tools-state.js";
 import {
   AUTHENTICATOR_LABEL_MAX_LENGTH,
   AUTHENTICATOR_SECRET_MAX_LENGTH,
   createDefaultOverlayAuthenticatorDraft,
   normalizeOverlayAuthenticatorEntry
-} from "../../lib/overlay-authenticator.js";
+} from "../../lib/overlay/overlay-authenticator.js";
 import {
   createDefaultOverlayTimerDraft,
   createOverlayTimerEntryFromDraft,
@@ -18,12 +18,24 @@ import {
   ALERT_DISPLAY_DURATION_MIN_SECONDS,
   ALERT_DISPLAY_DURATION_MAX_SECONDS,
   ALERT_DISPLAY_DURATION_DEFAULT_SECONDS
-} from "../../lib/overlay-timers.js";
-import { generateOtp, normalizeTokenDraft } from "../../lib/totp-core.js";
-import { bootstrapRendererLocale } from "../../lib/renderer-locale.js";
-import { getAppLocale, t } from "../../lib/app-i18n.js";
-import { translateObjectTextFields } from "../../lib/phrase-translations.js";
+} from "../../lib/overlay/overlay-timers.js";
+import { generateOtp, normalizeTokenDraft } from "../../lib/overlay/totp-core.js";
+import {
+  FREE_MIRROR_LIMIT,
+  canCreateMirrorRegion,
+  countMirrorRegionsByScope,
+  formatMirrorRegionCount,
+  getVipMirrorLoadTone,
+  hasUnlimitedMirrorAccess
+} from "../../lib/overlay/mirror-limits.js";
+import { bootstrapRendererLocale } from "../../lib/i18n/renderer-locale.js";
+import { getAppLocale, t } from "../../lib/i18n/app-i18n.js";
+import { translateObjectTextFields } from "../../lib/i18n/phrase-translations.js";
 import { SCREEN_VISION_SPELL_PRESETS } from "./spell-presets.js";
+import {
+  SCREEN_VISION_FOOD_PRESETS,
+  SCREEN_VISION_POTION_PRESETS
+} from "./consumable-presets.js";
 
 const PERFORMANCE_NOTICE_THRESHOLD = 20;
 const ALERT_PANEL_MAX_TIMERS = 10;
@@ -54,6 +66,7 @@ const TOOLBAR_STATE_ASSETS = {
   locked: "assets/ui/tools/tibia-eye/toolbar/trancado.png",
   unlocked: "assets/ui/tools/tibia-eye/toolbar/destrancado.png"
 };
+const MAGNIFIED_CROP_ASSET = "assets/ui/tools/tibia-eye/toolbar/Loupe.gif";
 
 const PROFILE_PANEL_ASSETS = {
   create: "assets/ui/tools/tibia-eye/profiles/novo-perfil.png",
@@ -87,7 +100,7 @@ const SQM_FINDER_ASSETS = {
 };
 
 const TIBIA_COINS_PANEL_ASSETS = {
-  coin: "assets/ui/Tibia_Coin_Icon.gif",
+  coin: "assets/ui/economy/Tibia_Coin_Icon.gif",
   loading: "assets/ui/tools/tibia-eye/tibia-coins/loading.gif",
   brandLogo: "assets/ui/tools/tibia-eye/tibia-coins/daniel-hatano-logo.webp",
   resellerLogo: "assets/ui/tools/tibia-eye/tibia-coins/cipsoft-authorized-reseller.png",
@@ -105,9 +118,9 @@ const TIBIA_COINS_QUANTITY_MAX = 15000;
 const TIBIA_COINS_QUANTITY_STEP = 25;
 const TIBIA_COINS_PRODUCT_ID = 717;
 const TIBIA_COINS_CHARACTER_OPTION_ID = 1071;
-const TIBIA_COINS_TRACKING = "TibiaTools";
+const TIBIA_COINS_TRACKING = "tibiatoolkit";
 const TIBIA_COINS_QUICKBUY_URL = "https://www.danielhatano.com.br/index.php";
-const TIBIA_COINS_BRAND_URL = "https://www.danielhatano.com.br/tibia/?tracking=TibiaTools";
+const TIBIA_COINS_BRAND_URL = "https://www.danielhatano.com.br/tibia/?tracking=tibiatoolkit";
 const TIBIA_COINS_PRICE_TIERS = [
   { min: 750, unitPrice: 0.2293 },
   { min: 250, unitPrice: 0.2472 },
@@ -131,17 +144,23 @@ const COFFEE_PANEL_ASSETS = {
   thankYou: "assets/ui/tools/tibia-eye/buy-me-a-coffee/thank-you.gif",
   pix: "assets/ui/tools/tibia-eye/buy-me-a-coffee/pix.png",
   mercadoPago: "assets/ui/tools/tibia-eye/buy-me-a-coffee/mercado-pago.png",
-  pixQr: "assets/ui/tools/tibia-eye/buy-me-a-coffee/pix-qr.png",
+  pixQrFallback: "assets/ui/tools/tibia-eye/buy-me-a-coffee/pix-qr.png",
   qr: "assets/ui/tools/tibia-eye/authenticator/qr-code-white-icon.webp",
   discord: "assets/ui/tools/tibia-eye/buy-me-a-coffee/discord.svg",
   tick: "assets/ui/Tick.png",
-  coin: "assets/ui/Tibia_Coin_Icon.gif"
+  coin: "assets/ui/economy/Tibia_Coin_Icon.gif"
 };
-const COFFEE_PIX_CODE = "00020101021126810014BR.GOV.BCB.PIX2559pix-qr.mercadopago.com/instore/ol/v2/3Z932g6kQLGlQwJjHaWjOF5204000053039865802BR5925LUAN MONTENEGRO WEBDESIGN6009SAO PAULO62080504mpis630482FE";
-const COFFEE_DISCORD_URL = "https://discord.gg/geKX9ewCy";
-const SETTINGS_PANEL_DISCORD_URL = "https://discord.gg/geKX9ewCy";
+const LIVEPIX_URL = "https://livepix.gg/poioso/";
+const LIVEPIX_SUBSCRIBE_URL = "https://livepix.gg/poioso/dedicado";
+const LIVEPIX_WIDGET_URL = "https://widget.livepix.gg/embed/a3597793-a561-41fb-9594-ac51fec43634";
+const COFFEE_DISCORD_URL = "https://discord.gg/2AFRsc2jmp";
+const SETTINGS_PANEL_DISCORD_URL = "https://discord.gg/2AFRsc2jmp";
 const SETTINGS_PANEL_YOUTUBE_URL = "https://www.youtube.com/@poioso?sub_confirmation=1";
+const SETTINGS_PANEL_WEBSITE_URL = "https://tibiatoolkit.com/?utm_source=tibia_toolkit_app&utm_medium=desktop&utm_campaign=settings";
 const SETTINGS_PANEL_ASSETS = {
+  login: "assets/ui/account/login.png",
+  logout: "assets/ui/account/logout.png",
+  myAccount: "assets/ui/account/my-account.png",
   discord: "assets/ui/tools/tibia-eye/settings/discord-button.png",
   youtube: "assets/ui/tools/tibia-eye/settings/youtube-button.png",
   authenticator: "assets/ui/tools/tibia-eye/settings/authenticator-button.png",
@@ -361,6 +380,7 @@ const els = {
   toggleAllVisibilityButton: document.querySelector("#toggle-all-visibility-button"),
   toggleAllLockButton: document.querySelector("#toggle-all-lock-button"),
   obsMirrorButton: document.querySelector("#obs-mirror-button"),
+  obsWindowMirrorButton: document.querySelector("#obs-window-mirror-button"),
   desktopVisibilityButton: document.querySelector("#desktop-screen-vision-visibility-button"),
   desktopAuthenticatorButton: document.querySelector("#desktop-authenticator-button"),
   desktopCoffeeButton: document.querySelector("#desktop-coffee-button"),
@@ -371,6 +391,7 @@ const els = {
   gridOverlayButton: document.querySelector("#grid-overlay-button"),
   addRegionButton: document.querySelector("#add-region-button"),
   cropToolButton: document.querySelector("#crop-tool-button"),
+  magnifiedCropToolButton: document.querySelector("#magnified-crop-tool-button"),
   regionCount: document.querySelector("#region-count"),
   regionGrid: document.querySelector("#region-grid"),
   emptyState: document.querySelector("#empty-state"),
@@ -392,15 +413,26 @@ const els = {
 
 const state = {
   regions: [],
+  regionCountsByScope: countMirrorRegionsByScope([]),
+  visibleRegionCountsByScope: countMirrorRegionsByScope([]),
+  regionsRequestId: 0,
+  accountConnected: false,
+  accountEntitlements: [],
+  accountLoading: false,
   loading: false,
   creatingRegion: false,
+  cursorMagnifierEnabled: false,
   tibiaState: null,
+  activeMirrorSourceGame: "tibia",
   tibiaReadyLastPoll: false,
   obsMirrorStatus: {
     enabled: false,
     connected: false,
     error: ""
   },
+  obsWindowAvailable: false,
+  obsWindowAvailabilityRequest: null,
+  obsWindowAvailabilityCheckedAt: 0,
   overlayTools: createDefaultOverlayToolsState(),
   authenticatorRuntimeById: {},
   alertRuntimeById: {},
@@ -592,6 +624,9 @@ async function boot() {
   await refreshDockedAuthenticatorRuntime({ render: false, force: true });
   await refreshDockedAlertProfileLabel();
   renderDockedPanel();
+  // Keep startup responsive: render the safe Free display first, then let the
+  // real entitlement upgrade the counter to unlimited when applicable.
+  void refreshDockedSettingsAccount().then(() => renderToolbar());
   await refreshAll();
   startPolling();
 }
@@ -605,6 +640,19 @@ function bindEvents() {
 
   els.windowCloseButton?.addEventListener("click", () => {
     void window.screenVisionApi.window.close();
+  });
+
+  els.regionCount?.addEventListener("click", () => {
+    openFreeMirrorSupportPanel();
+  });
+
+  els.regionCount?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    openFreeMirrorSupportPanel();
   });
 
   els.toggleAllVisibilityButton?.addEventListener("click", () => {
@@ -634,6 +682,12 @@ function bindEvents() {
       return;
     }
 
+    const obsAvailable = await refreshObsWindowAvailability();
+    if (!obsAvailable) {
+      flashBlockedActionTooltip(button, "Abra o OBS antes de ativar os espelhos no OBS.");
+      return;
+    }
+
     button.disabled = true;
     const nextStatus = await window.screenVisionApi.obs.toggle().catch((error) => ({
       ...state.obsMirrorStatus,
@@ -645,30 +699,83 @@ function bindEvents() {
     renderToolbar();
 
     if (state.obsMirrorStatus.error) {
-      await window.screenVisionApi.dialogs.confirm({
+      const dialogOptions = {
         title: t("screenVision.obs.enable"),
         message: state.obsMirrorStatus.error,
         confirmLabel: t("dialog.confirm"),
         tone: "success",
-        mediaPath: "assets/ui/tutorial/websocketobs.gif",
-        mediaWidth: 320,
         width: 500,
         hideCancel: true,
         autoHeight: true,
         external: true,
         flat: true
-      }).catch(() => null);
+      };
+      if (state.obsMirrorStatus.errorKind === "websocket") {
+        dialogOptions.mediaPath = "assets/ui/tutorial/websocketobs.gif";
+        dialogOptions.mediaWidth = 320;
+      }
+      await window.screenVisionApi.dialogs.confirm(dialogOptions).catch(() => null);
     }
   });
 
-  els.desktopTibiaCoinsButton?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    event.stopImmediatePropagation();
-    void window.screenVisionApi.tools.open("tibia-coins-panel").catch(() => null);
+  els.obsWindowMirrorButton?.addEventListener("click", async () => {
+    if (!hasUnlimitedMirrorAccess(getMirrorAccountState())) {
+      openFreeMirrorSupportPanel();
+      return;
+    }
+
+    const obsAvailable = await refreshObsWindowAvailability();
+    if (!obsAvailable) {
+      flashBlockedActionTooltip(els.obsWindowMirrorButton, "Abra o OBS antes de criar um OBS Mirror.");
+      return;
+    }
+
+    if (blockMirrorCreationAtLimit(els.obsWindowMirrorButton, "obs")) {
+      return;
+    }
+
+    if (state.creatingRegion) {
+      return;
+    }
+
+    state.creatingRegion = true;
+    els.obsWindowMirrorButton.disabled = true;
+    try {
+      const result = await window.screenVisionApi.regions.addObs().catch(() => null);
+      applyRegionsResponse(result);
+      if (result?.cancelled && result.reason === "native-host-outdated") {
+        flashBlockedActionTooltip(
+          els.obsWindowMirrorButton,
+          "O componente do OBS Mirror precisa ser atualizado para esta versão do app."
+        );
+      } else if (!result || (result.cancelled && result.reason === "selection-failed")) {
+        flashBlockedActionTooltip(
+          els.obsWindowMirrorButton,
+          "Não foi possível abrir a seleção do OBS. Tente novamente."
+        );
+      }
+    } finally {
+      els.obsWindowMirrorButton.disabled = false;
+      state.creatingRegion = false;
+    }
+  });
+
+  [els.obsMirrorButton, els.obsWindowMirrorButton].forEach((button) => {
+    button?.addEventListener("pointerenter", () => {
+      if (button === els.obsWindowMirrorButton && !hasUnlimitedMirrorAccess(getMirrorAccountState())) {
+        return;
+      }
+      void refreshObsWindowAvailability();
+    });
   });
 
   els.openAlertasButton?.addEventListener("click", () => {
+    // RubinOT blocks the global input path used by Sound Alerts. Keep the
+    // unsupported surface unavailable instead of opening a panel that cannot
+    // deliver its promised behavior.
+    if (isRubinotMirrorSource()) {
+      return;
+    }
     if (blockMirrorToolbarAction(els.openAlertasButton)) {
       return;
     }
@@ -713,13 +820,12 @@ function bindEvents() {
     if (blockMirrorToolbarAction(els.addRegionButton)) {
       return;
     }
+    if (blockMirrorCreationAtLimit(els.addRegionButton)) {
+      return;
+    }
     if (blockMirrorCreationWithoutProfile(els.addRegionButton)) {
       return;
     }
-    if (blockMirrorCreationWhileHidden(els.addRegionButton)) {
-      return;
-    }
-
     state.mirrorCreationNudgeDismissed = true;
     stopMirrorCreationNudge();
     void addRegion();
@@ -734,14 +840,21 @@ function bindEvents() {
     if (blockMirrorToolbarAction(els.cropToolButton)) {
       return;
     }
+    if (blockMirrorCreationAtLimit(els.cropToolButton)) {
+      return;
+    }
     if (blockMirrorCreationWithoutProfile(els.cropToolButton)) {
       return;
     }
-    if (blockMirrorCreationWhileHidden(els.cropToolButton)) {
+    void addFixedRegion();
+  });
+
+  els.magnifiedCropToolButton?.addEventListener("click", async () => {
+    await refreshTibiaState();
+    if (blockMirrorToolbarAction(els.magnifiedCropToolButton)) {
       return;
     }
-
-    void addFixedRegion();
+    void toggleCursorMagnifier();
   });
 
   els.emptyState?.addEventListener("click", (event) => {
@@ -755,6 +868,32 @@ function bindEvents() {
   els.dockedPanelHost?.addEventListener("click", (event) => {
     void handleDockedPanelClick(event);
   });
+
+  els.dockedPanelHost?.addEventListener("load", (event) => {
+    const image = event.target;
+    if (image?.tagName !== "IMG" || !image.matches("[data-docked-coffee-qr-remote]")) {
+      return;
+    }
+
+    image.dataset.loaded = "true";
+    image.dataset.error = "false";
+  }, true);
+
+  els.dockedPanelHost?.addEventListener("error", (event) => {
+    const image = event.target;
+    if (image?.tagName !== "IMG" || !image.matches("[data-docked-coffee-qr-remote]")) {
+      return;
+    }
+
+    // The local LivePix QR remains visible underneath while the site-hosted
+    // image is unavailable. Do not replace it with the browser's broken-image
+    // state or with an error animation.
+    image.dataset.error = "true";
+    image.dataset.loaded = "false";
+    if (state.coffeeConfig?.pix) {
+      state.coffeeConfig.pix.qrImageUrl = COFFEE_PANEL_ASSETS.pixQrFallback;
+    }
+  }, true);
 
   els.dockedPanelHost?.addEventListener("mousedown", (event) => {
     handleDockedPanelPointerDown(event);
@@ -1318,6 +1457,44 @@ function bindEvents() {
 }
 
 function bindExternalEvents() {
+  window.addEventListener("tibia-toolkit:account-state-changed", (event) => {
+    const detail = event?.detail || {};
+    state.accountConnected = detail.connected === true;
+    state.accountEntitlements = Array.isArray(detail.entitlements)
+      ? detail.entitlements.map((entry) => String(entry || "").trim()).filter(Boolean)
+      : [];
+    renderToolbar();
+    void refreshRegions().then(() => {
+      if (!shouldPreserveInteractiveSurface()) {
+        render();
+      }
+    });
+  });
+
+  window.screenVisionApi.tibia?.onMirrorSourceChanged?.((payload) => {
+    // The selector changes the active profile namespace as well as the game
+    // surface. Invalidate any in-flight list immediately: an old response
+    // must never draw a mirror while the new game correctly asks for its
+    // first profile.
+    state.activeMirrorSourceGame = normalizeMirrorSourceGame(payload?.activeGame);
+    // Close before awaiting any profile/window refresh. Previously this ran
+    // after asynchronous work and could leave the Alerts panel visible after
+    // switching to the unsupported RubinOT source.
+    if (isRubinotMirrorSource() && isDockedAlertPanelOpen()) {
+      void window.screenVisionApi.tools.close("alertas-panel").catch(() => null);
+    }
+    state.regionsRequestId += 1;
+    state.regions = [];
+    state.lastRenderedRegionsSignature = "";
+    render();
+    void (async () => {
+      await loadDockedProfilesState();
+      await refreshTibiaState();
+      await refreshRegions();
+      render();
+    })();
+  });
+
   window.screenVisionApi.events?.onOverlayStateChanged?.(() => {
     // The alert tour intentionally swaps in an in-memory timer. Do not let
     // unrelated storage events replace it halfway through the walkthrough.
@@ -1385,7 +1562,26 @@ function bindExternalEvents() {
     if (state.dockedPanel.open && state.dockedPanel.panelKey === "authenticator-panel") {
       void refreshDockedAuthenticatorRuntime({ force: true });
     }
+    // Settings, account and report are owned by the main renderer (app.js).
+    // This module is lazy-loaded after it, and competing renders of the
+    // shared shell made Settings visibly flicker between two titles. Leave
+    // those surfaces to their single owner.
+    if (["settings-panel", "account-panel", "report-panel"].includes(state.dockedPanel.panelKey)) {
+      // The shared dock shell can be rebuilt by this state notification.
+      // Tell the owner to paint immediately afterwards; otherwise the shell
+      // remains visibly empty until a separate, unrelated renderer update.
+      window.dispatchEvent(new CustomEvent("tibia-toolkit:docked-panel-rendered", {
+        detail: { open: state.dockedPanel.open, panelKey: state.dockedPanel.panelKey }
+      }));
+      return;
+    }
     renderDockedPanel();
+    if (state.dockedPanel.open && state.dockedPanel.panelKey === "settings-panel") {
+      void refreshDockedSettingsAccount().then(() => {
+        renderDockedPanel();
+        renderToolbar();
+      });
+    }
   });
 }
 
@@ -1889,6 +2085,24 @@ function renderDockedPanel() {
     phase: "closed",
     width: 0
   };
+
+  // Account and report are owned by app.js. This renderer can also run during
+  // late Screen Vision initialization, outside the guarded IPC callback, and
+  // must never replace their real contents with a generic placeholder.
+  const appOwnedPanelKey = String(document.body?.dataset?.dockedPanelKey || "");
+  const previouslyOwnedPanelKey = String(state.dockedPanelRenderedState?.panelKey || "");
+  // Do not make this conditional on `open`: during Electron's open/switch
+  // transition the shared panel can momentarily report `open: false` while
+  // still carrying the account/report key. Rendering the generic shell in
+  // that single frame is what produced the visible “Panel ready” fallback.
+  const ownsSharedHost = [appOwnedPanelKey, panelState.panelKey, previouslyOwnedPanelKey]
+    .some((panelKey) => ["account-panel", "report-panel"].includes(panelKey));
+  if (ownsSharedHost) {
+    window.dispatchEvent(new CustomEvent("tibia-toolkit:docked-panel-rendered", {
+      detail: { open: true, panelKey: appOwnedPanelKey || panelState.panelKey || previouslyOwnedPanelKey }
+    }));
+    return;
+  }
   const copy = getDockedPanelCopy(panelState.panelKey);
   const side = panelState.side === "left" ? "left" : "right";
   const phase = panelState.phase || (panelState.open ? "open" : "closed");
@@ -1942,6 +2156,16 @@ function renderDockedPanel() {
   host.innerHTML = renderDockedPanelShell(panelState, copy);
   bindDynamicTooltips(host);
   initializeSupporterShowcaseCycles(host);
+
+  // A few docked tools are rendered by the main application rather than this
+  // Screen Vision module.  Notify the owning renderer only after the shell is
+  // in the DOM; otherwise the generic fallback below would overwrite it.
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:docked-panel-rendered", {
+    detail: {
+      open: Boolean(panelState.open),
+      panelKey: panelState.panelKey || ""
+    }
+  }));
 
   if (shouldRestoreScroll && previousScrollTop > 0) {
     const nextContent = host.querySelector(".desktop-docked-panel-content");
@@ -2233,34 +2457,43 @@ function renderDockedWheelPerksPanel(panelState, copy) {
 function renderDockedSettingsPanel(panelState, copy) {
   const settingsItems = [
     {
-      label: t("screenVision.settings.discordLabel"),
+      label: "",
+      // The settings slot is an account entry point, not a second logout
+      // control. Logout lives inside the My Account panel once connected.
+      tooltip: state.accountConnected ? t("account.open") : t("toolbar.login"),
+      image: state.accountConnected ? SETTINGS_PANEL_ASSETS.myAccount : SETTINGS_PANEL_ASSETS.login,
+      action: state.accountConnected ? "open-settings-account" : "toggle-settings-account",
+      className: "desktop-settings-account-button"
+    },
+    {
+      label: "",
       tooltip: t("screenVision.settings.discordTooltip"),
       image: SETTINGS_PANEL_ASSETS.discord,
       action: "open-settings-discord"
     },
     {
-      label: t("screenVision.settings.youtubeLabel"),
+      label: "",
       tooltip: t("screenVision.settings.youtubeTooltip"),
       image: SETTINGS_PANEL_ASSETS.youtube,
       action: "open-settings-youtube"
     },
     {
-      label: t("screenVision.settings.authenticatorLabel"),
+      label: "",
       tooltip: t("screenVision.settings.authenticatorTooltip"),
       image: SETTINGS_PANEL_ASSETS.authenticator,
       action: "open-settings-authenticator"
     },
     {
-      label: t("screenVision.settings.tutorialLabel"),
+      label: "",
       tooltip: t("screenVision.settings.tutorialTooltip"),
       image: SETTINGS_PANEL_ASSETS.tutorial,
       action: "reset-app-tutorials"
     },
     {
-      label: t("screenVision.settings.websiteLabel"),
+      label: "",
       tooltip: t("screenVision.settings.websiteTooltip"),
       image: SETTINGS_PANEL_ASSETS.website,
-      action: ""
+      action: "open-settings-website"
     }
   ];
 
@@ -2274,11 +2507,11 @@ function renderDockedSettingsPanel(panelState, copy) {
       bodyMarkup: `
         <div class="desktop-settings-panel">
           ${settingsItems.map((entry) => `
-            <section class="desktop-settings-option">
-              <strong class="desktop-settings-option-label">${escapeHtml(entry.label)}</strong>
+            <section class="desktop-settings-option${entry.className ? ` ${escapeHtml(entry.className)}-option` : ""}">
+              ${entry.label ? `<strong class="desktop-settings-option-label">${escapeHtml(entry.label)}</strong>` : ""}
               <button
                 type="button"
-                class="desktop-settings-image-button"
+                class="desktop-settings-image-button${entry.className ? ` ${escapeHtml(entry.className)}` : ""}"
                 ${entry.action ? `data-docked-action="${escapeHtml(entry.action)}"` : ""}
                 data-tooltip="${escapeHtml(entry.tooltip)}"
                 aria-label="${escapeHtml(entry.tooltip)}"
@@ -2418,6 +2651,32 @@ function normalizeExternalHttpUrl(value) {
   }
 }
 
+function normalizeCoffeeQrImageUrl(value, fallbackUrl) {
+  const rawUrl = String(value || "").trim();
+
+  if (!rawUrl || rawUrl === fallbackUrl) {
+    return fallbackUrl;
+  }
+
+  if (/^assets\//i.test(rawUrl)) {
+    return rawUrl;
+  }
+
+  try {
+    const parsedUrl = new URL(rawUrl);
+    const hostname = parsedUrl.hostname.toLowerCase();
+    const isTrustedToolkitHost = hostname === "tibiatoolkit.com" || hostname.endsWith(".tibiatoolkit.com");
+
+    if ((parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") && isTrustedToolkitHost) {
+      return parsedUrl.href;
+    }
+  } catch (_error) {
+    // Invalid or untrusted QR sources use the local fallback.
+  }
+
+  return fallbackUrl;
+}
+
 async function fetchSupportersDocument(url) {
   if (window.screenVisionApi?.supporters?.fetchDocument) {
     return await window.screenVisionApi.supporters.fetchDocument();
@@ -2507,10 +2766,12 @@ function createDefaultCoffeeConfig() {
     },
     pix: {
       enabled: true,
-      pixCode: COFFEE_PIX_CODE,
-      qrImageUrl: COFFEE_PANEL_ASSETS.pixQr,
-      linkUrl: "",
-      linkLabel: ""
+      pixCode: "",
+      qrImageUrl: COFFEE_PANEL_ASSETS.pixQrFallback,
+      linkUrl: LIVEPIX_URL,
+      linkLabel: "DOE COM PIX",
+      subscribeUrl: LIVEPIX_SUBSCRIBE_URL,
+      widgetUrl: LIVEPIX_WIDGET_URL
     },
     mercadoPago: {
       enabled: true,
@@ -2585,18 +2846,15 @@ function normalizeCoffeeConfig(source = {}) {
         sections.pix ?? pixSource.enabled ?? source?.pixEnabled,
         defaults.pix.enabled
       ),
-      pixCode: firstNonEmptyString([
-        pixSource.pixCode,
-        pixSource.copyCode,
-        pixSource.code,
-        pixSource.key
-      ], defaults.pix.pixCode),
-      qrImageUrl: firstNonEmptyString([
+      // The app no longer carries or displays the old Mercado Pago PIX code.
+      // PIX support is represented by the LivePix links and QR image.
+      pixCode: "",
+      qrImageUrl: normalizeCoffeeQrImageUrl(firstNonEmptyString([
         pixSource.qrImageUrl,
         pixSource.qrUrl,
         pixSource.imageUrl,
         pixSource.assetUrl
-      ], defaults.pix.qrImageUrl),
+      ], ""), defaults.pix.qrImageUrl),
       linkUrl: firstNonEmptyString([
         pixSource.linkUrl,
         pixSource.url,
@@ -2605,7 +2863,15 @@ function normalizeCoffeeConfig(source = {}) {
       linkLabel: firstNonEmptyString([
         pixSource.linkLabel,
         pixSource.buttonLabel
-      ], defaults.pix.linkLabel)
+      ], defaults.pix.linkLabel),
+      subscribeUrl: firstNonEmptyString([
+        pixSource.subscribeUrl,
+        pixSource.subscriptionUrl
+      ], defaults.pix.subscribeUrl),
+      widgetUrl: firstNonEmptyString([
+        pixSource.widgetUrl,
+        pixSource.embedUrl
+      ], defaults.pix.widgetUrl)
     },
     mercadoPago: {
       enabled: coerceCoffeeBoolean(
@@ -2963,6 +3229,8 @@ function resolveSupporterShowcaseConfig(entry = {}) {
 
   return {
     mediaUrl: String(mediaUrl).trim(),
+    altText: String(showcaseSource.altText ?? entry.showcaseAltText ?? "").trim().slice(0, 240),
+    hoverText: String(showcaseSource.hoverText ?? entry.showcaseHoverText ?? "").trim().slice(0, 240),
     normalMs: clampSupporterShowcaseDuration(
       showcaseSource.normalMs ?? showcaseSource.cardMs ?? showcaseSource.defaultMs ?? showcaseSource.visibleMs ?? entry.showcaseNormalMs ?? entry.showcaseCardMs ?? entry.showcaseDefaultMs ?? entry.showcaseVisibleMs,
       SUPPORTER_SHOWCASE_DEFAULTS.normalMs,
@@ -3035,13 +3303,14 @@ function renderSupporterShowcaseMarkup(showcase, supporterName = "") {
     return "";
   }
 
-  const altText = supporterName
+  const altText = showcase.altText || (supporterName
     ? `${String(supporterName).trim()} showcase`
-    : "Supporter showcase";
+    : "Supporter showcase");
+  const tooltipAttribute = showcase.hoverText ? ` data-tooltip="${escapeHtml(showcase.hoverText)}" title="${escapeHtml(showcase.hoverText)}"` : "";
 
   return `
     <div class="docked-supporter-card-showcase-scene" aria-hidden="true">
-      <img src="${escapeHtml(showcase.mediaUrl)}" alt="${escapeHtml(altText)}" loading="eager" decoding="async" referrerpolicy="no-referrer">
+      <img src="${escapeHtml(showcase.mediaUrl)}" alt="${escapeHtml(altText)}"${tooltipAttribute} loading="eager" decoding="async" referrerpolicy="no-referrer">
     </div>
     <div class="docked-supporter-card-showcase-flare" aria-hidden="true"></div>
   `;
@@ -3271,12 +3540,27 @@ async function handleDockedSettingsPanelClick(event) {
   }
 
   if (action === "open-settings-discord") {
-    await openCoffeeExternalUrl(SETTINGS_PANEL_DISCORD_URL);
+    await openCoffeeExternalUrl(await getManagedDockedSocialLink("discord"));
+    return;
+  }
+
+  if (action === "toggle-settings-account") {
+    await toggleDockedSettingsAccount();
+    return;
+  }
+
+  if (action === "open-settings-account") {
+    await window.screenVisionApi.tools.open("account-panel").catch(() => null);
     return;
   }
 
   if (action === "open-settings-youtube") {
-    await openCoffeeExternalUrl(SETTINGS_PANEL_YOUTUBE_URL);
+    await openCoffeeExternalUrl(await getManagedDockedSocialLink("youtube"));
+    return;
+  }
+
+  if (action === "open-settings-website") {
+    await openCoffeeExternalUrl(SETTINGS_PANEL_WEBSITE_URL);
     return;
   }
 
@@ -3292,12 +3576,93 @@ async function handleDockedSettingsPanelClick(event) {
       confirmLabel: t("screenVision.settings.resetTutorialConfirm"),
       cancelLabel: t("common.cancel"),
       tone: "success",
-      mediaPath: "assets/ui/tutorial/inicio.gif",
+      mediaPath: "assets/ui/tutorial/tutorial.gif",
+      autoHeight: true,
       flat: true
     }).catch(() => null);
     if (result?.confirmed) {
       await window.screenVisionApi.tutorial.resetAll().catch(() => null);
     }
+  }
+}
+
+function getDockedAccountApi() {
+  return window.desktopApi?.account || window.screenVisionApi?.account || null;
+}
+
+async function getManagedDockedSocialLink(kind) {
+  const fallback = kind === "youtube" ? SETTINGS_PANEL_YOUTUBE_URL : SETTINGS_PANEL_DISCORD_URL;
+  try {
+    const catalog = await getDockedAccountApi()?.getCampaigns?.();
+    const candidate = catalog?.socialLinks?.[kind];
+    return typeof candidate === "string" && candidate.trim() ? candidate : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+async function refreshDockedSettingsAccount() {
+  const accountApi = getDockedAccountApi();
+  if (!accountApi?.getState) {
+    state.accountConnected = false;
+    state.accountEntitlements = [];
+    publishDockedAccountState();
+    return false;
+  }
+
+  try {
+    const account = await accountApi.getState();
+    state.accountConnected = Boolean(account?.connected);
+    state.accountEntitlements = Array.isArray(account?.entitlements)
+      ? account.entitlements.map((entry) => String(entry || "").trim()).filter(Boolean)
+      : [];
+  } catch {
+    state.accountConnected = false;
+    state.accountEntitlements = [];
+  }
+
+  publishDockedAccountState();
+  return state.accountConnected;
+}
+
+function publishDockedAccountState() {
+  window.dispatchEvent(new CustomEvent("tibia-toolkit:account-state-changed", {
+    detail: {
+      connected: state.accountConnected,
+      entitlements: [...state.accountEntitlements]
+    }
+  }));
+}
+
+async function toggleDockedSettingsAccount() {
+  const accountApi = getDockedAccountApi();
+  if (!accountApi || state.accountLoading) return;
+
+  state.accountLoading = true;
+  try {
+    if (state.accountConnected) {
+      state.accountConnected = false;
+      state.accountEntitlements = [];
+      publishDockedAccountState();
+      renderDockedPanel();
+      renderToolbar();
+      // The image must switch before the asynchronous IPC cleanup completes.
+      await accountApi.disconnect?.();
+      return;
+    }
+
+    const account = await accountApi.connect?.();
+    state.accountConnected = Boolean(account?.connected);
+    state.accountEntitlements = Array.isArray(account?.entitlements)
+      ? account.entitlements.map((entry) => String(entry || "").trim()).filter(Boolean)
+      : [];
+    publishDockedAccountState();
+    renderDockedPanel();
+    renderToolbar();
+  } catch (error) {
+    window.alert(error?.message || "Não foi possível conectar a conta.");
+  } finally {
+    state.accountLoading = false;
   }
 }
 
@@ -3613,17 +3978,34 @@ function renderDockedCoffeePanel(panelState, copy) {
   });
 }
 
+function renderDockedCoffeeQr(remoteUrl = "") {
+  const fallbackUrl = COFFEE_PANEL_ASSETS.pixQrFallback;
+  const normalizedRemoteUrl = String(remoteUrl || "").trim();
+  const hasRemoteUrl = Boolean(normalizedRemoteUrl && normalizedRemoteUrl !== fallbackUrl);
+  const alt = escapeHtml(t("screenVision.coffee.pixQrAlt"));
+
+  return `
+    <div class="docked-coffee-livepix-frame">
+      <div class="docked-coffee-livepix-shell">
+        <img class="docked-coffee-livepix-qr docked-coffee-livepix-qr-fallback" src="${escapeHtml(fallbackUrl)}" alt="${alt}" loading="eager" decoding="async">
+        ${hasRemoteUrl ? `<img class="docked-coffee-livepix-qr docked-coffee-livepix-qr-remote" data-docked-coffee-qr-remote="true" data-loaded="false" data-error="false" src="${escapeHtml(normalizedRemoteUrl)}" alt="${alt}" loading="eager" decoding="async">` : ""}
+      </div>
+    </div>
+  `;
+}
+
 function renderDockedCoffeeSupportOptions() {
   const coffeeConfig = state.coffeeConfig || createDefaultCoffeeConfig();
   const tibiaCoinsConfig = coffeeConfig.tibiaCoins || createDefaultCoffeeConfig().tibiaCoins;
   const pixConfig = coffeeConfig.pix || createDefaultCoffeeConfig().pix;
   const mercadoPagoConfig = coffeeConfig.mercadoPago || createDefaultCoffeeConfig().mercadoPago;
   const visibleDonationOptions = getVisibleCoffeeDonationOptions(coffeeConfig);
-  const pixIcon = state.coffeePixCopied ? COFFEE_PANEL_ASSETS.tick : COFFEE_PANEL_ASSETS.pix;
-  const pixTooltip = state.coffeePixCopied ? t("screenVision.coffee.pixCopied") : t("screenVision.coffee.copyPix");
   const characterName = String(tibiaCoinsConfig.characterName || "Poioso").trim() || "Poioso";
   const characterButton = `<button type="button" class="docked-coffee-character-copy imbuement-copy-button" data-docked-action="copy-coffee-character" data-coffee-character="${escapeHtml(characterName)}" data-tooltip="${escapeHtml(t("screenVision.coffee.copyCharacterName"))}" aria-label="${escapeHtml(t("screenVision.coffee.copyCharacterName"))}"><strong>${escapeHtml(characterName)}</strong><span class="copy-sprite-stack" aria-hidden="true"><img class="copy-sprite-icon copy-sprite-icon-off" src="assets/ui/copy/copiar-off.png" alt=""><img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/ui/copy/copiar-hover.png" alt=""><img class="copy-sprite-icon copy-sprite-icon-on" src="assets/ui/copy/copiar-on.png" alt=""></span></button>`;
   const supportMethodsMarkup = getCoffeeSupportMethodsMarkup(coffeeConfig);
+  const pixSummaryMarkup = pixConfig.enabled
+    ? `<p class="docked-coffee-intro-pix"><img src="${escapeHtml(COFFEE_PANEL_ASSETS.pix)}" alt=""> <strong>PIX</strong></p>`
+    : "";
   const sections = [];
 
   if (tibiaCoinsConfig.enabled) {
@@ -3631,64 +4013,46 @@ function renderDockedCoffeeSupportOptions() {
       <section class="docked-coffee-method">
         <div class="docked-coffee-method-heading">
           <img src="${escapeHtml(COFFEE_PANEL_ASSETS.coin)}" alt="">
-          <strong>Tibia Coins</strong>
+          <strong>Tibia Coins</strong> <span class="docked-coffee-method-note">${escapeHtml(t("screenVision.coffee.tibiaCoinsAvailability"))}</span>
         </div>
         <p>${t("screenVision.coffee.coinInstruction", { characterButton, world: `<strong>${escapeHtml(tibiaCoinsConfig.world || DEFAULT_COFFEE_WORLD)}</strong>` })}</p>
         <p>${escapeHtml(t("screenVision.coffee.discordProof"))}</p>
+        <div class="docked-coffee-proof-actions">
         ${[
           tibiaCoinsConfig.discordUrl ? renderCoffeeActionButton({
             label: t("screenVision.coffee.joinDiscord"),
             url: tibiaCoinsConfig.discordUrl,
-            iconPath: COFFEE_PANEL_ASSETS.discord
+            iconPath: COFFEE_PANEL_ASSETS.discord,
+            socialKind: "discord"
           }) : "",
-          tibiaCoinsConfig.linkUrl ? renderCoffeeActionButton({
-            label: tibiaCoinsConfig.linkLabel || t("screenVision.coffee.openLink"),
-            url: tibiaCoinsConfig.linkUrl,
-            iconPath: COFFEE_PANEL_ASSETS.coin
-          }) : ""
+          renderCoffeeProofActionButton()
         ].filter(Boolean).join("")}
+        </div>
       </section>
     `);
   }
 
   if (pixConfig.enabled) {
-    const pixActionButtons = [
-      String(pixConfig.qrImageUrl || "").trim() ? `
-        <button type="button" class="desktop-window-image-button docked-coffee-icon-button${state.coffeePixQrVisible ? " active" : ""}" data-docked-action="toggle-coffee-pix-qr" data-tooltip="${escapeHtml(t("screenVision.coffee.generateQr"))}" aria-label="${escapeHtml(t("screenVision.coffee.generateQr"))}">
-          <span class="desktop-window-icon-stack" aria-hidden="true">
-            <img class="desktop-window-icon desktop-window-icon-idle" src="${escapeHtml(COFFEE_PANEL_ASSETS.qr)}" alt="">
-            <img class="desktop-window-icon desktop-window-icon-active" src="${escapeHtml(COFFEE_PANEL_ASSETS.qr)}" alt="">
-          </span>
-        </button>
-      ` : "",
-      String(pixConfig.pixCode || "").trim() ? `
-        <button type="button" class="desktop-window-image-button docked-coffee-icon-button${state.coffeePixCopied ? " copied" : ""}" data-docked-action="copy-coffee-pix" data-tooltip="${escapeHtml(pixTooltip)}" aria-label="${escapeHtml(pixTooltip)}">
-          <span class="desktop-window-icon-stack" aria-hidden="true">
-            <img class="desktop-window-icon desktop-window-icon-idle" src="${escapeHtml(pixIcon)}" alt="">
-            <img class="desktop-window-icon desktop-window-icon-active" src="${escapeHtml(pixIcon)}" alt="">
-          </span>
-        </button>
-      ` : ""
-    ].filter(Boolean).join("");
-
     sections.push(`
-      <section class="docked-coffee-method">
+      <section class="docked-coffee-method docked-coffee-pix-method">
         <div class="docked-coffee-method-heading">
           <img src="${escapeHtml(COFFEE_PANEL_ASSETS.pix)}" alt="">
-          <strong>PIX</strong>
+          <strong>PIX</strong> <span class="docked-coffee-method-note">${escapeHtml(t("screenVision.coffee.pixAvailability"))}</span>
         </div>
-        <p>${escapeHtml(t("screenVision.coffee.pixPrompt"))}</p>
-        ${pixActionButtons ? `<div class="docked-coffee-pix-actions">${pixActionButtons}</div>` : ""}
-        ${state.coffeePixQrVisible && String(pixConfig.qrImageUrl || "").trim() ? `
-          <div class="docked-coffee-pix-qr">
-            <img src="${escapeHtml(pixConfig.qrImageUrl)}" alt="${escapeHtml(t("screenVision.coffee.pixQrAlt"))}">
-          </div>
-        ` : ""}
-        ${pixConfig.linkUrl ? renderCoffeeActionButton({
-          label: pixConfig.linkLabel || t("screenVision.coffee.openLink"),
-          url: pixConfig.linkUrl,
-          iconPath: COFFEE_PANEL_ASSETS.pix
-        }) : ""}
+        <div class="docked-coffee-pix-links">
+          ${pixConfig.linkUrl ? renderCoffeeActionButton({
+            label: pixConfig.linkLabel || "DOE COM PIX",
+            url: pixConfig.linkUrl,
+            iconPath: COFFEE_PANEL_ASSETS.pix,
+            className: "docked-coffee-pix-link"
+          }) : ""}
+          ${pixConfig.subscribeUrl ? renderCoffeeActionButton({
+            label: t("screenVision.coffee.pixSubscribe") || "Assine com PIX",
+            url: pixConfig.subscribeUrl,
+            iconPath: COFFEE_PANEL_ASSETS.pix,
+            className: "docked-coffee-pix-link"
+          }) : ""}
+        </div>
       </section>
     `);
   }
@@ -3710,12 +4074,16 @@ function renderDockedCoffeeSupportOptions() {
     <article class="docked-alert-card docked-coffee-card">
       <img class="docked-coffee-hero" src="${escapeHtml(COFFEE_PANEL_ASSETS.hero)}" alt="">
 
-      <div class="docked-coffee-copy">
-        <p>${escapeHtml(t("screenVision.coffee.thanks"))}</p>
-        <p>${escapeHtml(t("screenVision.coffee.alwaysFree")).replace("Always Free", `<strong class="docked-coffee-highlight">Always Free</strong>`)}</p>
-        ${supportMethodsMarkup}
-        <p class="docked-coffee-supporter-note">${escapeHtml(t("screenVision.coffee.supporterNote"))}</p>
+      <div class="docked-coffee-intro-layout">
+        <div class="docked-coffee-copy">
+          <p>${escapeHtml(t("screenVision.coffee.thanks"))}</p>
+          <p>${escapeHtml(t("screenVision.coffee.alwaysFree")).replace("Always Free", `<strong class="docked-coffee-highlight">Always Free</strong>`)}</p>
+          ${supportMethodsMarkup}
+          ${pixSummaryMarkup}
+        </div>
+        ${pixConfig.enabled ? renderDockedCoffeeQr(pixConfig.qrImageUrl) : ""}
       </div>
+      <p class="docked-coffee-supporter-note">${escapeHtml(t("screenVision.coffee.supporterNote"))}</p>
 
       ${sections.length > 0 ? `
         <div class="desktop-docked-tool-divider" aria-hidden="true"></div>
@@ -3730,14 +4098,6 @@ function getCoffeeSupportMethodsMarkup(config = state.coffeeConfig) {
 
   if (config?.tibiaCoins?.enabled) {
     methods.push(`<span class="docked-coffee-inline-method"><img src="${escapeHtml(COFFEE_PANEL_ASSETS.coin)}" alt=""> Tibia Coins</span>`);
-  }
-
-  if (config?.pix?.enabled) {
-    methods.push(`<span class="docked-coffee-inline-method"><img src="${escapeHtml(COFFEE_PANEL_ASSETS.pix)}" alt=""> PIX</span>`);
-  }
-
-  if (config?.mercadoPago?.enabled && getVisibleCoffeeDonationOptions(config).length > 0) {
-    methods.push(`<span class="docked-coffee-inline-method"><img src="${escapeHtml(COFFEE_PANEL_ASSETS.mercadoPago)}" alt=""> Mercado Pago</span>`);
   }
 
   if (methods.length <= 0) {
@@ -3776,20 +4136,31 @@ function renderDockedCoffeeThankYou() {
       ${renderCoffeeActionButton({
         label: t("screenVision.coffee.discordReceipt"),
         url: receiptUrl,
-        iconPath: COFFEE_PANEL_ASSETS.discord
+        iconPath: COFFEE_PANEL_ASSETS.discord,
+        socialKind: "discord"
       })}
     </article>
   `;
 }
 
-function renderCoffeeActionButton({ label, url, iconPath }) {
+function renderCoffeeActionButton({ label, url, iconPath, socialKind = "", className = "" }) {
   if (!String(url || "").trim()) {
     return "";
   }
 
   return `
-    <button type="button" class="docked-coffee-discord-button" data-docked-action="open-coffee-external" data-coffee-url="${escapeHtml(url)}" data-tooltip="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
+    <button type="button" class="docked-coffee-discord-button${className ? ` ${escapeHtml(className)}` : ""}" data-docked-action="open-coffee-external" data-coffee-url="${escapeHtml(url)}"${socialKind ? ` data-social-kind="${escapeHtml(socialKind)}"` : ""} data-tooltip="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
       <img src="${escapeHtml(iconPath || COFFEE_PANEL_ASSETS.discord)}" alt="">
+      <strong>${escapeHtml(label)}</strong>
+    </button>
+  `;
+}
+
+function renderCoffeeProofActionButton() {
+  const label = t("screenVision.coffee.sendProof");
+  return `
+    <button type="button" class="docked-coffee-discord-button docked-coffee-proof-button" data-docked-action="open-coffee-proof" data-tooltip="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
+      <img src="${escapeHtml(COFFEE_PANEL_ASSETS.coin)}" alt="">
       <strong>${escapeHtml(label)}</strong>
     </button>
   `;
@@ -4149,7 +4520,44 @@ async function handleDockedCoffeePanelClick(event) {
   }
 
   if (action === "open-coffee-external") {
-    await openCoffeeExternalUrl(button.dataset.coffeeUrl || "");
+    const socialKind = button.dataset.socialKind || "";
+    const targetUrl = socialKind
+      ? await getManagedDockedSocialLink(socialKind)
+      : button.dataset.coffeeUrl || "";
+    await openCoffeeExternalUrl(targetUrl);
+    return;
+  }
+
+  if (action === "open-coffee-proof") {
+    button.disabled = true;
+    const originalMarkup = button.innerHTML;
+    const busyLabel = t("common.loading");
+    button.setAttribute("aria-busy", "true");
+    button.setAttribute("aria-label", busyLabel);
+    button.innerHTML = `<strong>${escapeHtml(busyLabel)}</strong>`;
+    try {
+      // The proof-upload page owns its own safe login return. Opening it
+      // directly avoids making a donation workflow wait for the optional
+      // desktop-device authorisation, while preserving the same account.
+      // The docked renderer owns this action, so use its account bridge
+      // directly before falling back to the shared desktop bridge.
+      const accountApi = window.screenVisionApi?.account || getDockedAccountApi();
+      if (!accountApi?.openPage) {
+        throw new Error("A conexão da conta não está disponível agora.");
+      }
+      await accountApi.openPage("proof");
+    } catch (error) {
+      const message = String(error?.message || "Não foi possível abrir o envio de comprovante agora.");
+      setLiveTooltip(button, message, "error");
+      window.alert(message);
+    } finally {
+      if (button.isConnected) {
+        button.disabled = false;
+        button.removeAttribute("aria-busy");
+        button.setAttribute("aria-label", t("screenVision.coffee.sendProof"));
+        button.innerHTML = originalMarkup;
+      }
+    }
     return;
   }
 
@@ -5447,6 +5855,18 @@ function buildDockedAlertSoundLibrary() {
     });
   }
 
+  for (const preset of SCREEN_VISION_POTION_PRESETS) {
+    if (!preset?.soundKey || !preset.soundPath || unique.has(preset.soundKey)) {
+      continue;
+    }
+    unique.set(preset.soundKey, {
+      value: preset.soundKey,
+      label: preset.name,
+      soundPath: preset.soundPath,
+      presetId: preset.id || ""
+    });
+  }
+
   return [...unique.values()];
 }
 
@@ -5481,7 +5901,11 @@ function extractFileName(filePath) {
 
 function getDockedAlertSelectedSoundLabel(timer) {
   if (!timer) {
-    return "Som padrao";
+    return t("screenVision.alerts.defaultSound");
+  }
+
+  if (timer.soundKey === "none" && !timer.customSoundPath) {
+    return t("screenVision.alerts.noSound");
   }
 
   if (typeof timer.customSoundPath === "string" && timer.customSoundPath.trim()) {
@@ -5489,7 +5913,7 @@ function getDockedAlertSelectedSoundLabel(timer) {
   }
 
   const option = getDockedAlertSoundOption(timer.soundKey);
-  return option?.label || "Som padrao";
+  return option?.label || t("screenVision.alerts.defaultSound");
 }
 
 async function createDockedAlertTimerFromDraft(draft, options = {}) {
@@ -5556,18 +5980,114 @@ async function createDockedSpellPresetAlert(spellPreset, trigger = null) {
 
   return createDockedAlertTimerFromDraft({
     name: spellPreset.name || "",
-    durationSeconds: clampInteger(spellPreset.cooldownSeconds, 1, 43200, 60),
+    durationSeconds: clampInteger(spellPreset.cooldownSeconds, 1, 86400, 60),
     soundKey: spellPreset.soundPath ? (spellPreset.soundKey || "default") : "default",
     customSoundPath: "",
     message: spellPreset.words || "",
     showVisualAlert: false,
     reminderEnabled: false,
     retriggerEnabled: true,
-    locked: false
+    locked: false,
+    timerKind: "spell",
+    presetId: spellPreset.id || "",
+    clockMode: "runtime"
   }, {
     trigger,
     focusField: "timerName"
   });
+}
+
+async function createDockedPotionPresetAlert(preset, trigger = null) {
+  if (!preset) {
+    return null;
+  }
+
+  return createDockedAlertTimerFromDraft({
+    name: preset.name,
+    durationSeconds: preset.durationSeconds,
+    soundKey: preset.soundKey,
+    customSoundPath: "",
+    message: preset.name,
+    showVisualAlert: false,
+    reminderEnabled: false,
+    retriggerEnabled: true,
+    locked: false,
+    volumePercent: 100,
+    volumeMuted: false,
+    timerKind: "potion",
+    presetId: preset.id,
+    clockMode: "runtime"
+  }, {
+    trigger,
+    focusField: "timerName"
+  });
+}
+
+async function createDockedFoodPresetAlert(preset, trigger = null) {
+  if (!preset) {
+    return null;
+  }
+
+  return createDockedAlertTimerFromDraft({
+    name: preset.name,
+    durationSeconds: preset.durationSeconds,
+    soundKey: "none",
+    customSoundPath: "",
+    message: preset.name,
+    showVisualAlert: false,
+    reminderEnabled: false,
+    retriggerEnabled: true,
+    locked: false,
+    volumePercent: 0,
+    volumeMuted: true,
+    timerKind: "food",
+    presetId: preset.id,
+    clockMode: "wall-clock",
+    persistentEndsAtMs: null
+  }, {
+    trigger,
+    focusField: "timerName"
+  });
+}
+
+function renderDockedAlertConsumablePicker(kind) {
+  const isFood = kind === "food";
+  const presets = isFood ? SCREEN_VISION_FOOD_PRESETS : SCREEN_VISION_POTION_PRESETS;
+  const title = isFood ? t("screenVision.alerts.foods") : t("screenVision.alerts.potions");
+
+  return `
+    <div class="docked-alert-consumable-panel" data-consumable-kind="${escapeHtml(kind)}">
+      <div class="docked-alert-consumable-heading">
+        <h4>${escapeHtml(title)}</h4>
+        ${isFood ? `
+          <button
+            type="button"
+            class="docked-alert-icon-button"
+            data-docked-action="reset-food-cooldowns"
+            data-tooltip="${escapeHtml(t("screenVision.alerts.resetFoodCooldowns"))}"
+            aria-label="${escapeHtml(t("screenVision.alerts.resetFoodCooldowns"))}"
+          >${renderIcon("refresh")}</button>
+        ` : ""}
+      </div>
+      <div class="docked-alert-consumable-grid">
+        ${presets.map((preset) => `
+          <button
+            type="button"
+            class="docked-alert-consumable-button"
+            data-i18n-preserve
+            data-docked-action="create-alert-from-${escapeHtml(kind)}-preset"
+            data-consumable-preset-id="${escapeHtml(preset.id)}"
+            data-tooltip="${escapeHtml(`${preset.name}\n${formatOverlayTimerDuration(preset.durationSeconds)}`)}"
+            aria-label="${escapeHtml(preset.name)}"
+          >
+            <img src="${escapeHtml(preset.imagePath)}" alt="${escapeHtml(preset.name)}">
+            <span>${escapeHtml(preset.name)}</span>
+            <small>${escapeHtml(formatOverlayTimerDuration(preset.durationSeconds))}</small>
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderDockedAlertSpellPicker() {
@@ -5614,6 +6134,7 @@ function renderDockedAlertSpellPicker() {
                 <button
                   type="button"
                   class="docked-alert-magic-spell-button"
+                  data-i18n-preserve
                   data-docked-action="create-alert-from-spell-preset"
                   data-spell-preset-id="${escapeHtml(preset.id)}"
                   data-tooltip="${escapeHtml(`${preset.name}\n${preset.words}`)}"
@@ -5651,15 +6172,16 @@ function renderDockedAlertSoundExtension(timer, expanded, menuOpen) {
             data-tooltip="${escapeHtml(t("screenVision.alerts.selectAudio"))}"
             aria-label="${escapeHtml(t("screenVision.alerts.selectAudio"))}"
           >
-            <strong>${escapeHtml(selectedLabel)}</strong>
+            <strong data-i18n-preserve translate="no">${escapeHtml(selectedLabel)}</strong>
             <span class="docked-alert-sound-chevron" aria-hidden="true">▾</span>
           </button>
         </div>
         ${menuOpen ? `
-          <div class="docked-alert-sound-menu">
+          <div class="docked-alert-sound-menu" data-i18n-preserve translate="no">
             <button
               type="button"
               class="docked-alert-sound-option is-custom"
+              data-i18n-preserve
               data-docked-action="pick-alert-sound-custom"
               data-timer-id="${escapeHtml(timer.id)}"
               data-tooltip="${escapeHtml(t("screenVision.alerts.loadOwnAudio"))}"
@@ -5671,6 +6193,8 @@ function renderDockedAlertSoundExtension(timer, expanded, menuOpen) {
               <button
                 type="button"
                 class="docked-alert-sound-option${timer.soundKey === option.value && !timer.customSoundPath ? " active" : ""}"
+                data-i18n-preserve
+                translate="no"
                 data-docked-action="select-alert-sound-preset"
                 data-timer-id="${escapeHtml(timer.id)}"
                 data-sound-key="${escapeHtml(option.value)}"
@@ -5699,7 +6223,55 @@ function renderDockedAlertPanel(panelState, copy) {
   const listeningPaused = !tibiaReadyForAlerts && listeningDesired;
   const visualsPaused = !tibiaReadyForAlerts && visualsDesired;
   const globalVolumePercent = clampInteger(state.overlayTools?.timers?.globalVolumePercent, 0, 100, 70);
-  const magicMode = state.dockedAlertsView === "magias";
+  const isMediviaSource = String(state.tibiaState?.sourceGame || "tibia").trim().toLowerCase() === "medivia";
+  const activeView = isMediviaSource ? "cards" : String(state.dockedAlertsView || "cards");
+  const magicMode = activeView === "magias";
+  const potionMode = activeView === "pocoes";
+  const foodMode = activeView === "comidas";
+  const presetToolbarMarkup = isMediviaSource
+    ? `
+      <button
+        type="button"
+        class="docked-alert-tile docked-alert-action-tile"
+        data-docked-action="create-alert-spell-blank"
+        data-tooltip="${escapeHtml(t("screenVision.alerts.createSpell"))}"
+        aria-label="${escapeHtml(t("screenVision.alerts.createSpell"))}"
+      >
+        <img src="${escapeHtml(DOCKED_ALERT_MAGIC_CREATE_ASSET)}" alt="">
+      </button>
+    `
+    : `
+      <button
+        type="button"
+        class="docked-alert-tile docked-alert-action-tile${magicMode ? " active" : ""}"
+        data-docked-action="set-alerts-view"
+        data-alerts-view="magias"
+        data-tooltip="${escapeHtml(magicMode ? t("screenVision.alerts.closeSpellPanel") : t("screenVision.alerts.openSpellPanel"))}"
+        aria-label="${escapeHtml(magicMode ? t("screenVision.alerts.closeSpellPanel") : t("screenVision.alerts.openSpellPanel"))}"
+      >
+        <img src="${escapeHtml("assets/data/hakai/icons/images-static-items-lion-spellbook.gif")}" alt="">
+      </button>
+      <button
+        type="button"
+        class="docked-alert-tile docked-alert-action-tile${potionMode ? " active" : ""}"
+        data-docked-action="set-alerts-view"
+        data-alerts-view="pocoes"
+        data-tooltip="${escapeHtml(potionMode ? t("screenVision.alerts.closePotionPanel") : t("screenVision.alerts.openPotionPanel"))}"
+        aria-label="${escapeHtml(potionMode ? t("screenVision.alerts.closePotionPanel") : t("screenVision.alerts.openPotionPanel"))}"
+      >
+        <img src="${escapeHtml("assets/data/items/sprites/1975.png")}" alt="">
+      </button>
+      <button
+        type="button"
+        class="docked-alert-tile docked-alert-action-tile${foodMode ? " active" : ""}"
+        data-docked-action="set-alerts-view"
+        data-alerts-view="comidas"
+        data-tooltip="${escapeHtml(foodMode ? t("screenVision.alerts.closeFoodPanel") : t("screenVision.alerts.openFoodPanel"))}"
+        aria-label="${escapeHtml(foodMode ? t("screenVision.alerts.closeFoodPanel") : t("screenVision.alerts.openFoodPanel"))}"
+      >
+        <img src="${escapeHtml("assets/data/items/sprites/3053.png")}" alt="">
+      </button>
+    `;
 
   return renderDockedToolShell({
     side: panelState.side,
@@ -5736,15 +6308,7 @@ function renderDockedAlertPanel(panelState, copy) {
             </label>
           </div>
           <div class="desktop-docked-tool-toolbar-right docked-alerts-toolbar-right">
-            <button
-              type="button"
-              class="docked-alert-tile docked-alert-action-tile"
-              data-docked-action="toggle-alerts-view"
-              data-tooltip="${escapeHtml(magicMode ? t("screenVision.alerts.closeSpellPanel") : t("screenVision.alerts.openSpellPanel"))}"
-              aria-label="${escapeHtml(magicMode ? t("screenVision.alerts.closeSpellPanel") : t("screenVision.alerts.openSpellPanel"))}"
-            >
-              <img src="${escapeHtml("assets/data/hakai/icons/images-static-items-lion-spellbook.gif")}" alt="">
-            </button>
+            ${presetToolbarMarkup}
             <strong class="desktop-docked-tool-count docked-alert-count">${escapeHtml(String(timers.length))}/${ALERT_PANEL_MAX_TIMERS}</strong>
           </div>
         </div>
@@ -5752,7 +6316,11 @@ function renderDockedAlertPanel(panelState, copy) {
       dividerMarkup: `<div class="desktop-docked-tool-divider docked-alerts-toolbar-divider" aria-hidden="true"></div>`,
       bodyMarkup: magicMode
         ? renderDockedAlertSpellPicker()
-        : renderDockedAlertCards(timers)
+        : potionMode
+          ? renderDockedAlertConsumablePicker("potion")
+          : foodMode
+            ? renderDockedAlertConsumablePicker("food")
+            : renderDockedAlertCards(timers)
     })
   });
 }
@@ -5799,7 +6367,7 @@ function renderDockedAlertCard(timer, index) {
     <article class="docked-alert-card${panelOpen ? " expanded" : ""}${audioUiLocked ? " audio-locked" : ""}" data-alert-timer-id="${escapeHtml(timer.id)}">
       <div class="docked-alert-card-main">
         <div class="docked-alert-card-title-row">
-          <strong>${escapeHtml(timer.name || `Alerta ${index + 1}`)}</strong>
+          <strong data-i18n-preserve>${escapeHtml(timer.name || `Alerta ${index + 1}`)}</strong>
           <div class="docked-alert-card-title-meta">
             ${renderDockedAlertHotkeySummaryButton(timer, capturingHotkey)}
             ${runtime ? `<span class="docked-alert-runtime-chip${runtime.phase === "waiting-reminder" ? " reminder" : ""}">${escapeHtml(formatOverlayTimerDuration(runtime.remainingSeconds))}</span>` : ""}
@@ -5830,7 +6398,7 @@ function renderDockedAlertCard(timer, index) {
             <label>${escapeHtml(t("screenVision.alerts.cardNameLabel"))}</label>
             <input type="text" maxlength="80" value="${escapeHtml(timer.name || "")}" placeholder="${escapeHtml(t("screenVision.alerts.cardNamePlaceholder"))}" data-docked-field="timerName" data-timer-id="${escapeHtml(timer.id)}" data-tooltip="${escapeHtml(t("screenVision.alerts.cardNameTooltip"))}">
             <label>${escapeHtml(t("screenVision.alerts.timeLabel"))}</label>
-            <input type="number" min="1" max="43200" step="1" value="${escapeHtml(String(timer.durationSeconds || 60))}" data-docked-field="timerDurationSeconds" data-timer-id="${escapeHtml(timer.id)}" data-tooltip="${escapeHtml(t("screenVision.alerts.durationTooltip"))}">
+            <input type="number" min="1" max="86400" step="1" value="${escapeHtml(String(timer.durationSeconds || 60))}" data-docked-field="timerDurationSeconds" data-timer-id="${escapeHtml(timer.id)}" data-tooltip="${escapeHtml(t("screenVision.alerts.durationTooltip"))}">
           </div>
           <div class="docked-alert-hotkey-builder">
             <span class="docked-alert-hotkey-builder-label${capturingHotkey ? " capturing" : ""}">${escapeHtml(capturingHotkey ? t("screenVision.alerts.hotkeyClearPrompt") : t("screenVision.alerts.hotkeyPickPrompt"))}</span>
@@ -6070,8 +6638,53 @@ async function handleDockedPanelClick(event) {
     return;
   }
 
-  if (action === "toggle-alerts-view") {
-    state.dockedAlertsView = state.dockedAlertsView === "cards" ? "magias" : "cards";
+  if (action === "set-alerts-view") {
+    const requestedView = String(button.dataset.alertsView || "cards");
+    state.dockedAlertsView = state.dockedAlertsView === requestedView ? "cards" : requestedView;
+    renderDockedPanel();
+    return;
+  }
+
+  if (action === "create-alert-from-potion-preset") {
+    const presetId = String(button.dataset.consumablePresetId || "").trim();
+    const preset = SCREEN_VISION_POTION_PRESETS.find((entry) => entry.id === presetId) || null;
+    await createDockedPotionPresetAlert(preset, button);
+    return;
+  }
+
+  if (action === "create-alert-from-food-preset") {
+    const presetId = String(button.dataset.consumablePresetId || "").trim();
+    const preset = SCREEN_VISION_FOOD_PRESETS.find((entry) => entry.id === presetId) || null;
+    await createDockedFoodPresetAlert(preset, button);
+    return;
+  }
+
+  if (action === "reset-food-cooldowns") {
+    const activeFoodIds = (Array.isArray(state.overlayTools?.timers?.items) ? state.overlayTools.timers.items : [])
+      .filter((entry) => entry?.timerKind === "food" && (entry?.persistentEndsAtMs || state.alertRuntimeById?.[entry.id]))
+      .map((entry) => entry.id);
+    if (!activeFoodIds.length) {
+      flashBlockedActionTooltip(button, t("screenVision.alerts.noFoodCooldowns"));
+      return;
+    }
+    const confirmed = await confirmExternalModal({
+      title: t("screenVision.alerts.resetFoodTitle"),
+      message: t("screenVision.alerts.resetFoodMessage"),
+      confirmLabel: t("common.confirm"),
+      cancelLabel: t("common.cancel"),
+      tone: "warning",
+      mediaPath: "assets/ui/tools/tibia-eye/states/atencao.gif"
+    });
+    if (!confirmed.confirmed) {
+      return;
+    }
+    await Promise.all(activeFoodIds.map((foodTimerId) => (
+      window.screenVisionApi.timers.stop({ timerId: foodTimerId }).catch(() => null)
+    )));
+    state.overlayTools.timers.items = state.overlayTools.timers.items.map((entry) => (
+      activeFoodIds.includes(entry.id) ? { ...entry, persistentEndsAtMs: null } : entry
+    ));
+    await persistDockedAlertsState();
     renderDockedPanel();
     return;
   }
@@ -6167,13 +6780,17 @@ async function handleDockedPanelClick(event) {
     if (!soundKey) {
       return;
     }
-    updateDockedAlertTimer(timerId, {
+    const nextTimer = updateDockedAlertTimer(timerId, {
       soundKey,
-      customSoundPath: ""
+      customSoundPath: "",
+      enabled: true,
+      volumeMuted: false,
+      volumePercent: Math.max(1, clampInteger(findDockedAlertTimer(timerId)?.volumePercent, 0, 100, 100))
     }, { render: false });
     state.dockedAlertExpandedSoundId = timerId;
     state.dockedAlertSoundMenuTimerId = "";
     renderDockedPanel();
+    await previewDockedAlertTimerSound(nextTimer);
     return;
   }
 
@@ -6186,13 +6803,17 @@ async function handleDockedPanelClick(event) {
     if (!selectedPath) {
       return;
     }
-    updateDockedAlertTimer(timerId, {
+    const nextTimer = updateDockedAlertTimer(timerId, {
       soundKey: "default",
-      customSoundPath: String(selectedPath || "").trim()
+      customSoundPath: String(selectedPath || "").trim(),
+      enabled: true,
+      volumeMuted: false,
+      volumePercent: Math.max(1, clampInteger(findDockedAlertTimer(timerId)?.volumePercent, 0, 100, 100))
     }, { render: false });
     state.dockedAlertExpandedSoundId = timerId;
     state.dockedAlertSoundMenuTimerId = "";
     renderDockedPanel();
+    await previewDockedAlertTimerSound(nextTimer);
     return;
   }
 
@@ -6342,7 +6963,12 @@ async function handleDockedSqmFinderPanelClick(event) {
   }
 
   if (action === "sqm-toggle-marker") {
-    await updateDockedVisualState({ charLocEnabled: !visual.charLocEnabled });
+    const firstActivation = !visual.charLocEnabled && visual.charLocX === 0 && visual.charLocY === 0;
+    const defaultPosition = firstActivation ? getSqmFinderDefaultPosition(visual.charLocSize) : null;
+    await updateDockedVisualState({
+      ...(defaultPosition || {}),
+      charLocEnabled: !visual.charLocEnabled
+    });
     return;
   }
 
@@ -6772,7 +7398,7 @@ async function handleDockedPanelInput(event) {
   }
 
   if (field === "timerDurationSeconds") {
-    updateDockedAlertTimer(timerId, { durationSeconds: clampInteger(event.target.value, 1, 43200, 60) }, { renderOnly: true, render: false });
+    updateDockedAlertTimer(timerId, { durationSeconds: clampInteger(event.target.value, 1, 86400, 60) }, { renderOnly: true, render: false });
     return;
   }
 
@@ -6997,7 +7623,7 @@ function readDockedAlertFieldValue(field, rawValue) {
   }
 
   if (field === "timerDurationSeconds") {
-    return clampInteger(rawValue, 1, 43200, 60);
+    return clampInteger(rawValue, 1, 86400, 60);
   }
 
   if (field === "timerAlertDurationSeconds") {
@@ -7166,7 +7792,7 @@ function displayStoredHotkeyCode(code) {
 }
 
 function formatDockedAlertHotkeyDuration(totalSeconds) {
-  const safeSeconds = clampInteger(totalSeconds, 1, 43200, 60);
+  const safeSeconds = clampInteger(totalSeconds, 1, 86400, 60);
   const minutes = Math.floor(safeSeconds / 60);
   const seconds = safeSeconds % 60;
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
@@ -7180,12 +7806,20 @@ function findDockedAlertTimer(timerId) {
     : null;
 }
 
-function isTibiaReadyForAlertSignals() {
+function isTibiaAvailableForScreenVisionTools() {
   return Boolean(
     state.tibiaState
     && state.tibiaState.title
-    && state.tibiaState.shouldShowOverlays === true
+    && state.tibiaState.isVisible === true
+    && state.tibiaState.isMinimized !== true
   );
+}
+
+function isTibiaReadyForAlertSignals() {
+  // The active-focus gate still controls whether a signal is emitted, but it
+  // must not prevent the user from configuring Alerts while the Toolkit owns
+  // focus. A valid, visible Tibia window is enough for the tool state.
+  return isTibiaAvailableForScreenVisionTools();
 }
 
 function isTibiaReadyForMirrorActions() {
@@ -7210,9 +7844,84 @@ function isTibiaWindowReadyForTutorial() {
   );
 }
 
+function getActiveMirrorSourceGameName() {
+  const sourceGame = getActiveMirrorSourceGame();
+  if (sourceGame === "rubinot") {
+    return "RubinOT";
+  }
+  if (sourceGame === "medivia") {
+    return "Medivia";
+  }
+  return "Tibia";
+}
+
+function isRubinotMirrorSource() {
+  return getActiveMirrorSourceGame() === "rubinot";
+}
+
+function normalizeMirrorSourceGame(sourceGame) {
+  const normalized = String(sourceGame || "").trim().toLowerCase();
+  return ["tibia", "rubinot", "medivia"].includes(normalized) ? normalized : "tibia";
+}
+
+function getActiveMirrorSourceGame() {
+  return normalizeMirrorSourceGame(state.activeMirrorSourceGame || state.tibiaState?.sourceGame);
+}
+
+function getMirrorSourceText(key) {
+  return t(key, { game: getActiveMirrorSourceGameName() });
+}
+
+function getMirrorAccountState() {
+  return {
+    connected: state.accountConnected,
+    entitlements: state.accountEntitlements
+  };
+}
+
+function openFreeMirrorSupportPanel() {
+  if (hasUnlimitedMirrorAccess(getMirrorAccountState())) {
+    return;
+  }
+
+  void window.screenVisionApi.tools.open("buy-me-a-coffee-panel").catch(() => null);
+}
+
+function normalizeMirrorRegionCounts(rawCounts, fallbackItems = []) {
+  const fallback = countMirrorRegionsByScope(fallbackItems);
+  const source = rawCounts && typeof rawCounts === "object" ? rawCounts : {};
+  return Object.fromEntries(Object.keys(fallback).map((scope) => {
+    const value = Number(source[scope]);
+    return [scope, Number.isFinite(value) && value >= 0 ? Math.trunc(value) : fallback[scope]];
+  }));
+}
+
+function getMirrorRegionCountForScope(scope) {
+  const value = Number(state.regionCountsByScope?.[scope]);
+  return Number.isFinite(value) && value >= 0 ? Math.trunc(value) : 0;
+}
+
+function getVisibleMirrorRegionCountForScope(scope) {
+  const value = Number(state.visibleRegionCountsByScope?.[scope]);
+  return Number.isFinite(value) && value >= 0 ? Math.trunc(value) : 0;
+}
+
+function blockMirrorCreationAtLimit(trigger, scope = getActiveMirrorSourceGame()) {
+  if (canCreateMirrorRegion(getVisibleMirrorRegionCountForScope(scope), getMirrorAccountState())) {
+    return false;
+  }
+
+  flashBlockedActionTooltip(
+    trigger,
+    t("screenVision.mirrorLimitReached", { limit: FREE_MIRROR_LIMIT })
+  );
+  flashAttention(trigger);
+  return true;
+}
+
 function blockMirrorToolbarAction(trigger, options = {}) {
   if (!isTibiaReadyForMirrorActions()) {
-    flashBlockedActionTooltip(trigger, t("screenVision.tibiaRequired"));
+    flashBlockedActionTooltip(trigger, getMirrorSourceText("screenVision.tibiaRequired"));
     flashAttention(els.emptyStateWaiting);
     return true;
   }
@@ -7289,7 +7998,7 @@ function updateDockedAlertTimer(timerId, partial, options = {}) {
   const timerIndex = items.findIndex((entry) => normalizeOverlayTimerEntry(entry)?.id === timerId);
 
   if (timerIndex < 0) {
-    return;
+    return null;
   }
 
   const current = normalizeOverlayTimerEntry(items[timerIndex]);
@@ -7307,6 +8016,17 @@ function updateDockedAlertTimer(timerId, partial, options = {}) {
   if (isDockedAlertPanelOpen() && options.render !== false) {
     renderDockedPanel();
   }
+
+  return next;
+}
+
+async function previewDockedAlertTimerSound(timer) {
+  if (!timer || !window.screenVisionApi?.timers?.previewSound) {
+    return false;
+  }
+
+  const result = await window.screenVisionApi.timers.previewSound({ timer }).catch(() => null);
+  return result?.ok === true;
 }
 
 async function promptDockedAlertRename(timerId) {
@@ -7485,11 +8205,15 @@ function blockDockedAlertReminderEditing(trigger) {
 }
 
 function blockDockedAlertTibiaActivation(trigger) {
-  flashBlockedActionTooltip(trigger, "Abra o Tibia Maximisado para ligar");
+  flashBlockedActionTooltip(trigger, `Abra o ${getActiveMirrorSourceGameName()} maximizado para ligar`);
   flashAttention(els.emptyStateWaiting);
 }
 
 function hasMirrorProfile() {
+  if (state.tutorialProfileDemo?.active) {
+    return Boolean(state.tutorialProfileDemo.profileCreated);
+  }
+
   return Array.isArray(state.profilesIndex) && state.profilesIndex.length > 0;
 }
 
@@ -7512,24 +8236,7 @@ function blockMirrorCreationWithoutProfile(trigger) {
   return true;
 }
 
-function blockMirrorCreationWhileHidden(trigger) {
-  const allExistingMirrorsHidden = state.regions.length > 0
-    && state.regions.every((region) => region.isVisible === false);
-
-  if (!allExistingMirrorsHidden) {
-    return false;
-  }
-
-  flashBlockedActionTooltip(trigger, t("screenVision.enableMirrorsBeforeCreating"));
-  flashAttention(els.toggleAllVisibilityButton);
-  return true;
-}
-
 function startTibiaMirrorProfileTutorialDemo() {
-  if (!isTibiaReadyForMirrorActions()) {
-    return false;
-  }
-
   setTutorialTooltipSuppressed(true);
 
   if (!state.tutorialProfileDemo?.active) {
@@ -7651,8 +8358,26 @@ function getSqmFinderTutorialPosition() {
   const width = Math.max(1, Number(bounds.width) || 1);
   const height = Math.max(1, Number(bounds.height) || 1);
   return {
-    x: Math.round((Number(bounds.x) || 0) + (width * 0.26)),
+    x: Math.round((Number(bounds.x) || 0) + (width * 0.5)),
     y: Math.round((Number(bounds.y) || 0) + (height * 0.5))
+  };
+}
+
+function getSqmFinderDefaultPosition(size = 40) {
+  const bounds = state.tibiaState?.clientBounds || state.tibiaState?.bounds || {};
+  const x = Number(bounds.x);
+  const y = Number(bounds.y);
+  const width = Number(bounds.width);
+  const height = Number(bounds.height);
+
+  if (![x, y, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+    return {};
+  }
+
+  const markerSize = Math.max(20, Math.min(160, Number(size) || 40)) + 20;
+  return {
+    charLocX: Math.round(x + ((width - markerSize) / 2)),
+    charLocY: Math.round(y + ((height - markerSize) / 2))
   };
 }
 
@@ -7809,6 +8534,8 @@ async function setDockedAlertTutorialStage(stage = "intro") {
       dockedAlertColorPickerTimerId: ""
     });
     patchDockedAlertTutorialTimer({ showVisualAlert: true, locked: false, reminderEnabled: false });
+  } else if (stage === "magic-toggle") {
+    setUi({ dockedAlertsView: "cards" });
   } else if (stage === "magic-panel" || stage === "magic-vocation" || stage === "magic-healing" || stage === "magic-create") {
     setUi({ dockedAlertsView: "magias", dockedAlertsMagicVocation: "knight" });
   } else if (stage === "select-utura") {
@@ -8351,14 +9078,57 @@ async function refreshAll() {
   await Promise.all([
     refreshTibiaState(),
     refreshRegions(),
-    refreshGridState()
+    refreshGridState(),
+    refreshCursorMagnifierState(),
+    refreshObsWindowAvailability()
   ]);
 }
 
+async function refreshObsWindowAvailability() {
+  if (state.obsWindowAvailabilityRequest) {
+    return state.obsWindowAvailabilityRequest;
+  }
+
+  state.obsWindowAvailabilityRequest = (async () => {
+    const available = Boolean(await window.screenVisionApi.obs.isWindowAvailable().catch(() => false));
+    state.obsWindowAvailable = available;
+    state.obsWindowAvailabilityCheckedAt = Date.now();
+    renderToolbar();
+    return available;
+  })();
+
+  try {
+    return await state.obsWindowAvailabilityRequest;
+  } finally {
+    state.obsWindowAvailabilityRequest = null;
+  }
+}
+
+async function refreshCursorMagnifierState() {
+  const result = await window.screenVisionApi.magnifier.get().catch(() => null);
+  state.cursorMagnifierEnabled = Boolean(result?.enabled);
+  renderToolbar();
+}
+
 async function refreshRegions() {
+  const requestId = ++state.regionsRequestId;
   state.loading = true;
-  const items = await window.screenVisionApi.regions.list().catch(() => []);
+  const countRequest = typeof window.screenVisionApi.regions.getCount === "function"
+    ? window.screenVisionApi.regions.getCount().catch(() => null)
+    : Promise.resolve(null);
+  const [items, countResult] = await Promise.all([
+    window.screenVisionApi.regions.list().catch(() => []),
+    countRequest
+  ]);
+  if (requestId !== state.regionsRequestId) {
+    return;
+  }
   state.regions = Array.isArray(items) ? items : [];
+  state.regionCountsByScope = normalizeMirrorRegionCounts(countResult?.counts, state.regions);
+  state.visibleRegionCountsByScope = normalizeMirrorRegionCounts(
+    countResult?.visibleCounts,
+    state.regions
+  );
   state.loading = false;
 
   if (shouldPreserveInteractiveSurface()) {
@@ -8383,6 +9153,7 @@ async function refreshTibiaState() {
   const wasReady = state.tibiaReadyLastPoll;
   const wasTutorialReady = state.tibiaTutorialReadyLastPoll;
   state.tibiaState = await window.screenVisionApi.tibia.getState().catch(() => null);
+  state.activeMirrorSourceGame = normalizeMirrorSourceGame(state.tibiaState?.sourceGame || state.activeMirrorSourceGame);
   const isReady = isTibiaReadyForMirrorActions();
   const isTutorialReady = isTibiaWindowReadyForTutorial();
   state.tibiaReadyLastPoll = isReady;
@@ -8395,10 +9166,6 @@ async function refreshTibiaState() {
         tutorialReady: isTutorialReady
       }
     }));
-  }
-
-  if (wasReady && !isReady) {
-    await suspendTibiaDependentAlertTools();
   }
 
   renderEmptyState();
@@ -8428,31 +9195,6 @@ async function refreshTibiaState() {
   }
 }
 
-async function suspendTibiaDependentAlertTools() {
-  const timers = Array.isArray(state.overlayTools?.timers?.items)
-    ? state.overlayTools.timers.items.map((entry) => normalizeOverlayTimerEntry(entry)).filter(Boolean)
-    : [];
-
-  state.overlayTools.timers.isListening = false;
-  state.overlayTools.timers.visualsEnabled = false;
-  state.dockedAlertColorPickerTimerId = "";
-
-  await Promise.all([
-    ...Object.keys(state.alertRuntimeById || {}).map((timerId) => (
-      window.screenVisionApi.timers.stop({ timerId }).catch(() => null)
-    )),
-    ...timers.map((timer) => (
-      window.screenVisionApi.timers.hideVisualAlert({ timerId: timer.id }).catch(() => null)
-    ))
-  ]);
-  state.alertRuntimeById = {};
-
-  // Mirror visibility is a user setting. Losing Tibia focus only hides the
-  // native windows; it must never persistently turn their cards off.
-
-  await persistDockedAlertsState();
-}
-
 async function refreshGridState() {
   state.grid = await window.screenVisionApi.grid.get().catch(() => ({
     enabled: false,
@@ -8474,6 +9216,11 @@ function startPolling() {
     }
 
     void refreshTibiaState();
+
+    if (document.visibilityState !== "hidden"
+      && Date.now() - state.obsWindowAvailabilityCheckedAt >= 3000) {
+      void refreshObsWindowAvailability();
+    }
 
     if (canBackgroundRefreshRegions()) {
       void refreshRegions();
@@ -8515,6 +9262,12 @@ function canBackgroundRefreshRegions() {
 }
 
 function shouldPreserveInteractiveSurface() {
+  // A guided scenario owns its DOM. Native polling continues, but it must not
+  // replace the tutorial controls between two spotlight frames.
+  if (state.tutorialProfileDemo?.active || state.sqmTutorialDemo?.active || state.alertTutorialDemo?.active) {
+    return true;
+  }
+
   const blockedTooltipActive = Boolean(
     state.activeTooltipTrigger
     && Number(state.activeTooltipTrigger.dataset.blockedTooltipUntil || 0) > Date.now()
@@ -8586,6 +9339,10 @@ async function addRegion() {
     return;
   }
 
+  if (blockMirrorCreationAtLimit(els.addRegionButton)) {
+    return;
+  }
+
   state.creatingRegion = true;
   try {
     const result = await window.screenVisionApi.regions.add().catch(() => null);
@@ -8607,6 +9364,10 @@ async function addFixedRegion() {
     return;
   }
 
+  if (blockMirrorCreationAtLimit(els.cropToolButton)) {
+    return;
+  }
+
   state.creatingRegion = true;
   try {
     const result = await window.screenVisionApi.regions.addFixed().catch(() => null);
@@ -8621,6 +9382,20 @@ async function addFixedRegion() {
   } finally {
     state.creatingRegion = false;
   }
+}
+
+async function toggleCursorMagnifier() {
+  const result = await window.screenVisionApi.magnifier.toggle().catch(() => null);
+
+  if (result?.reason === "tibia-unavailable") {
+    state.cursorMagnifierEnabled = false;
+    flashBlockedActionTooltip(els.magnifiedCropToolButton, getMirrorSourceText("screenVision.tibiaRequired"));
+    renderToolbar();
+    return;
+  }
+
+  state.cursorMagnifierEnabled = Boolean(result?.enabled);
+  renderToolbar();
 }
 
 async function reselectRegion(regionId) {
@@ -8763,6 +9538,12 @@ async function unsnapRegion(regionId) {
 function applyRegionsResponse(result) {
   if (Array.isArray(result?.items)) {
     state.regions = result.items;
+    if (result?.counts && typeof result.counts === "object") {
+      state.regionCountsByScope = normalizeMirrorRegionCounts(result.counts, state.regions);
+    }
+    if (result?.visibleCounts && typeof result.visibleCounts === "object") {
+      state.visibleRegionCountsByScope = normalizeMirrorRegionCounts(result.visibleCounts, state.regions);
+    }
     if (shouldPreserveInteractiveSurface()) {
       state.deferredRefreshPending = true;
       renderToolbar();
@@ -8771,6 +9552,9 @@ function applyRegionsResponse(result) {
       return;
     }
     render();
+    if (!result?.counts || !result?.visibleCounts) {
+      void refreshRegions();
+    }
     return;
   }
 
@@ -9006,12 +9790,65 @@ function buildRegionsRenderSignature(regions) {
 }
 
 function renderToolbar() {
-  const count = state.regions.length;
-  const allVisible = count > 0 && state.regions.every((region) => region.isVisible !== false);
-  const allLocked = count > 0 && state.regions.every((region) => region.isLocked);
+  const count = getMirrorRegionCountForScope(getActiveMirrorSourceGame());
+  const mirrorAccountState = getMirrorAccountState();
+  const isVipMirrorAccount = hasUnlimitedMirrorAccess(mirrorAccountState);
+  const vipLoadTone = getVipMirrorLoadTone(count, mirrorAccountState);
+  const freeMirrorLimitReached = !isVipMirrorAccount && count >= FREE_MIRROR_LIMIT;
+  const visibleCount = state.regions.length;
+  const allVisible = visibleCount > 0 && state.regions.every((region) => region.isVisible !== false);
+  const allLocked = visibleCount > 0 && state.regions.every((region) => region.isLocked);
 
   if (els.regionCount) {
-    els.regionCount.innerHTML = `${count}/&infin;`;
+    els.regionCount.innerHTML = formatMirrorRegionCount(count, mirrorAccountState);
+    els.regionCount.classList.toggle("mirror-count-upsell", !isVipMirrorAccount);
+    els.regionCount.classList.toggle("mirror-count-warning", vipLoadTone === "warning");
+    els.regionCount.classList.toggle(
+      "mirror-count-danger",
+      vipLoadTone === "danger" || freeMirrorLimitReached
+    );
+
+    const counterTooltip = !isVipMirrorAccount
+      ? freeMirrorLimitReached
+        ? t("screenVision.mirrorFreeLimitReachedTooltip")
+        : t("screenVision.mirrorFreeSpacesTooltip")
+      : vipLoadTone === "danger"
+      ? t("screenVision.mirrorVipLoadDanger")
+      : vipLoadTone === "warning"
+        ? t("screenVision.mirrorVipLoadWarning")
+        : "";
+    const counterTooltipTone = isVipMirrorAccount
+      ? vipLoadTone
+      : freeMirrorLimitReached
+        ? "danger"
+        : "";
+    if (counterTooltip) {
+      els.regionCount.dataset.tooltip = counterTooltip;
+      if (counterTooltipTone) {
+        els.regionCount.dataset.tooltipTone = counterTooltipTone;
+      } else {
+        delete els.regionCount.dataset.tooltipTone;
+      }
+      els.regionCount.setAttribute("aria-label", counterTooltip);
+    } else {
+      delete els.regionCount.dataset.tooltip;
+      delete els.regionCount.dataset.tooltipTone;
+      els.regionCount.removeAttribute("aria-label");
+    }
+    els.regionCount.setAttribute("aria-disabled", String(isVipMirrorAccount));
+    els.regionCount.tabIndex = isVipMirrorAccount ? -1 : 0;
+  }
+
+  if (els.magnifiedCropToolButton) {
+    els.magnifiedCropToolButton.classList.toggle("active", state.cursorMagnifierEnabled);
+    els.magnifiedCropToolButton.classList.toggle("inactive", !state.cursorMagnifierEnabled);
+    els.magnifiedCropToolButton.setAttribute("aria-pressed", String(state.cursorMagnifierEnabled));
+    setLiveTooltip(
+      els.magnifiedCropToolButton,
+      state.cursorMagnifierEnabled
+        ? t("screenVision.magnifierDisableHint")
+        : t("screenVision.magnifiedCropHint")
+    );
   }
 
   if (els.obsMirrorButton) {
@@ -9022,8 +9859,25 @@ function renderToolbar() {
     els.obsMirrorButton.setAttribute("aria-label", obsLabel);
     setLiveTooltip(
       els.obsMirrorButton,
-      state.obsMirrorStatus?.error || obsLabel,
-      state.obsMirrorStatus?.error ? "danger" : "default"
+      !state.obsWindowAvailable
+        ? "Abra o OBS antes de ativar os espelhos no OBS."
+        : (state.obsMirrorStatus?.error || obsLabel),
+      !state.obsWindowAvailable || state.obsMirrorStatus?.error ? "danger" : "default"
+    );
+  }
+
+  if (els.obsWindowMirrorButton) {
+    const hasObsMirrorVipAccess = hasUnlimitedMirrorAccess(getMirrorAccountState());
+    const available = Boolean(state.obsWindowAvailable);
+    els.obsWindowMirrorButton.classList.toggle("active", hasObsMirrorVipAccess && available);
+    els.obsWindowMirrorButton.classList.toggle("inactive", !hasObsMirrorVipAccess || !available);
+    els.obsWindowMirrorButton.setAttribute("aria-disabled", String(!hasObsMirrorVipAccess || !available));
+    setLiveTooltip(
+      els.obsWindowMirrorButton,
+      hasObsMirrorVipAccess
+        ? (available ? "Criar espelho da janela do OBS" : "Abra o OBS para criar um OBS Mirror.")
+        : t("screenVision.obsMirrorVipTooltip"),
+      hasObsMirrorVipAccess && available ? "default" : "danger"
     );
   }
 
@@ -9087,8 +9941,27 @@ function renderToolbar() {
     }
   }
 
-  if (els.openAlertasButton && !els.openAlertasButton.querySelector("img")) {
-    els.openAlertasButton.innerHTML = `<img src="${escapeHtml("assets/ui/tools/tibia-eye/toolbar/avisos.gif")}" alt="">`;
+  if (els.openAlertasButton) {
+    const alertsUnavailable = isRubinotMirrorSource();
+    const defaultAlertsTooltip = els.openAlertasButton.dataset.alertsDefaultTooltip
+      || els.openAlertasButton.dataset.tooltip
+      || "Abrir painel lateral de Alertas.";
+
+    els.openAlertasButton.dataset.alertsDefaultTooltip = defaultAlertsTooltip;
+    els.openAlertasButton.hidden = false;
+    els.openAlertasButton.classList.toggle("inactive", alertsUnavailable);
+    els.openAlertasButton.setAttribute("aria-hidden", "false");
+    els.openAlertasButton.setAttribute("aria-disabled", String(alertsUnavailable));
+    els.openAlertasButton.tabIndex = alertsUnavailable ? -1 : 0;
+    setLiveTooltip(
+      els.openAlertasButton,
+      alertsUnavailable ? "Não compatível com RubinOT" : defaultAlertsTooltip,
+      alertsUnavailable ? "danger" : ""
+    );
+
+    if (!els.openAlertasButton.querySelector("img")) {
+      els.openAlertasButton.innerHTML = `<img src="${escapeHtml("assets/ui/tools/tibia-eye/toolbar/avisos.gif")}" alt="">`;
+    }
   }
 
   if (els.openVisualCustomizationButton && !els.openVisualCustomizationButton.querySelector("img")) {
@@ -9176,20 +10049,29 @@ function renderEmptyState() {
 
   const tutorialProfileDemo = state.tutorialProfileDemo;
   const tutorialProfileDemoActive = Boolean(tutorialProfileDemo?.active);
-  const hasRegions = state.regions.length > 0;
+  // The tutorial is a visual, in-memory scenario. Real profiles and mirrors
+  // must stay untouched and invisible while the walkthrough simulates a new
+  // user from the first profile through the first mirror.
+  const hasRegions = tutorialProfileDemoActive ? false : state.regions.length > 0;
   const hasProfiles = tutorialProfileDemoActive
     ? Boolean(tutorialProfileDemo?.profileCreated)
     : state.profilesIndex.length > 0;
+  const profilesReady = tutorialProfileDemoActive || !state.profilesPanelLoading;
   // The cards are application UI, not native overlays. OBS is an allowed
   // companion surface only while the mirror output itself is active.
-  const tibiaDetected = Boolean(
-    state.tibiaState
-    && state.tibiaState.title
-    && state.tibiaState.shouldShowMirrorUi === true
+  const tibiaDetected = tutorialProfileDemoActive
+    ? isTibiaWindowReadyForTutorial()
+    : Boolean(
+      state.tibiaState
+      && state.tibiaState.title
+      && state.tibiaState.shouldShowMirrorUi === true
   );
   const shouldShowWaitingState = !tibiaDetected;
-  const shouldShowCreateProfileState = tibiaDetected && !hasProfiles;
-  const shouldShowFirstMirrorState = tibiaDetected && hasProfiles && !hasRegions;
+  // While regions are already available, wait for the profile list before
+  // showing the create card. With no regions, keep the onboarding card
+  // available so a new game/profile namespace is never left blank.
+  const shouldShowCreateProfileState = tibiaDetected && !hasProfiles && (!hasRegions || profilesReady);
+  const shouldShowFirstMirrorState = tibiaDetected && profilesReady && hasProfiles && !hasRegions;
   const shouldShowGrid = tibiaDetected && hasRegions && !tutorialProfileDemoActive;
   const shouldShowEmptyState = shouldShowWaitingState || shouldShowCreateProfileState || shouldShowFirstMirrorState;
 
@@ -9223,11 +10105,11 @@ function renderEmptyState() {
   }
 
   if (els.emptyStateTitle) {
-    let nextTitle = "Crie seu Primeiro Espelho";
+    let nextTitle = t("screenVision.emptyState.firstMirrorTitle");
     if (shouldShowWaitingState) {
-      nextTitle = "Aguardando o Tibia";
+      nextTitle = getMirrorSourceText("screenVision.waitingTitle");
     } else if (shouldShowCreateProfileState) {
-      nextTitle = "Crie um Perfil";
+      nextTitle = t("screenVision.emptyState.createProfileTitle");
     }
     if (els.emptyStateTitle.textContent !== nextTitle) {
       els.emptyStateTitle.textContent = nextTitle;
@@ -9239,7 +10121,7 @@ function renderEmptyState() {
     if (shouldShowWaitingState) {
       nextCopy = hasRegions
         ? t("screenVision.emptyState.restoreMirrorsHint")
-        : t("screenVision.waitingCopy");
+        : getMirrorSourceText("screenVision.waitingCopy");
     } else if (shouldShowCreateProfileState) {
       nextCopy = t("screenVision.emptyState.createProfileHint");
     }
@@ -9339,9 +10221,10 @@ function renderRegionCard(region) {
   const isCountdownOpen = state.openCountdownRegionId === region.id;
   const countdown = normalizeCountdown(region?.countdown);
   const countdownButtonLabel = region?.countdownIsRunning ? "Cancelar" : "Testar";
+  const isObsMirror = region?.sourceType === "obs-window";
 
   return `
-    <article class="region-card${region?.isVisible === false ? " hidden-state" : ""}${region?.isLocked ? " locked-state" : ""}${isNameEditorOpen ? " name-editor-open" : ""}${isCountdownOpen ? " countdown-open" : ""}">
+    <article class="region-card${isObsMirror ? " obs-source-card" : ""}${region?.isVisible === false ? " hidden-state" : ""}${region?.isLocked ? " locked-state" : ""}${isNameEditorOpen ? " name-editor-open" : ""}${isCountdownOpen ? " countdown-open" : ""}">
       <div class="region-card-surface">
         <div class="region-main">
           <div class="region-main-header">
@@ -9408,7 +10291,6 @@ function renderRegionCard(region) {
             <div class="region-controls-right">
               <label class="region-opacity" data-tooltip="${escapeHtml(t("screenVision.mirror.opacityTooltip"))}">
                 <span class="region-opacity-shell">
-                  <img class="region-opacity-icon" src="assets/ui/tools/tibia-eye/opacity-sparkles.gif" alt="">
                   <input type="range" min="15" max="100" step="1" value="${opacity}" style="--region-opacity-progress:${escapeHtml(String(((opacity - 15) / 85) * 100))}%;" data-opacity-region-id="${escapeHtml(region.id)}">
                 </span>
                 <span data-opacity-value>${opacity}%</span>
@@ -9747,6 +10629,15 @@ function renderCountdownRangeStyle(value, min, max) {
 }
 
 function replaceStaticIcons() {
+  if (els.magnifiedCropToolButton) {
+    const image = els.magnifiedCropToolButton.querySelector("img") || document.createElement("img");
+    image.src = MAGNIFIED_CROP_ASSET;
+    image.alt = "";
+    if (!image.parentElement) {
+      els.magnifiedCropToolButton.prepend(image);
+    }
+  }
+
   document.querySelectorAll("[data-icon]").forEach((element) => {
     const kind = element.dataset.icon || "";
     element.innerHTML = renderIcon(kind);
@@ -10286,6 +11177,7 @@ function showFloatingTooltip(trigger) {
   state.activeTooltipTrigger = trigger;
   tooltip.textContent = text;
   tooltip.classList.toggle("danger", tooltipState.tone === "danger");
+  tooltip.classList.toggle("warning", tooltipState.tone === "warning");
   tooltip.classList.add("visible");
   tooltip.setAttribute("aria-hidden", "false");
   positionFloatingTooltip(trigger);
@@ -10307,6 +11199,7 @@ function hideFloatingTooltip(force = false) {
 
   state.activeTooltipTrigger = null;
   tooltip.classList.remove("danger");
+  tooltip.classList.remove("warning");
   tooltip.classList.remove("visible");
   tooltip.setAttribute("aria-hidden", "true");
 }
@@ -10329,10 +11222,8 @@ function positionFloatingTooltip(trigger) {
   const tooltipRect = tooltip.getBoundingClientRect();
   const top = Math.max(8, triggerRect.top - tooltipRect.height - 8);
   const centeredLeft = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
-  const left = Math.min(
-    window.innerWidth - tooltipRect.width - 8,
-    Math.max(8, centeredLeft)
-  );
+  const maxLeft = Math.max(8, window.innerWidth - tooltipRect.width - 8);
+  const left = Math.min(maxLeft, Math.max(8, centeredLeft));
 
   tooltip.style.top = `${top}px`;
   tooltip.style.left = `${left}px`;
