@@ -7796,7 +7796,10 @@ async function openNpcDetail(name, options = {}) {
 }
 
 async function openMonsterDetail(name, options = {}) {
-  if (!name) {
+  const safeName = String(name || "")
+    .replace(/[^\p{L}\p{N} .(),'&-]/gu, "")
+    .trim();
+  if (!safeName) {
     return;
   }
 
@@ -7805,7 +7808,7 @@ async function openMonsterDetail(name, options = {}) {
   }
 
   const requestId = ++state.monsterDetailRequestId;
-  const detailCacheKey = getMonsterDetailMemoryCacheKey(name);
+  const detailCacheKey = getMonsterDetailMemoryCacheKey(safeName);
   const cachedDetail = state.monsterDetailMemoryCache.get(detailCacheKey) || null;
 
   if (cachedDetail) {
@@ -7819,8 +7822,8 @@ async function openMonsterDetail(name, options = {}) {
     scrollEntityDetailIntoView({ behavior: "auto" });
     setCurrentNavigationEntry({
       type: "creature",
-      name: cachedDetail.name || name,
-      slug: cachedDetail.slug || slugifyItemInput(cachedDetail.name || name),
+      name: cachedDetail.name || safeName,
+      slug: cachedDetail.slug || slugifyItemInput(cachedDetail.name || safeName),
       category: cachedDetail.bossCategory ? "boss" : "creature"
     });
     return;
@@ -7829,14 +7832,14 @@ async function openMonsterDetail(name, options = {}) {
   state.currentMonsterDetail = null;
   state.currentBossTracker = null;
   state.bossRespawnHistoryLimit = 10;
-  showEntityLoading(`Carregando ${name}...`);
+  showEntityLoading(`Carregando ${safeName}...`);
   scrollEntityDetailIntoView({ behavior: "auto" });
-  showGlobalLoading(`Carregando ${name}...`);
+  showGlobalLoading(`Carregando ${safeName}...`);
 
   try {
     const selectedWorld = getSelectedWorld();
     const detail = await fetchCreatureDetail({
-      name,
+      name: safeName,
       worldName: selectedWorld?.name || "",
       worldSlug: selectedWorld?.slug || "",
       includeBossTracker: false
@@ -7854,8 +7857,8 @@ async function openMonsterDetail(name, options = {}) {
     scrollEntityDetailIntoView({ behavior: "auto" });
     setCurrentNavigationEntry({
       type: "creature",
-      name: detail.name || name,
-      slug: detail.slug || slugifyItemInput(detail.name || name),
+      name: detail.name || safeName,
+      slug: detail.slug || slugifyItemInput(detail.name || safeName),
       category: detail.bossCategory ? "boss" : "creature"
     });
   } catch (error) {
@@ -17105,11 +17108,14 @@ function sanitizeCacheSegment(value) {
 }
 
 async function openLootMonster(name) {
-  if (!name) {
+  const safeName = String(name || "")
+    .replace(/[^\p{L}\p{N} .(),'&-]/gu, "")
+    .trim();
+  if (!safeName) {
     return;
   }
 
-  const local = findLocalCreature(name);
+  const local = findLocalCreature(safeName);
   if (!local?.name) {
     return;
   }
