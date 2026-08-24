@@ -141,11 +141,18 @@ Validar, nesta ordem:
 ### Regra do encerramento antes da instalacao
 
 O aplicativo possui um encerramento assíncrono para fechar o Native Host e as
-demais janelas auxiliares. Quando esse fluxo intercepta `before-quit`, ele deve
-acionar `appUpdaterController.install()` somente depois que a limpeza terminar
-e então chamar `app.quit()`. O método `install()` mantém uma guarda de uma única
-execução e trata erros síncronos de `quitAndInstall()`. Essa sequência é
-obrigatória para que o instalador baixado não fique pendente sem ser executado.
+demais janelas auxiliares. Quando `electron-updater` chama
+`quitAndInstall()`, ele passa a ser o dono do encerramento: o atualizador deve
+marcar o estado `appUpdateQuitRequested` antes da chamada, e o listener de
+`before-quit` deve deixar esse evento passar sem `preventDefault()` nem chamar
+`appUpdaterController.install()` novamente. O instalador NSIS encerra os
+processos remanescentes antes de substituir os arquivos.
+
+O fluxo normal de fechamento, sem atualização, continua usando a limpeza
+assíncrona e só chama `appUpdaterController.install()` depois que ela termina.
+Essa separação é obrigatória: interceptar o `before-quit` do
+`quitAndInstall()` pode deixar o executável baixado em `pending` sem concluir a
+instalação, mesmo com o download em 100%.
 
 ## Promocao para o publico
 

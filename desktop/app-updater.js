@@ -16,6 +16,7 @@ export function startAppUpdater({
   onError = () => {},
   onAvailable = () => {},
   onProgress = () => {},
+  onInstallRequested = () => {},
   onDownloaded = () => {}
 } = {}) {
   if (!appIsPackaged) {
@@ -125,8 +126,9 @@ export function startAppUpdater({
         return false;
       }
       installRequested = true;
-      onStatus("Iniciando instalador da atualizacao.");
       try {
+        onInstallRequested();
+        onStatus("Iniciando instalador da atualizacao.");
         autoUpdater.quitAndInstall();
       } catch (error) {
         installRequested = false;

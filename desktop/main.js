@@ -1679,6 +1679,7 @@ let runtimeSupportersDataUrls = [];
 let appUpdaterController = null;
 let appUpdateState = { phase: "idle", info: null };
 let appUpdateDownloadPromptPromise = null;
+let appUpdateQuitRequested = false;
 let configureDataService = null;
 let handleDataServiceMessage = null;
 const APP_UPDATE_DOWNLOAD_DIALOG_ROLE = "app-update-download";
@@ -2302,6 +2303,15 @@ if (!hasSingleInstanceLock) {
           });
           broadcastAppUpdateState();
         },
+        onInstallRequested() {
+          // electron-updater owns the quit sequence once it has spawned the
+          // downloaded installer. The normal async before-quit cleanup must
+          // not cancel or race that sequence.
+          appUpdateQuitRequested = true;
+          appIsQuitting = true;
+          nativeHostShutdownRequested = true;
+          void writeDebugLog("app-updater quit-and-install-requested");
+        },
         onDownloaded(info) {
           closeScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE);
           appUpdateState = { phase: "downloaded", info: normalizeAppUpdateInfo(info) };
@@ -2464,6 +2474,11 @@ app.on("window-all-closed", () => {
 app.on("before-quit", (event) => {
   appIsQuitting = true;
   nativeHostShutdownRequested = true;
+
+  if (appUpdateQuitRequested) {
+    void writeDebugLog("app-updater before-quit passed to installer");
+    return;
+  }
 
   if (applicationShutdownComplete) {
     return;
