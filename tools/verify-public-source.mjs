@@ -22,6 +22,7 @@ const requiredBaseAssets = new Set([
   "assets/screen-vision/reference/sounds/spells/utito tempo.ogg",
   "assets/common/actions/Tick.png",
   "assets/common/actions/Cross.png",
+  "assets/common/branding/loading-emblem.png",
   "assets/navigation/desktop-controls/desktop-close-active.png",
   "assets/navigation/desktop-controls/desktop-close-idle.png",
   "assets/navigation/desktop-controls/desktop-minimize-active.png",
