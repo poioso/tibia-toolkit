@@ -89,7 +89,7 @@ test("the limit is linked to the account entitlement and enforced at both UI and
   assert.match(rendererSource, /getVipMirrorLoadTone\(count, mirrorAccountState\)/);
   assert.match(rendererSource, /screenVision\.mirrorFreeSpacesTooltip/);
   assert.match(rendererSource, /openFreeMirrorSupportPanel\(\)/);
-  assert.match(rendererSource, /buy-me-a-coffee-panel/);
+  assert.match(rendererSource, /support-panel/);
   assert.match(rendererSource, /screenVision\.mirrorVipLoadWarning/);
   assert.match(rendererSource, /screenVision\.mirrorVipLoadDanger/);
   assert.match(mainSource, /canCreateMirrorRegion\(scopeCount, accountState\)/);

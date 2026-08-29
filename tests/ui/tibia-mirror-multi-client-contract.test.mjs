@@ -68,7 +68,9 @@ test("Mirror clients use exact native windows and preserve per-game regions", ()
   assert.match(selectorSource, /button\.unavailable/);
   assert.match(selectorSource, /button\.unavailable\{[^}]*brightness\(\.42\)[^}]*opacity:\.28/);
   assert.match(tooltipSource, /#tooltip\.error/);
-  assert.match(mainSource, /selectorBounds\.y - WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT - 7/);
+  assert.match(mainSource, /const tooltipHeight = scaleDesktopUiValue\(WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT\)/);
+  assert.match(mainSource, /const gap = scaleDesktopUiValue\(7\)/);
+  assert.match(mainSource, /selectorBounds\.y - tooltipHeight - gap/);
   assert.match(mainSource, /tooltip\.setAlwaysOnTop\(true, "screen-saver"\)/);
   assert.match(mainSource, /resolveWindowMoveHandleSide\(mainBounds, windowMoveHandleSide\)/);
 });

@@ -62,6 +62,7 @@ import {
 } from "../lib/catalog-sync/media-cache.js";
 import { resolveLibraryContentSource } from "./config/library-content-source.js";
 import { normalizeSupporterAvatarUrl } from "../lib/supporters/avatar-url.js";
+import { writeJsonFileResilient } from "./resilient-json-store.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -201,7 +202,7 @@ function resolveAccountSiteBaseUrl() {
   const configured = String(process.env.TIBIA_TOOLKIT_SITE_BASE_URL || "").trim();
   const localHomologation = readLocalHomologationAccountConfig();
   const fallback = usesProductionAuthentication
-    ? "https://tibiatoolkit.com"
+    ? "https://tibiarealm.com"
     // The auth service emits this browser-facing, cookie-isolated URL in the
     // local homologation lane. Electron only validates its origin before it
     // opens the default browser, so it must match the exact public hand-off
@@ -546,6 +547,7 @@ const obsMirrorSync = new ObsMirrorSync({
   }
 });
 let mainWindow = null;
+let mainWindowRendererReady = false;
 let mapWindow = null;
 let tray = null;
 let appIsQuitting = false;
@@ -566,6 +568,11 @@ let windowMoveHandleTooltipPromise = null;
 let windowMoveHandleTooltipRequestToken = 0;
 let windowMoveHandleSide = "left";
 let windowMoveHandleDragState = null;
+let windowScaleHandleWindow = null;
+let windowScaleHandleDragState = null;
+let windowScaleHandleDragTimer = null;
+const desktopScaledWindowHooks = new WeakSet();
+let desktopUiScale = 1;
 let mirrorGameSelectorWindow = null;
 let mirrorGameSelectorRequestedVisible = false;
 let mirrorGameSelectorTutorialFocus = false;
@@ -630,15 +637,57 @@ let splashProgress = 0;
 let splashStatus = "Preparando interface";
 
 const TUTORIAL_PRELOAD_ASSETS = [
-  "assets/ui/tutorial/continuar.png",
-  "assets/ui/Tick.png",
-  "assets/ui/tutorial/openscreenshotfolder.png",
-  "assets/ui/Cross.png"
+  "assets/tutorial/continuar.png",
+  "assets/common/actions/Tick.png",
+  "assets/tutorial/openscreenshotfolder.png",
+  "assets/common/actions/Cross.png"
 ];
 
 const WINDOW_MOVE_HANDLE_SIZE = 46;
 const WINDOW_MOVE_HANDLE_GAP = 6;
 const WINDOW_MOVE_HANDLE_HEADER_OFFSET = 8;
+const WINDOW_SCALE_HANDLE_SIZE = 46;
+const WINDOW_SCALE_HANDLE_GAP = 6;
+const DESKTOP_UI_SCALE_MIN = 0.65;
+const DESKTOP_UI_SCALE_MAX = 1.65;
+
+function scaleDesktopUiValue(value, minimum = 1) {
+  return Math.max(minimum, Math.round(Number(value || 0) * desktopUiScale));
+}
+
+function setDesktopWindowZoom(window, scale = desktopUiScale) {
+  if (!window || window.isDestroyed()) return;
+  const normalized = clamp(Number(scale) || 1, DESKTOP_UI_SCALE_MIN, DESKTOP_UI_SCALE_MAX);
+  window.__desktopUiScaleEnabled = true;
+  if (Math.abs(window.webContents.getZoomFactor() - normalized) > 0.001) {
+    window.webContents.setZoomFactor(normalized);
+  }
+
+  if (!desktopScaledWindowHooks.has(window)) {
+    desktopScaledWindowHooks.add(window);
+    const reapplyCurrentScale = () => {
+      if (!window.isDestroyed() && window.__desktopUiScaleEnabled === true) {
+        const currentScale = clamp(Number(desktopUiScale) || 1, DESKTOP_UI_SCALE_MIN, DESKTOP_UI_SCALE_MAX);
+        if (Math.abs(window.webContents.getZoomFactor() - currentScale) > 0.001) {
+          window.webContents.setZoomFactor(currentScale);
+        }
+      }
+    };
+    // A file/data navigation can reset Chromium's per-page zoom. Reapply the
+    // current app scale after loading and whenever a reusable popup is shown.
+    window.webContents.on("did-finish-load", reapplyCurrentScale);
+    window.on("show", reapplyCurrentScale);
+  }
+}
+
+function isTibiaMirrorWindow(window) {
+  if (!window || window.isDestroyed()) return false;
+  if (window === mapWindow) return true;
+  for (const mirrorWindow of screenVisionWindows.values()) {
+    if (mirrorWindow === window) return true;
+  }
+  return false;
+}
 const WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH = 286;
 const WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT = 42;
 const MIRROR_GAME_SELECTOR_BUTTON_SIZE = 32;
@@ -668,11 +717,14 @@ function getDesktopAdsShowcaseHeight(width) {
 }
 
 function getSupportersShowcaseCarouselWidth(mainBounds) {
-  return clamp(Math.round(Number(mainBounds?.width || SUPPORTERS_SHOWCASE_WIDTH) * 0.8), 220, 420);
+  const logicalMainWidth = Number(mainBounds?.width || SUPPORTERS_SHOWCASE_WIDTH) / desktopUiScale;
+  return scaleDesktopUiValue(clamp(Math.round(logicalMainWidth * 0.8), 220, 420));
 }
 
 function getSupportersShowcaseWidth(mainBounds) {
-  return getSupportersShowcaseCarouselWidth(mainBounds) + SUPPORTERS_COFFEE_SIZE + SUPPORTERS_COFFEE_GAP;
+  return getSupportersShowcaseCarouselWidth(mainBounds)
+    + scaleDesktopUiValue(SUPPORTERS_COFFEE_SIZE)
+    + scaleDesktopUiValue(SUPPORTERS_COFFEE_GAP);
 }
 
 function getWindowMoveHandleVirtualWorkArea() {
@@ -744,19 +796,21 @@ function getMirrorGameUnavailableLabels() {
 function getMirrorGameSelectorBounds(mainBounds) {
   const area = getWindowMoveHandleVirtualWorkArea();
   const displayArea = screen.getDisplayMatching(mainBounds).workArea;
+  const width = scaleDesktopUiValue(MIRROR_GAME_SELECTOR_WIDTH);
+  const height = scaleDesktopUiValue(MIRROR_GAME_SELECTOR_HEIGHT);
   windowMoveHandleSide = resolveWindowMoveHandleSide(mainBounds, windowMoveHandleSide);
   const handleBounds = getWindowMoveHandleBounds(mainBounds, windowMoveHandleSide);
   const preferredX = windowMoveHandleSide === "left"
-    ? mainBounds.x - MIRROR_GAME_SELECTOR_GAP_FROM_APP - MIRROR_GAME_SELECTOR_WIDTH
-    : mainBounds.x + mainBounds.width + MIRROR_GAME_SELECTOR_GAP_FROM_APP;
+    ? mainBounds.x - scaleDesktopUiValue(MIRROR_GAME_SELECTOR_GAP_FROM_APP) - width
+    : mainBounds.x + mainBounds.width + scaleDesktopUiValue(MIRROR_GAME_SELECTOR_GAP_FROM_APP);
   return {
-    x: clamp(Math.round(preferredX), area.x, area.right - MIRROR_GAME_SELECTOR_WIDTH),
+    x: clamp(Math.round(preferredX), area.x, area.right - width),
     y: Math.max(displayArea.y, Math.min(
-      Math.round(handleBounds.y + handleBounds.height + MIRROR_GAME_SELECTOR_GAP_FROM_HANDLE),
-      displayArea.y + displayArea.height - MIRROR_GAME_SELECTOR_HEIGHT
+      Math.round(handleBounds.y + handleBounds.height + scaleDesktopUiValue(MIRROR_GAME_SELECTOR_GAP_FROM_HANDLE)),
+      displayArea.y + displayArea.height - height
     )),
-    width: MIRROR_GAME_SELECTOR_WIDTH,
-    height: MIRROR_GAME_SELECTOR_HEIGHT
+    width,
+    height
   };
 }
 
@@ -774,11 +828,11 @@ function shouldShowMirrorGameSelector() {
 
 function getMirrorGameSelectorIcons() {
   const candidates = {
-    tibia: "assets/ui/tools/tibia-eye/client-sources/tibia.png",
-    rubinot: "assets/ui/tools/tibia-eye/client-sources/rubinot.png",
-    medivia: "assets/ui/tools/tibia-eye/client-sources/medivia.png"
+    tibia: "assets/tools/tibia-mirror/client-sources/tibia.png",
+    rubinot: "assets/tools/tibia-mirror/client-sources/rubinot.png",
+    medivia: "assets/tools/tibia-mirror/client-sources/medivia.png"
   };
-  const fallback = getRuntimeContentUrl("assets/ui/tools/tibia-eye/tibia-mirror-tab.gif");
+  const fallback = getRuntimeContentUrl("assets/tools/tibia-mirror/tibia-mirror-tab.gif");
   return Object.fromEntries(Object.entries(candidates).map(([game, assetPath]) => {
     try {
       const icon = nativeImage.createFromPath(resolveRuntimeFilePath(assetPath));
@@ -837,8 +891,11 @@ function syncMirrorGameSelector(options = {}) {
     return;
   }
   mirrorGameSelectorWindow.setBounds(getMirrorGameSelectorBounds(mainWindow.getBounds()), false);
-  mirrorGameSelectorWindow.setAlwaysOnTop(true, "floating");
-  mirrorGameSelectorWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  setDesktopWindowZoom(mirrorGameSelectorWindow);
+  if (options.preserveStacking !== true) {
+    mirrorGameSelectorWindow.setAlwaysOnTop(true, "floating");
+    mirrorGameSelectorWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
   if (options.forceShow || !mirrorGameSelectorWindow.isVisible()) mirrorGameSelectorWindow.showInactive();
   emitMirrorGameSelectorRender();
   void refreshMirrorGameSelectorAvailability();
@@ -892,8 +949,10 @@ async function ensureMirrorGameSelector(owner = mainWindow) {
 
 function resolveWindowMoveHandleSide(mainBounds, currentSide = "left") {
   const area = getWindowMoveHandleVirtualWorkArea();
-  const leftFits = mainBounds.x - WINDOW_MOVE_HANDLE_GAP - WINDOW_MOVE_HANDLE_SIZE >= area.x;
-  const rightFits = mainBounds.x + mainBounds.width + WINDOW_MOVE_HANDLE_GAP + WINDOW_MOVE_HANDLE_SIZE <= area.right;
+  const gap = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_GAP);
+  const size = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_SIZE);
+  const leftFits = mainBounds.x - gap - size >= area.x;
+  const rightFits = mainBounds.x + mainBounds.width + gap + size <= area.right;
 
   if (currentSide === "left" && leftFits) return "left";
   if (currentSide === "right" && rightFits) return "right";
@@ -905,36 +964,301 @@ function resolveWindowMoveHandleSide(mainBounds, currentSide = "left") {
 function getWindowMoveHandleBounds(mainBounds, side) {
   const area = getWindowMoveHandleVirtualWorkArea();
   const verticalArea = screen.getDisplayMatching(mainBounds).workArea;
+  const gap = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_GAP);
+  const size = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_SIZE);
   const preferredX = side === "left"
-    ? mainBounds.x - WINDOW_MOVE_HANDLE_GAP - WINDOW_MOVE_HANDLE_SIZE
-    : mainBounds.x + mainBounds.width + WINDOW_MOVE_HANDLE_GAP;
+    ? mainBounds.x - gap - size
+    : mainBounds.x + mainBounds.width + gap;
   return {
-    x: clamp(Math.round(preferredX), area.x, area.right - WINDOW_MOVE_HANDLE_SIZE),
+    x: clamp(Math.round(preferredX), area.x, area.right - size),
     y: clamp(
-      Math.round(mainBounds.y + WINDOW_MOVE_HANDLE_HEADER_OFFSET),
+      Math.round(mainBounds.y + scaleDesktopUiValue(WINDOW_MOVE_HANDLE_HEADER_OFFSET, 0)),
       verticalArea.y,
-      verticalArea.y + verticalArea.height - WINDOW_MOVE_HANDLE_SIZE
+      verticalArea.y + verticalArea.height - size
     ),
-    width: WINDOW_MOVE_HANDLE_SIZE,
-    height: WINDOW_MOVE_HANDLE_SIZE
+    width: size,
+    height: size
   };
+}
+
+function getWindowScaleHandleBounds(mainBounds) {
+  const area = getWindowMoveHandleVirtualWorkArea();
+  const displayArea = screen.getDisplayMatching(mainBounds).workArea;
+  const gap = scaleDesktopUiValue(WINDOW_SCALE_HANDLE_GAP);
+  const size = scaleDesktopUiValue(WINDOW_SCALE_HANDLE_SIZE);
+  return {
+    x: clamp(Math.round(mainBounds.x - gap - size), area.x, area.right - size),
+    y: clamp(
+      Math.round(mainBounds.y + mainBounds.height - size + gap),
+      displayArea.y,
+      displayArea.y + displayArea.height - size
+    ),
+    width: size,
+    height: size
+  };
+}
+
+function syncWindowScaleHandle(options = {}) {
+  if (!mainWindow || mainWindow.isDestroyed() || !windowScaleHandleWindow || windowScaleHandleWindow.isDestroyed()) return;
+  // Keep the HWND stationary while it owns pointer capture. Moving the handle
+  // window itself during the gesture can cancel capture halfway through a drag.
+  if (windowScaleHandleDragState && options.forceShow !== true) return;
+  if (!mainWindow.isVisible() || mainWindow.isMinimized()) {
+    windowScaleHandleWindow.hide();
+    return;
+  }
+  windowScaleHandleWindow.setBounds(getWindowScaleHandleBounds(mainWindow.getBounds()), false);
+  setDesktopWindowZoom(windowScaleHandleWindow);
+  if (options.preserveStacking !== true) {
+    windowScaleHandleWindow.setAlwaysOnTop(true, "floating");
+    windowScaleHandleWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
+  if (options.forceShow || !windowScaleHandleWindow.isVisible()) windowScaleHandleWindow.showInactive();
+}
+
+function syncWindowScaleHandleDuringDrag(mainBounds, scale) {
+  if (!mainWindow || mainWindow.isDestroyed() || !windowScaleHandleWindow || windowScaleHandleWindow.isDestroyed()) return;
+  const handleBounds = windowScaleHandleWindow.getBounds();
+  const nextBounds = getWindowScaleHandleBounds(mainBounds);
+  const currentZoomFactor = windowScaleHandleWindow.webContents.getZoomFactor();
+  const boundsChanged = nextBounds.x !== handleBounds.x
+    || nextBounds.y !== handleBounds.y
+    || nextBounds.width !== handleBounds.width
+    || nextBounds.height !== handleBounds.height;
+  if (scale >= currentZoomFactor) {
+    if (boundsChanged) windowScaleHandleWindow.setBounds(nextBounds, false);
+    setDesktopWindowZoom(windowScaleHandleWindow, scale);
+  } else {
+    setDesktopWindowZoom(windowScaleHandleWindow, scale);
+    if (boundsChanged) windowScaleHandleWindow.setBounds(nextBounds, false);
+  }
+}
+
+function syncWindowMoveHandleDuringScaleDrag(mainBounds, scale) {
+  if (!mainWindow || mainWindow.isDestroyed() || !windowMoveHandleWindow || windowMoveHandleWindow.isDestroyed()) return;
+  const handleBounds = windowMoveHandleWindow.getBounds();
+  windowMoveHandleSide = resolveWindowMoveHandleSide(mainBounds, windowMoveHandleSide);
+  const nextBounds = getWindowMoveHandleBounds(mainBounds, windowMoveHandleSide);
+  if (
+    nextBounds.x !== handleBounds.x
+    || nextBounds.y !== handleBounds.y
+    || nextBounds.width !== handleBounds.width
+    || nextBounds.height !== handleBounds.height
+  ) {
+    windowMoveHandleWindow.setBounds(nextBounds, false);
+  }
+  setDesktopWindowZoom(windowMoveHandleWindow, scale);
+}
+
+function isWindowHandleDragActive() {
+  return Boolean(windowMoveHandleDragState || windowScaleHandleDragState);
+}
+
+function stopWindowScaleHandleDrag() {
+  if (windowScaleHandleDragTimer) clearInterval(windowScaleHandleDragTimer);
+  windowScaleHandleDragTimer = null;
+}
+
+function applyDesktopUiScaleFromCursor() {
+  const state = windowScaleHandleDragState;
+  if (!state || !mainWindow || mainWindow.isDestroyed()) return;
+  const frameStartedAt = performance.now();
+  // Read the physical cursor from the main process. The scale handle HWND is
+  // repositioned during this gesture, so renderer movement deltas have a
+  // moving reference frame and produce jumps/lag.
+  const cursor = screen.getCursorScreenPoint();
+  state.cursor = cursor;
+  const startVector = {
+    x: state.startCursor.x - state.anchor.x,
+    y: state.startCursor.y - state.anchor.y
+  };
+  const currentVector = {
+    x: cursor.x - state.anchor.x,
+    y: cursor.y - state.anchor.y
+  };
+  const denominator = Math.max(1, (startVector.x * startVector.x) + (startVector.y * startVector.y));
+  const relativeScale = ((currentVector.x * startVector.x) + (currentVector.y * startVector.y)) / denominator;
+  const scale = clamp(state.baseScale * relativeScale, state.minScale, state.maxScale);
+  const appliedRelativeScale = scale / state.baseScale;
+  const width = Math.round(state.baseBounds.width * appliedRelativeScale);
+  const height = Math.round(state.baseBounds.height * appliedRelativeScale);
+  const area = state.workArea;
+  const nextBounds = {
+    x: Math.round(state.anchor.x - width),
+    y: Math.round(state.anchor.y),
+    width,
+    height
+  };
+  if (nextBounds.width === state.lastBounds.width && nextBounds.height === state.lastBounds.height && nextBounds.x === state.lastBounds.x && nextBounds.y === state.lastBounds.y) return;
+  state.lastBounds = nextBounds;
+  const previousScale = desktopUiScale;
+  desktopUiScale = scale;
+  // Grow the viewport before zooming in; zoom out before shrinking it. This
+  // avoids an intermediate frame where Chromium content is clipped.
+  if (scale >= previousScale) {
+    mainWindow.setBounds(nextBounds, false);
+    mainWindow.webContents.setZoomFactor(scale);
+  } else {
+    mainWindow.webContents.setZoomFactor(scale);
+    mainWindow.setBounds(nextBounds, false);
+  }
+  for (const entry of state.auxiliaryWindows) {
+    if (!entry.window || entry.window.isDestroyed()) continue;
+    const bounds = entry.bounds;
+    const nextAuxiliaryBounds = {
+      x: Math.round(state.anchor.x + ((bounds.x - state.anchor.x) * appliedRelativeScale)),
+      y: Math.round(state.anchor.y + ((bounds.y - state.anchor.y) * appliedRelativeScale)),
+      width: Math.max(1, Math.round(bounds.width * appliedRelativeScale)),
+      height: Math.max(1, Math.round(bounds.height * appliedRelativeScale))
+    };
+    const nextZoomFactor = entry.zoomFactor * appliedRelativeScale;
+    const currentZoomFactor = entry.window.webContents.getZoomFactor();
+    if (nextZoomFactor >= currentZoomFactor) {
+      entry.window.setBounds(nextAuxiliaryBounds, false);
+      entry.window.webContents.setZoomFactor(nextZoomFactor);
+    } else {
+      entry.window.webContents.setZoomFactor(nextZoomFactor);
+      entry.window.setBounds(nextAuxiliaryBounds, false);
+    }
+  }
+  // Keep both external controls synchronized while the main shell scales.
+  syncWindowMoveHandleDuringScaleDrag(nextBounds, scale);
+  syncWindowScaleHandleDuringDrag(nextBounds, scale);
+  const frameDurationMs = performance.now() - frameStartedAt;
+  state.frameCount += 1;
+  state.maxFrameDurationMs = Math.max(state.maxFrameDurationMs, frameDurationMs);
+  if (frameDurationMs > 20) state.slowFrameCount += 1;
+}
+
+function beginWindowScaleHandleDrag(point = {}) {
+  if (!mainWindow || mainWindow.isDestroyed() || windowScaleHandleDragState) return;
+  const baseBounds = mainWindow.getBounds();
+  const screenX = Number(point.screenX);
+  const screenY = Number(point.screenY);
+  const cursor = Number.isFinite(screenX) && Number.isFinite(screenY)
+    ? { x: screenX, y: screenY }
+    : screen.getCursorScreenPoint();
+  const workArea = screen.getDisplayMatching(baseBounds).workArea;
+  const baseScale = desktopUiScale;
+  const logicalWidth = baseBounds.width / baseScale;
+  const logicalHeight = baseBounds.height / baseScale;
+  const anchor = { x: baseBounds.x + baseBounds.width, y: baseBounds.y };
+  const maximumScaleForDisplay = Math.min(
+    (anchor.x - workArea.x) / logicalWidth,
+    (workArea.y + workArea.height - anchor.y) / logicalHeight
+  );
+  windowScaleHandleDragState = {
+    baseBounds,
+    baseScale,
+    anchor,
+    startCursor: cursor,
+    cursor,
+    lastBounds: baseBounds,
+    frameCount: 0,
+    slowFrameCount: 0,
+    maxFrameDurationMs: 0,
+    workArea,
+    minScale: Math.min(baseScale, DESKTOP_UI_SCALE_MIN),
+    maxScale: Math.max(baseScale, Math.min(DESKTOP_UI_SCALE_MAX, maximumScaleForDisplay)),
+    auxiliaryWindows: BrowserWindow.getAllWindows()
+      .filter((window) => window !== mainWindow
+        && window !== windowMoveHandleWindow
+        && window !== windowScaleHandleWindow
+        && !isTibiaMirrorWindow(window)
+        && !window.isDestroyed()
+        && window.isVisible())
+      .map((window) => ({
+        window,
+        bounds: window.getBounds(),
+        zoomFactor: window.webContents.getZoomFactor()
+      }))
+  };
+  // Native resize remains enabled outside this gesture. During proportional
+  // scaling, remove only the current min/max clamp so width and height can
+  // grow together up to the display bounds.
+  mainWindow.setMinimumSize(1, 1);
+  mainWindow.setMaximumSize(workArea.width, workArea.height);
+  preserveMainWindowTopmostDuringHandleDrag({ force: true });
+  stopWindowScaleHandleDrag();
+  windowScaleHandleDragTimer = setInterval(applyDesktopUiScaleFromCursor, 1000 / 60);
+}
+
+function endWindowScaleHandleDrag() {
+  const state = windowScaleHandleDragState;
+  if (state) applyDesktopUiScaleFromCursor();
+  windowScaleHandleDragState = null;
+  stopWindowScaleHandleDrag();
+  if (state && mainWindow && !mainWindow.isDestroyed()) {
+    const panelWidth = dockedToolPanelIsOpen && getDockedToolPanelDefinition(dockedToolPanelKey)
+      ? scaleDesktopUiValue(getDockedToolPanelDefinition(dockedToolPanelKey).width)
+      : 0;
+    const minWidth = Math.max(1, Math.round((mainWindow.__dockedToolPanelBaseMinWidth || 535) * desktopUiScale) + panelWidth);
+    const minHeight = Math.max(1, Math.round((mainWindow.__dockedToolPanelBaseMinHeight || 320) * desktopUiScale));
+    const maxWidth = Math.max(minWidth, Math.round((mainWindow.__dockedToolPanelBaseMaxWidth || 860) * desktopUiScale) + panelWidth);
+    const maxHeight = Math.max(minHeight, Math.round((mainWindow.__dockedToolPanelBaseMaxHeight || state.workArea.height) * desktopUiScale));
+    mainWindow.setMinimumSize(minWidth, minHeight);
+    mainWindow.setMaximumSize(maxWidth, maxHeight);
+  }
+  syncWindowMoveHandle({ forceShow: true, preserveStacking: true });
+  syncWindowScaleHandle({ forceShow: true, preserveStacking: true });
+  scheduleOverlayBoundsSave(mainWindow);
+  void getOverlayPrefs().then((overlayPrefs) => writeStorageValue({
+    overlayPrefs: { ...overlayPrefs, uiScale: desktopUiScale }
+  })).catch(() => {});
+  if (state) {
+    void writeDebugLog(`window-scale-handle:performance frames=${state.frameCount} slow=${state.slowFrameCount} maxMs=${state.maxFrameDurationMs.toFixed(2)}`);
+  }
+  scheduleNativeHostIdleShutdown();
+}
+
+function abortWindowScaleHandleDrag(reason = "lost-input") {
+  if (!windowScaleHandleDragState) return;
+  void writeDebugLog(`window-scale-handle:drag-abort reason=${reason}`);
+  endWindowScaleHandleDrag();
 }
 
 function getWindowMoveHandleTooltipBounds(handleBounds, mainBounds, side) {
   const area = getWindowMoveHandleVirtualWorkArea();
   const verticalArea = screen.getDisplayMatching(mainBounds).workArea;
+  const width = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH);
+  const height = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT);
+  const gap = scaleDesktopUiValue(4);
   const preferredX = side === "left"
     ? handleBounds.x
-    : handleBounds.x + handleBounds.width - WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH;
+    : handleBounds.x + handleBounds.width - width;
   return {
-    x: clamp(preferredX, area.x + 4, area.right - WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH - 4),
+    x: clamp(preferredX, area.x + gap, area.right - width - gap),
     y: clamp(
-      handleBounds.y + handleBounds.height + 4,
-      verticalArea.y + 4,
-      verticalArea.y + verticalArea.height - WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT - 4
+      handleBounds.y + handleBounds.height + gap,
+      verticalArea.y + gap,
+      verticalArea.y + verticalArea.height - height - gap
     ),
-    width: WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH,
-    height: WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT
+    width,
+    height
+  };
+}
+
+function getWindowScaleHandleTooltipText() {
+  const locale = normalizeLocale(getActiveLocale());
+  if (locale === "en") return "Resize window";
+  if (locale === "de") return "Fenstergröße ändern";
+  return "Redimensionar janela";
+}
+
+function getWindowScaleHandleTooltipBounds(handleBounds, mainBounds) {
+  const area = getWindowMoveHandleVirtualWorkArea();
+  const verticalArea = screen.getDisplayMatching(mainBounds).workArea;
+  const width = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH);
+  const height = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT);
+  const gap = scaleDesktopUiValue(4);
+  const preferredY = handleBounds.y - height - gap;
+  const fallbackY = handleBounds.y + handleBounds.height + gap;
+  const y = preferredY >= verticalArea.y + gap ? preferredY : fallbackY;
+  return {
+    x: clamp(handleBounds.x, area.x + gap, area.right - width - gap),
+    y: clamp(y, verticalArea.y + gap, verticalArea.y + verticalArea.height - height - gap),
+    width,
+    height
   };
 }
 
@@ -943,13 +1267,14 @@ function getSupportersShowcaseBounds(mainBounds) {
   const verticalArea = screen.getDisplayMatching(mainBounds).workArea;
   const width = getSupportersShowcaseWidth(mainBounds);
   const centeredX = mainBounds.x + Math.round((mainBounds.width - width) / 2);
-  const preferredY = mainBounds.y - SUPPORTERS_SHOWCASE_GAP - SUPPORTERS_SHOWCASE_HEIGHT;
+  const height = scaleDesktopUiValue(SUPPORTERS_SHOWCASE_HEIGHT);
+  const preferredY = mainBounds.y - scaleDesktopUiValue(SUPPORTERS_SHOWCASE_GAP) - height;
 
   return {
     x: clamp(centeredX, area.x, area.right - width),
-    y: clamp(preferredY, verticalArea.y, verticalArea.y + verticalArea.height - SUPPORTERS_SHOWCASE_HEIGHT),
+    y: clamp(preferredY, verticalArea.y, verticalArea.y + verticalArea.height - height),
     width,
-    height: SUPPORTERS_SHOWCASE_HEIGHT
+    height
   };
 }
 
@@ -964,12 +1289,15 @@ function syncSupportersShowcase(options = {}) {
   }
 
   supportersShowcaseWindow.setBounds(getSupportersShowcaseBounds(mainWindow.getBounds()), false);
-  supportersShowcaseWindow.setAlwaysOnTop(true, "floating");
-  supportersShowcaseWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  setDesktopWindowZoom(supportersShowcaseWindow);
+  if (options.preserveStacking !== true) {
+    supportersShowcaseWindow.setAlwaysOnTop(true, "floating");
+    supportersShowcaseWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
   if (options.forceShow || !supportersShowcaseWindow.isVisible()) {
     supportersShowcaseWindow.showInactive();
   }
-  if (tutorialPopoverWindow && !tutorialPopoverWindow.isDestroyed() && tutorialPopoverWindow.isVisible()) {
+  if (options.preserveStacking !== true && tutorialPopoverWindow && !tutorialPopoverWindow.isDestroyed() && tutorialPopoverWindow.isVisible()) {
     tutorialPopoverWindow.setAlwaysOnTop(true, "screen-saver");
     tutorialPopoverWindow.moveTop();
   }
@@ -981,16 +1309,20 @@ function getDesktopAdsShowcaseBounds(mainBounds) {
   // TibiaVision divides the owner's usable width equally among its ad cards.
   // Keep the same rule here so three cards fit at maximum size and shrink
   // together with the app instead of introducing a second arbitrary width.
-  const width = clamp(
-    Math.round(Number(mainBounds?.width || 560)),
+  const logicalWidth = clamp(
+    Math.round(Number(mainBounds?.width || 560) / desktopUiScale),
     420,
-    Math.min(displayArea.width, area.width, DESKTOP_ADS_SHOWCASE_MAX_WIDTH)
+    DESKTOP_ADS_SHOWCASE_MAX_WIDTH
   );
-  const height = getDesktopAdsShowcaseHeight(width);
-  const belowY = mainBounds.y + mainBounds.height + DESKTOP_ADS_SHOWCASE_GAP;
-  const supportersTop = mainBounds.y - SUPPORTERS_SHOWCASE_GAP - SUPPORTERS_SHOWCASE_HEIGHT + SUPPORTERS_SHOWCASE_CONTENT_TOP;
+  const width = Math.min(scaleDesktopUiValue(logicalWidth), displayArea.width, area.width);
+  const height = scaleDesktopUiValue(getDesktopAdsShowcaseHeight(logicalWidth));
+  const belowY = mainBounds.y + mainBounds.height + scaleDesktopUiValue(DESKTOP_ADS_SHOWCASE_GAP);
+  const supportersTop = mainBounds.y
+    - scaleDesktopUiValue(SUPPORTERS_SHOWCASE_GAP)
+    - scaleDesktopUiValue(SUPPORTERS_SHOWCASE_HEIGHT)
+    + scaleDesktopUiValue(SUPPORTERS_SHOWCASE_CONTENT_TOP);
   const aboveAnchorY = supportersShowcasePayload.supporters.length > 0 ? supportersTop : mainBounds.y;
-  const aboveY = aboveAnchorY - DESKTOP_ADS_SHOWCASE_GAP - height;
+  const aboveY = aboveAnchorY - scaleDesktopUiValue(DESKTOP_ADS_SHOWCASE_GAP) - height;
   const fitsBelow = belowY + height <= displayArea.y + displayArea.height;
   const centeredX = mainBounds.x + Math.round((mainBounds.width - width) / 2);
   return {
@@ -1008,11 +1340,14 @@ function syncDesktopAdsShowcase(options = {}) {
     return;
   }
   desktopAdsShowcaseWindow.setBounds(getDesktopAdsShowcaseBounds(mainWindow.getBounds()), false);
+  setDesktopWindowZoom(desktopAdsShowcaseWindow);
   // Os anuncios precisam ficar sobre a janela principal, mas abaixo de
   // instrucoes interativas como o tutorial. O nivel screen-saver empata com o
   // tutorial e pode cobrir o botao Continuar apos uma sincronizacao do anuncio.
-  desktopAdsShowcaseWindow.setAlwaysOnTop(true, "floating");
-  desktopAdsShowcaseWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  if (options.preserveStacking !== true) {
+    desktopAdsShowcaseWindow.setAlwaysOnTop(true, "floating");
+    desktopAdsShowcaseWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
   const shouldShow = options.forceShow || !desktopAdsShowcaseWindow.isVisible();
   if (shouldShow) {
     desktopAdsShowcaseWindow.showInactive();
@@ -1078,7 +1413,9 @@ function normalizeDesktopAdsPayload(payload = {}) {
 }
 
 function createPortableDesktopAdsFallbackPayload() {
-  if (!isPortableTestRuntime) return null;
+  // Development also needs a stable public manifest while local homologation
+  // is offline; production remains dependent on the published API contract.
+  if (isProductionRuntime) return null;
   return normalizeDesktopAdsPayload({
     schemaVersion: 1,
     enabled: true,
@@ -1087,7 +1424,7 @@ function createPortableDesktopAdsFallbackPayload() {
       {
         id: "daniel-hatano",
         kind: "image",
-        mediaUrl: "https://tibiatoolkit.com/ads/daniel-hatano.gif",
+        mediaUrl: "https://tibiatoolkit.com/ads/campaigns/daniel-hatano.gif",
         href: "https://www.danielhatano.com.br/tibia/?tracking=tibiatoolkit",
         label: "Daniel Hatano",
         required: true
@@ -1099,7 +1436,7 @@ function createPortableDesktopAdsFallbackPayload() {
           {
             id: "spytools",
             mediaUrl: "https://cdn.converteai.net/552dce04-930e-4636-af10-5a3aef1c9a33/67e6d13d7aa7ceecf020a32c/main.m3u8",
-            posterUrl: "https://tibiatoolkit.com/ads/spytools-thumb.png",
+            posterUrl: "https://tibiatoolkit.com/ads/campaigns/spytools-thumb.png",
             href: "https://lp.spytoolss.com/poioso?utm_source=tibiatoolkit&utm_medium=website&utm_campaign=anuncio",
             label: "SpyTools"
           },
@@ -1365,6 +1702,7 @@ async function ensureWindowMoveHandleTooltip(owner = mainWindow) {
       }
     });
     windowMoveHandleTooltipWindow = tooltip;
+    setDesktopWindowZoom(tooltip);
     tooltip.setIgnoreMouseEvents(true);
     tooltip.on("closed", () => {
       if (windowMoveHandleTooltipWindow === tooltip) windowMoveHandleTooltipWindow = null;
@@ -1402,8 +1740,8 @@ async function showDesktopAdsTooltip(text, rect = {}, options = {}) {
   // The Daniel tooltip wraps to two lines but is shorter than the old 58-char
   // threshold. Give that middle-length copy the same room as the other
   // two-line ad tooltips so the last line is never clipped.
-  const tooltipWidth = textLength > 120 ? 420 : textLength > 42 ? 360 : WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH;
-  const tooltipHeight = textLength > 120 ? 78 : textLength > 42 ? 64 : WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT;
+  const tooltipWidth = scaleDesktopUiValue(textLength > 120 ? 420 : textLength > 42 ? 360 : WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH);
+  const tooltipHeight = scaleDesktopUiValue(textLength > 120 ? 78 : textLength > 42 ? 64 : WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT);
   const adsBounds = desktopAdsShowcaseWindow.getBounds();
   const screenLeft = Number(rect.screenLeft);
   const screenTop = Number(rect.screenTop);
@@ -1417,14 +1755,15 @@ async function showDesktopAdsTooltip(text, rect = {}, options = {}) {
   const cardHeight = Math.max(1, Number(rect.height) || 0);
   const centerX = cardLeft + cardWidth / 2;
   const area = getWindowMoveHandleVirtualWorkArea();
-  const gap = 7;
+  const gap = scaleDesktopUiValue(7);
+  const margin = scaleDesktopUiValue(4);
   const preferredTop = cardTop - tooltipHeight - gap;
   const fallbackTop = cardTop + cardHeight + gap;
   const hasRoomAbove = preferredTop >= area.y + 4;
   const top = hasRoomAbove ? preferredTop : fallbackTop;
   tooltip.setBounds({
-    x: clamp(Math.round(centerX - tooltipWidth / 2), area.x + 4, area.right - tooltipWidth - 4),
-    y: clamp(Math.round(top), area.y + 4, area.bottom - tooltipHeight - 4),
+    x: clamp(Math.round(centerX - tooltipWidth / 2), area.x + margin, area.right - tooltipWidth - margin),
+    y: clamp(Math.round(top), area.y + margin, area.bottom - tooltipHeight - margin),
     width: tooltipWidth,
     height: tooltipHeight
   }, false);
@@ -1445,15 +1784,19 @@ async function showMirrorGameSelectorTooltip(text, tone = "default") {
   const selectorBounds = mirrorGameSelectorWindow.getBounds();
   const area = getWindowMoveHandleVirtualWorkArea();
   const verticalArea = screen.getDisplayMatching(mainBounds).workArea;
+  const tooltipWidth = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH);
+  const tooltipHeight = scaleDesktopUiValue(WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT);
+  const gap = scaleDesktopUiValue(7);
+  const margin = scaleDesktopUiValue(4);
   const centerX = selectorBounds.x + selectorBounds.width / 2;
-  const preferredTop = selectorBounds.y - WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT - 7;
-  const fallbackTop = selectorBounds.y + selectorBounds.height + 7;
-  const top = preferredTop >= verticalArea.y + 4 ? preferredTop : fallbackTop;
+  const preferredTop = selectorBounds.y - tooltipHeight - gap;
+  const fallbackTop = selectorBounds.y + selectorBounds.height + gap;
+  const top = preferredTop >= verticalArea.y + margin ? preferredTop : fallbackTop;
   tooltip.setBounds({
-    x: clamp(Math.round(centerX - WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH / 2), area.x + 4, area.right - WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH - 4),
-    y: clamp(top, verticalArea.y + 4, verticalArea.y + verticalArea.height - WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT - 4),
-    width: WINDOW_MOVE_HANDLE_TOOLTIP_WIDTH,
-    height: WINDOW_MOVE_HANDLE_TOOLTIP_HEIGHT
+    x: clamp(Math.round(centerX - tooltipWidth / 2), area.x + margin, area.right - tooltipWidth - margin),
+    y: clamp(top, verticalArea.y + margin, verticalArea.y + verticalArea.height - tooltipHeight - margin),
+    width: tooltipWidth,
+    height: tooltipHeight
   }, false);
   tooltip.webContents.send("window-move-handle:tooltip", {
     text: String(text || ""),
@@ -1480,8 +1823,11 @@ function syncWindowMoveHandle(options = {}) {
   windowMoveHandleSide = resolveWindowMoveHandleSide(mainBounds, windowMoveHandleSide);
   const handleBounds = getWindowMoveHandleBounds(mainBounds, windowMoveHandleSide);
   windowMoveHandleWindow.setBounds(handleBounds, false);
-  windowMoveHandleWindow.setAlwaysOnTop(true, "floating");
-  windowMoveHandleWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  setDesktopWindowZoom(windowMoveHandleWindow);
+  if (options.preserveStacking !== true) {
+    windowMoveHandleWindow.setAlwaysOnTop(true, "floating");
+    windowMoveHandleWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  }
   if (options.forceShow || !windowMoveHandleWindow.isVisible()) {
     windowMoveHandleWindow.showInactive();
   }
@@ -1519,6 +1865,26 @@ async function showWindowMoveHandleTooltip() {
   windowMoveHandleWindow.moveTop();
 }
 
+async function showWindowScaleHandleTooltip() {
+  if (
+    !mainWindow || mainWindow.isDestroyed()
+    || !windowScaleHandleWindow || windowScaleHandleWindow.isDestroyed()
+    || windowScaleHandleDragState
+  ) return;
+
+  const requestToken = ++windowMoveHandleTooltipRequestToken;
+  const tooltip = await ensureWindowMoveHandleTooltip(mainWindow);
+  if (!tooltip || tooltip.isDestroyed() || requestToken !== windowMoveHandleTooltipRequestToken || windowScaleHandleDragState) return;
+  if (!windowScaleHandleWindow || windowScaleHandleWindow.isDestroyed()) return;
+  const mainBounds = mainWindow.getBounds();
+  const handleBounds = windowScaleHandleWindow.getBounds();
+  tooltip.setBounds(getWindowScaleHandleTooltipBounds(handleBounds, mainBounds), false);
+  tooltip.webContents.send("window-move-handle:tooltip", getWindowScaleHandleTooltipText());
+  tooltip.setAlwaysOnTop(true, "floating");
+  tooltip.showInactive();
+  windowScaleHandleWindow.moveTop();
+}
+
 function closeWindowMoveHandle() {
   windowMoveHandleDragState = null;
   windowMoveHandleTooltipRequestToken += 1;
@@ -1529,6 +1895,56 @@ function closeWindowMoveHandle() {
   }
   windowMoveHandleTooltipWindow = null;
   windowMoveHandleWindow = null;
+}
+
+function closeWindowScaleHandle() {
+  endWindowScaleHandleDrag();
+  hideWindowMoveHandleTooltip();
+  if (windowScaleHandleWindow && !windowScaleHandleWindow.isDestroyed()) windowScaleHandleWindow.destroy();
+  windowScaleHandleWindow = null;
+}
+
+async function ensureWindowScaleHandle(owner = mainWindow) {
+  if (!owner || owner.isDestroyed()) return null;
+  if (windowScaleHandleWindow && !windowScaleHandleWindow.isDestroyed()) {
+    syncWindowScaleHandle({ forceShow: true });
+    return windowScaleHandleWindow;
+  }
+  const handle = new BrowserWindow({
+    width: WINDOW_SCALE_HANDLE_SIZE,
+    height: WINDOW_SCALE_HANDLE_SIZE,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    focusable: false,
+    show: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    parent: owner,
+    hasShadow: false,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      preload: path.join(__dirname, "window-scale-handle-preload.cjs"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+  windowScaleHandleWindow = handle;
+  try {
+    handle.setHasShadow(false);
+  } catch {
+  }
+  handle.on("closed", () => {
+    if (windowScaleHandleWindow === handle) windowScaleHandleWindow = null;
+    endWindowScaleHandleDrag();
+  });
+  await handle.loadFile(path.join(__dirname, "window-scale-handle.html"));
+  if (handle.isDestroyed()) return null;
+  syncWindowScaleHandle({ forceShow: owner.isVisible() });
+  return handle;
 }
 
 async function ensureWindowMoveHandle(owner = mainWindow) {
@@ -1584,8 +2000,8 @@ async function ensureTutorialPopoverWindow(owner, bounds = {}) {
     return null;
   }
 
-  const width = Math.max(260, Math.round(Number(bounds.width) || 390));
-  const height = Math.max(260, Math.round(Number(bounds.height) || 330));
+  const width = Math.max(scaleDesktopUiValue(260), Math.round(Number(bounds.width) || scaleDesktopUiValue(390)));
+  const height = Math.max(scaleDesktopUiValue(260), Math.round(Number(bounds.height) || scaleDesktopUiValue(330)));
   const ownerBounds = owner.getBounds();
   const x = Math.round(Number.isFinite(Number(bounds.x)) ? Number(bounds.x) : ownerBounds.x);
   const y = Math.round(Number.isFinite(Number(bounds.y)) ? Number(bounds.y) : ownerBounds.y);
@@ -1612,6 +2028,7 @@ async function ensureTutorialPopoverWindow(owner, bounds = {}) {
         sandbox: false
       }
     });
+    setDesktopWindowZoom(tutorialPopoverWindow);
     tutorialPopoverWindow.setAlwaysOnTop(true, "screen-saver");
     tutorialPopoverWindow.on("closed", () => {
       tutorialPopoverWindow = null;
@@ -1624,6 +2041,7 @@ async function ensureTutorialPopoverWindow(owner, bounds = {}) {
   } else {
     tutorialPopoverWindow.setParentWindow(owner);
     tutorialPopoverWindow.setBounds({ x, y, width, height }, false);
+    setDesktopWindowZoom(tutorialPopoverWindow);
   }
 
   return tutorialPopoverWindow;
@@ -1679,7 +2097,6 @@ let runtimeSupportersDataUrls = [];
 let appUpdaterController = null;
 let appUpdateState = { phase: "idle", info: null };
 let appUpdateDownloadPromptPromise = null;
-let appUpdateQuitRequested = false;
 let configureDataService = null;
 let handleDataServiceMessage = null;
 const APP_UPDATE_DOWNLOAD_DIALOG_ROLE = "app-update-download";
@@ -1801,7 +2218,7 @@ const dockedToolPanelDefinitions = {
     description: "",
     width: 390
   },
-  "buy-me-a-coffee-panel": {
+  "support-panel": {
     titleKey: "screenVision.coffee.title",
     description: "",
     width: 418
@@ -1886,7 +2303,7 @@ async function prepareLibraryCatalogBaseUpdate() {
   const catalogPath = String(manifest?.catalog || "");
   if (Number(manifest?.schemaVersion) !== 1 || !/^[a-f0-9]{64}$/.test(hash) || !Number.isInteger(bytes) || bytes < 2 || catalogPath !== "/library-catalog.json") throw new Error("invalid-library-catalog-manifest");
   if (!libraryCatalogBaseActiveHash) {
-    const bundledPath = resolveRuntimeFilePath("assets/data/site-library-canonical.json");
+    const bundledPath = resolveRuntimeFilePath("assets/library/catalogs/site-library-canonical.json");
     const bundled = bundledPath ? await fs.readFile(bundledPath).catch(() => null) : null;
     const bundledHash = bundled ? crypto.createHash("sha256").update(bundled).digest("hex") : "";
     if (bundledHash === hash) {
@@ -1911,7 +2328,7 @@ async function prepareLibraryCatalogBaseUpdate() {
 async function readLibraryCatalogBaseSnapshot() {
   const active = await readJsonFile(libraryCatalogBaseActivePath, null);
   if (active?.records && typeof active.records === "object") return active;
-  const bundledPath = resolveRuntimeFilePath("assets/data/site-library-canonical.json");
+  const bundledPath = resolveRuntimeFilePath("assets/library/catalogs/site-library-canonical.json");
   const bundled = bundledPath ? await readJsonFile(bundledPath, null) : null;
   return bundled?.records && typeof bundled.records === "object" ? bundled : null;
 }
@@ -2193,7 +2610,7 @@ async function promptStartupUpdate(info = {}) {
     cancelTooltip: tr("updater.downloadLater"),
     tone: "success",
     flat: true,
-    mediaPath: path.join("assets", "ui", "tutorial", "update.gif"),
+    mediaPath: path.join("assets", "tutorial", "update.gif"),
     mediaWidth: 240,
     width: 456,
     height: 430,
@@ -2303,15 +2720,6 @@ if (!hasSingleInstanceLock) {
           });
           broadcastAppUpdateState();
         },
-        onInstallRequested() {
-          // electron-updater owns the quit sequence once it has spawned the
-          // downloaded installer. The normal async before-quit cleanup must
-          // not cancel or race that sequence.
-          appUpdateQuitRequested = true;
-          appIsQuitting = true;
-          nativeHostShutdownRequested = true;
-          void writeDebugLog("app-updater quit-and-install-requested");
-        },
         onDownloaded(info) {
           closeScreenVisionConfirmDialogsByRole(APP_UPDATE_DOWNLOAD_DIALOG_ROLE);
           appUpdateState = { phase: "downloaded", info: normalizeAppUpdateInfo(info) };
@@ -2345,6 +2753,12 @@ if (!hasSingleInstanceLock) {
     } else {
       await writeDebugLog(`app-updater-skipped channel=${runtimeChannel}`);
     }
+    const storedScaleState = await readStorageValue("overlayPrefs");
+    desktopUiScale = clamp(
+      Number(storedScaleState?.overlayPrefs?.uiScale) || 1,
+      DESKTOP_UI_SCALE_MIN,
+      DESKTOP_UI_SCALE_MAX
+    );
     splashStatus = tr("splash.preparing");
     await createSplashWindow();
     runtimeSupportersDataUrls = normalizeRuntimeBaseList(
@@ -2401,7 +2815,7 @@ if (!hasSingleInstanceLock) {
         };
       },
       async readJsonAsset(relativePath) {
-        const assetPath = relativePath === "assets/data/site-library-canonical.json" && fsSync.existsSync(libraryCatalogBaseActivePath)
+        const assetPath = relativePath === "assets/library/catalogs/site-library-canonical.json" && fsSync.existsSync(libraryCatalogBaseActivePath)
           ? libraryCatalogBaseActivePath
           : resolveRuntimeFilePath(relativePath);
         if (!assetPath) {
@@ -2409,7 +2823,7 @@ if (!hasSingleInstanceLock) {
         }
         const contents = await fs.readFile(assetPath, "utf8");
         const bundle = JSON.parse(contents);
-        return relativePath === "assets/data/site-library-canonical.json"
+        return relativePath === "assets/library/catalogs/site-library-canonical.json"
           ? applyLibraryCatalogOverlay(bundle, libraryCatalogOverlayActive)
           : bundle;
       },
@@ -2456,6 +2870,10 @@ if (!hasSingleInstanceLock) {
 
   app.on("second-instance", () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
+      if (!mainWindowRendererReady) {
+        if (splashWindow && !splashWindow.isDestroyed()) splashWindow.moveTop();
+        return;
+      }
       if (mainWindow.isMinimized()) {
         mainWindow.restore();
       }
@@ -2474,11 +2892,6 @@ app.on("window-all-closed", () => {
 app.on("before-quit", (event) => {
   appIsQuitting = true;
   nativeHostShutdownRequested = true;
-
-  if (appUpdateQuitRequested) {
-    void writeDebugLog("app-updater before-quit passed to installer");
-    return;
-  }
 
   if (applicationShutdownComplete) {
     return;
@@ -2558,10 +2971,14 @@ ipcMain.on("screen-vision:confirm-dialog:resize", (event, payload = {}) => {
 
   const currentBounds = entry.window.getBounds();
   const display = screen.getDisplayMatching(currentBounds);
-  const height = Math.max(240, Math.min(
-    display.workArea.height - 24,
-    Math.ceil(Number(payload.height) || currentBounds.height)
-  ));
+  const requestedHeight = Math.ceil(Number(payload.height) || (currentBounds.height / desktopUiScale));
+  const height = Math.max(
+    scaleDesktopUiValue(240),
+    Math.min(
+      display.workArea.height - 24,
+      scaleDesktopUiValue(requestedHeight)
+    )
+  );
   const positionedBounds = getConfirmDialogBounds({
     parentBounds: entry.parentBounds,
     workArea: display.workArea,
@@ -2575,17 +2992,23 @@ ipcMain.on("screen-vision:confirm-dialog:resize", (event, payload = {}) => {
 });
 
 async function createOverlayWindow() {
+  mainWindowRendererReady = false;
   const cursorPoint = screen.getCursorScreenPoint();
   const activeDisplay = screen.getDisplayNearestPoint(cursorPoint);
   const { workArea } = activeDisplay;
   const storedState = await readStorageValue("overlayPrefs");
   const overlayPrefs = storedState.overlayPrefs || {};
+  desktopUiScale = clamp(Number(overlayPrefs.uiScale) || 1, DESKTOP_UI_SCALE_MIN, DESKTOP_UI_SCALE_MAX);
   const width = clamp(Math.round(workArea.width * 0.26), 520, 620);
   const height = clamp(Math.round(workArea.height * 0.78), 620, 920);
-  const minWidth = 535;
-  const maxWidth = 860;
-  const minHeight = Math.max(320, Math.round(height * 0.5));
-  const maxHeight = Math.min(workArea.height, Math.round(workArea.height * 0.7) + 300);
+  const baseMinWidth = 535;
+  const baseMaxWidth = 860;
+  const baseMinHeight = Math.max(320, Math.round(height * 0.5));
+  const baseMaxHeight = Math.min(workArea.height, Math.round(workArea.height * 0.7) + 300);
+  const minWidth = Math.round(baseMinWidth * desktopUiScale);
+  const maxWidth = Math.min(workArea.width, Math.round(baseMaxWidth * desktopUiScale));
+  const minHeight = Math.round(baseMinHeight * desktopUiScale);
+  const maxHeight = Math.min(workArea.height, Math.round(baseMaxHeight * desktopUiScale));
   const defaultWidth = Math.min(maxWidth, workArea.width);
   const defaultHeight = maxHeight;
   const defaultX = workArea.x + Math.round((workArea.width - defaultWidth) / 2);
@@ -2639,24 +3062,28 @@ async function createOverlayWindow() {
     }
   });
 
-  window.__dockedToolPanelBaseMinWidth = minWidth;
-  window.__dockedToolPanelBaseMinHeight = minHeight;
-  window.__dockedToolPanelBaseMaxWidth = maxWidth;
-  window.__dockedToolPanelBaseMaxHeight = maxHeight;
+  window.__dockedToolPanelBaseMinWidth = baseMinWidth;
+  window.__dockedToolPanelBaseMinHeight = baseMinHeight;
+  window.__dockedToolPanelBaseMaxWidth = baseMaxWidth;
+  window.__dockedToolPanelBaseMaxHeight = baseMaxHeight;
 
   await writeDebugLog(
     `window-created width=${bounds.width} height=${bounds.height} x=${bounds.x} y=${bounds.y} restored=${Boolean(restoredBounds)} minWidth=${minWidth} maxWidth=${maxWidth} minHeight=${minHeight} maxHeight=${maxHeight} opacity=${opacity}`
   );
 
-  restoreMainWindowTopmost(window);
   window.setOpacity(opacity);
   window.on("show", () => {
     void writeDebugLog("window-show");
   });
   window.on("focus", () => {
     controllerWindowFocusState = true;
-    if (!isTutorialPriorityActive()) {
+    if (!isTutorialPriorityActive() && !isWindowHandleDragActive()) {
       restoreMainWindowTopmost(window);
+      void reassertMainWindowZOrderNoActivate("window-focus").then(() => {
+        if (!isWindowHandleDragActive() && !isTutorialPriorityActive()) {
+          void restoreAuxiliaryStackAfterMainZOrder("window-focus");
+        }
+      });
       // The screenshot helper is an owned utility window. Reassert its stacking
       // after the main shell receives focus so the shell can never cover it.
       setTimeout(() => {
@@ -2664,22 +3091,35 @@ async function createOverlayWindow() {
       }, 0);
     }
     void writeDebugLog("window-focus");
-    if (!isTutorialPriorityActive()) {
+    if (!isTutorialPriorityActive() && !isWindowHandleDragActive()) {
       void syncDockedToolPanelWindow({ forceShow: true, animateSideChange: false });
       notifyDesktopAdsShowcaseResume();
     }
-    window.webContents.send("app:activity-state", { active: true });
+    if (!isWindowHandleDragActive()) {
+      window.webContents.send("app:activity-state", { active: true });
+    }
   });
   window.on("blur", () => {
+    // A lost owner focus means the pointer may have gone to another window.
+    // End the proportional gesture immediately instead of leaving its timer
+    // applying scale after the user has released or clicked elsewhere.
+    abortWindowScaleHandleDrag("main-window-blur");
     // Clicking a native tutorial popover naturally blurs its owner. Do not run
     // the normal owner-restacking path then: it can bring the main app forward
     // between tutorial steps and make the whole surface flicker.
-    if (!isTutorialPriorityActive()) {
+    if (!isTutorialPriorityActive() && !isWindowHandleDragActive()) {
       restoreMainWindowTopmost(window);
+      void reassertMainWindowZOrderNoActivate("window-blur").then(() => {
+        if (!isWindowHandleDragActive() && !isTutorialPriorityActive()) {
+          void restoreAuxiliaryStackAfterMainZOrder("window-blur");
+        }
+      });
     }
     void writeDebugLog("window-blur");
-    void refreshControllerWindowFocusState();
-    window.webContents.send("app:activity-state", { active: false });
+    if (!isWindowHandleDragActive()) {
+      void refreshControllerWindowFocusState();
+      window.webContents.send("app:activity-state", { active: false });
+    }
   });
   window.on("ready-to-show", () => {
     void writeDebugLog("window-ready-to-show");
@@ -2692,31 +3132,37 @@ async function createOverlayWindow() {
     }
   });
   window.on("move", () => {
+    if (windowScaleHandleDragState) return;
     closeDesktopGlobalWorldPicker();
     scheduleOverlayBoundsSave(window);
     void syncDockedToolPanelWindow();
     syncWindowMoveHandle();
+    syncWindowScaleHandle();
     syncMirrorGameSelector();
     syncSupportersShowcase();
     syncDesktopAdsShowcase();
   });
   window.on("resize", () => {
+    if (windowScaleHandleDragState) return;
     closeDesktopGlobalWorldPicker();
     scheduleOverlayBoundsSave(window);
     void syncDockedToolPanelWindow();
     syncWindowMoveHandle();
+    syncWindowScaleHandle();
     syncMirrorGameSelector();
     syncSupportersShowcase();
     syncDesktopAdsShowcase();
   });
   window.on("minimize", () => {
     syncWindowMoveHandle();
+    syncWindowScaleHandle();
     syncMirrorGameSelector();
     syncSupportersShowcase();
     syncDesktopAdsShowcase();
   });
   window.on("hide", () => {
     syncWindowMoveHandle();
+    syncWindowScaleHandle();
     syncMirrorGameSelector();
     syncSupportersShowcase();
     syncDesktopAdsShowcase();
@@ -2726,6 +3172,7 @@ async function createOverlayWindow() {
       void syncDockedToolPanelWindow({ forceShow: true });
     }
     syncWindowMoveHandle({ forceShow: true });
+    syncWindowScaleHandle({ forceShow: true });
     syncMirrorGameSelector({ forceShow: true });
     syncSupportersShowcase({ forceShow: true });
     syncDesktopAdsShowcase({ forceShow: true });
@@ -2736,6 +3183,7 @@ async function createOverlayWindow() {
       void syncDockedToolPanelWindow({ forceShow: true });
     }
     syncWindowMoveHandle({ forceShow: true });
+    syncWindowScaleHandle({ forceShow: true });
     syncMirrorGameSelector({ forceShow: true });
     syncSupportersShowcase({ forceShow: true });
     syncDesktopAdsShowcase({ forceShow: true });
@@ -2749,8 +3197,10 @@ async function createOverlayWindow() {
     void requestMainWindowClose();
   });
   window.on("closed", () => {
+    mainWindowRendererReady = false;
     closeDockedToolPanel();
     closeWindowMoveHandle();
+    closeWindowScaleHandle();
     closeMirrorGameSelector();
     closeSupportersShowcase();
     closeDesktopAdsShowcase();
@@ -2761,9 +3211,7 @@ async function createOverlayWindow() {
   window.webContents.on("did-fail-load", (_event, errorCode, errorDescription) => {
     void writeDebugLog(`did-fail-load ${errorCode} ${errorDescription}`);
     void queueDiagnosticEvent("did-fail-load", { errorCode });
-    if (!window.isVisible()) {
-      window.show();
-    }
+    void updateSplashStatus("Nao foi possivel carregar o app.");
   });
   window.webContents.on("did-finish-load", () => {
     void writeDebugLog("did-finish-load");
@@ -2786,6 +3234,7 @@ async function createOverlayWindow() {
     await window.webContents.session.clearCache();
   }
   await window.loadURL(`${getRuntimeContentUrl("index.html")}?mode=desktop`);
+  window.webContents.setZoomFactor(desktopUiScale);
   await writeDebugLog("after-loadURL");
   await writeDebugLog(`waiting-for-renderer-ready visible=${window.isVisible()} minimized=${window.isMinimized()}`);
 
@@ -2800,6 +3249,10 @@ function restoreMainWindowTopmost(window = mainWindow) {
   try {
     window.setAlwaysOnTop(true, "screen-saver");
     window.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    // A borderless fullscreen client can remain above a Chromium window even
+    // after Electron reapplies the topmost level. Reorder the main shell once
+    // at a focus/visibility transition; drag frames never call this function.
+    window.moveTop();
     restoreMapWindowTopmost();
     restoreActiveTimerVisualAlertsTopmost();
     if (windowMoveHandleWindow && !windowMoveHandleWindow.isDestroyed() && windowMoveHandleWindow.isVisible()) {
@@ -2824,23 +3277,128 @@ function restoreMainWindowTopmost(window = mainWindow) {
   }
 }
 
-function preserveMainWindowTopmostDuringHandleDrag({ reassert = false } = {}) {
+function preserveMainWindowTopmostDuringHandleDrag({ force = false } = {}) {
   if (!mainWindow || mainWindow.isDestroyed() || isTutorialPriorityActive()) {
     return;
   }
 
   try {
-    // Moving a borderless BrowserWindow through an auxiliary handle can leave
-    // its HWND behind other windows even while Electron still reports the
-    // always-on-top flag. Reassert the flag at the drag boundaries and keep
-    // the window at the front of its existing topmost band while it moves.
-    if (reassert || !mainWindow.isAlwaysOnTop()) {
+    // Moving a borderless topmost window can leave its HWND below a borderless
+    // fullscreen game even though Electron still reports isAlwaysOnTop=true.
+    // Reapply only the level and fullscreen-workspace flag; never activate or
+    // moveTop(), so the Tibia focus and the auxiliary/modal priority layers are
+    // not disturbed.
+    if (force || !mainWindow.isAlwaysOnTop()) {
       mainWindow.setAlwaysOnTop(true, "screen-saver");
       mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     }
-    mainWindow.moveTop();
   } catch (_error) {
   }
+}
+
+function getNativeWindowHandleString(window) {
+  if (!window || window.isDestroyed() || process.platform !== "win32") {
+    return "";
+  }
+
+  try {
+    const handleBuffer = window.getNativeWindowHandle();
+    if (!Buffer.isBuffer(handleBuffer) || handleBuffer.length < 4) {
+      return "";
+    }
+
+    return handleBuffer.length >= 8
+      ? handleBuffer.readBigUInt64LE(0).toString()
+      : BigInt(handleBuffer.readUInt32LE(0)).toString();
+  } catch (_error) {
+    return "";
+  }
+}
+
+async function reassertMainWindowZOrderNoActivate(reason = "unknown") {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return false;
+  }
+
+  const hwnd = getNativeWindowHandleString(mainWindow);
+  const nativeHostRunning = Boolean(
+    nativeHostProcess
+    && nativeHostProcess.exitCode === null
+    && nativeHostProcess.killed !== true
+  );
+
+  try {
+    let nativeHostReady = nativeHostRunning;
+    if (!nativeHostReady && hwnd) {
+      // Dragging is an explicit user action. Start the already-installed
+      // helper only for this one-shot z-order repair, instead of keeping it
+      // alive just to monitor the window in the background.
+      await ensureNativeHostStarted();
+      nativeHostReady = Boolean(
+        nativeHostProcess
+        && nativeHostProcess.exitCode === null
+        && nativeHostProcess.killed !== true
+      );
+    }
+
+    if (nativeHostReady && hwnd) {
+      const response = await callNativeHost({
+        command: "bringWindowToFrontNoActivate",
+        hwnd
+      }, { timeoutMs: nativeHostPipeTimeoutMs });
+      if (response?.ok) {
+        await writeDebugLog(`main-window-z-order-reasserted reason=${reason} mode=native`);
+        scheduleNativeHostIdleShutdown();
+        return true;
+      }
+    }
+
+    // Fallback for sessions where Screen Vision has not started the native
+    // host. This is deliberately one-shot; it is never called per drag frame.
+    mainWindow.setAlwaysOnTop(true, "screen-saver");
+    mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    await writeDebugLog(`main-window-z-order-reasserted reason=${reason} mode=electron`);
+    return true;
+  } catch (error) {
+    await writeDebugLog(`main-window-z-order-reassert-error reason=${reason} ${error?.message || String(error)}`);
+    try {
+      // The native host can enter its idle-shutdown window between focus and
+      // the one-shot repair. Preserve Always On Top with Electron instead of
+      // leaving the main shell in an indeterminate z-order until the next event.
+      mainWindow.setAlwaysOnTop(true, "screen-saver");
+      mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+      await writeDebugLog(`main-window-z-order-reasserted reason=${reason} mode=electron-after-native-error`);
+      return true;
+    } catch (fallbackError) {
+      await writeDebugLog(`main-window-z-order-fallback-error reason=${reason} ${fallbackError?.message || String(fallbackError)}`);
+      return false;
+    }
+  }
+}
+
+async function restoreAuxiliaryStackAfterMainZOrder(reason = "unknown") {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+
+  // The main shell is deliberately reasserted first. These calls restore only
+  // the Toolkit-owned layers above it; they do not change the Tibia focus.
+  syncWindowMoveHandle({ forceShow: true });
+  syncWindowScaleHandle({ forceShow: true, preserveStacking: true });
+  syncMirrorGameSelector({ forceShow: true });
+  syncSupportersShowcase({ forceShow: true });
+  syncDesktopAdsShowcase({ forceShow: true });
+  await syncDockedToolPanelWindow({ forceShow: true, animateSideChange: false });
+  if (isTutorialPriorityActive()) {
+    enforceTutorialPriority();
+    return;
+  }
+
+  // Some Chromium-owned auxiliary windows can return their owner to the
+  // normal z-order band while they are being synchronized. Reassert the main
+  // shell once, after that internal stack is complete. This touches only the
+  // Toolkit's Electron windows; native Tibia Mirror surfaces are not involved.
+  await reassertMainWindowZOrderNoActivate(`hierarchy-finalize-${reason}`);
 }
 
 function restoreMapWindowTopmost() {
@@ -2969,16 +3527,17 @@ function getDesktopGlobalWorldPickerBounds(owner, anchor = {}, requestedHeight =
   const ownerBounds = owner.getBounds();
   const display = screen.getDisplayMatching(ownerBounds);
   const area = display.workArea;
-  const width = 352;
-  const height = Math.max(176, Math.min(424, Math.round(Number(requestedHeight) || 344)));
-  const anchorLeft = Math.round(Number(anchor.left) || 0);
-  const anchorTop = Math.round(Number(anchor.top) || 0);
-  const anchorBottom = Math.round(Number(anchor.bottom) || 0);
-  const x = Math.max(area.x + 8, Math.min(ownerBounds.x + anchorLeft, area.x + area.width - width - 8));
-  const below = ownerBounds.y + anchorBottom + 6;
+  const width = scaleDesktopUiValue(352);
+  const height = Math.max(scaleDesktopUiValue(176), Math.min(scaleDesktopUiValue(424), scaleDesktopUiValue(Number(requestedHeight) || 344)));
+  const anchorLeft = scaleDesktopUiValue(Number(anchor.left) || 0, 0);
+  const anchorTop = scaleDesktopUiValue(Number(anchor.top) || 0, 0);
+  const anchorBottom = scaleDesktopUiValue(Number(anchor.bottom) || 0, 0);
+  const margin = scaleDesktopUiValue(8);
+  const x = Math.max(area.x + margin, Math.min(ownerBounds.x + anchorLeft, area.x + area.width - width - margin));
+  const below = ownerBounds.y + anchorBottom + scaleDesktopUiValue(6);
   const y = below + height <= area.y + area.height - 8
     ? below
-    : Math.max(area.y + 8, ownerBounds.y + anchorTop - height - 6);
+    : Math.max(area.y + margin, ownerBounds.y + anchorTop - height - scaleDesktopUiValue(6));
   return { x, y, width, height };
 }
 
@@ -3034,11 +3593,13 @@ async function openDesktopGlobalWorldPicker(owner, payload = {}) {
   });
 
   await window.loadFile(path.join(__dirname, "world-picker.html"));
+  setDesktopWindowZoom(window);
   if (window.isDestroyed()) return { opened: false, error: "Seletor fechado antes de abrir." };
   window.webContents.send("desktop:global-world-picker:render", {
     worlds: Array.isArray(payload.worlds) ? payload.worlds.slice(0, 500) : [],
     selectedSlug: String(payload.selectedSlug || ""),
-    placeholder: String(payload.placeholder || "Digite o mundo")
+    placeholder: String(payload.placeholder || "Digite o mundo"),
+    query: String(payload.query || "")
   });
   window.show();
   window.focus();
@@ -3087,6 +3648,12 @@ function registerIpcHandlers() {
   ipcMain.on("window-move-handle:hover", (event, hovering) => {
     if (event.sender !== windowMoveHandleWindow?.webContents) return;
     if (hovering) void showWindowMoveHandleTooltip();
+    else hideWindowMoveHandleTooltip();
+  });
+
+  ipcMain.on("window-scale-handle:hover", (event, hovering) => {
+    if (event.sender !== windowScaleHandleWindow?.webContents) return;
+    if (hovering) void showWindowScaleHandleTooltip();
     else hideWindowMoveHandleTooltip();
   });
 
@@ -3143,8 +3710,12 @@ function registerIpcHandlers() {
     const screenY = Number(point.screenY);
     if (!Number.isFinite(screenX) || !Number.isFinite(screenY)) return;
     hideWindowMoveHandleTooltip();
-    preserveMainWindowTopmostDuringHandleDrag({ reassert: true });
-    windowMoveHandleDragState = { screenX, screenY, bounds: mainWindow.getBounds() };
+    windowMoveHandleDragState = {
+      screenX,
+      screenY,
+      bounds: mainWindow.getBounds(),
+    };
+    void writeDebugLog("window-move-handle:drag-start");
   });
 
   ipcMain.on("window-move-handle:drag-move", (event, point = {}) => {
@@ -3169,21 +3740,49 @@ function registerIpcHandlers() {
       Math.max(area.y, area.bottom - start.bounds.height)
     );
     mainWindow.setPosition(nextX, nextY, false);
-    preserveMainWindowTopmostDuringHandleDrag();
-    syncWindowMoveHandle();
   });
 
   ipcMain.on("window-move-handle:drag-end", (event) => {
     if (event.sender !== windowMoveHandleWindow?.webContents) return;
     windowMoveHandleDragState = null;
-    preserveMainWindowTopmostDuringHandleDrag({ reassert: true });
-    syncWindowMoveHandle();
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.focus();
+    void writeDebugLog("window-move-handle:drag-end");
+  });
+
+  ipcMain.on("window-scale-handle:drag-start", (event, point = {}) => {
+    if (event.sender !== windowScaleHandleWindow?.webContents) return;
+    hideWindowMoveHandleTooltip();
+    beginWindowScaleHandleDrag(point);
+    void writeDebugLog("window-scale-handle:drag-start");
+  });
+
+  ipcMain.on("window-scale-handle:drag-end", (event) => {
+    if (event.sender !== windowScaleHandleWindow?.webContents) return;
+    endWindowScaleHandleDrag();
+    void reassertMainWindowZOrderNoActivate("scale-drag-end").then(() => {
+      if (!isTutorialPriorityActive()) void restoreAuxiliaryStackAfterMainZOrder("scale-drag-end");
+    });
+    void writeDebugLog(`window-scale-handle:drag-end scale=${desktopUiScale.toFixed(3)}`);
   });
 
   ipcMain.handle("desktop:global-world-picker:open", async (event, payload = {}) => {
     const owner = BrowserWindow.fromWebContents(event.sender) || mainWindow;
     return openDesktopGlobalWorldPicker(owner, payload);
+  });
+
+  ipcMain.handle("desktop:global-world-picker:update", async (event, payload = {}) => {
+    const owner = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+    const picker = desktopGlobalWorldPickerWindow;
+    if (!picker || picker.isDestroyed() || desktopGlobalWorldPickerOwner !== owner) {
+      return { updated: false };
+    }
+
+    picker.webContents.send("desktop:global-world-picker:render", {
+      worlds: Array.isArray(payload.worlds) ? payload.worlds.slice(0, 500) : [],
+      selectedSlug: String(payload.selectedSlug || ""),
+      placeholder: String(payload.placeholder || "Digite o mundo"),
+      query: String(payload.query || "")
+    });
+    return { updated: true };
   });
 
   ipcMain.on("desktop:global-world-picker:select", (event, slug) => {
@@ -3402,15 +4001,16 @@ function registerIpcHandlers() {
   const getWheelInformationBounds = (owner, rect, width, height) => {
     const ownerBounds = owner.getBounds();
     const target = {
-      x: ownerBounds.x + Math.round(Number(rect?.x) || 0),
-      y: ownerBounds.y + Math.round(Number(rect?.y) || 0),
-      width: Math.max(1, Math.round(Number(rect?.width) || 1)),
-      height: Math.max(1, Math.round(Number(rect?.height) || 1))
+      x: ownerBounds.x + scaleDesktopUiValue(Number(rect?.x) || 0, 0),
+      y: ownerBounds.y + scaleDesktopUiValue(Number(rect?.y) || 0, 0),
+      width: scaleDesktopUiValue(Number(rect?.width) || 1),
+      height: scaleDesktopUiValue(Number(rect?.height) || 1)
     };
     const area = screen.getDisplayMatching(target).workArea;
-    const gap = 12;
-    const right = { x: target.x + target.width + gap, y: target.y + 8 };
-    const left = { x: target.x - width - gap, y: target.y + 8 };
+    const gap = scaleDesktopUiValue(12);
+    const offsetY = scaleDesktopUiValue(8);
+    const right = { x: target.x + target.width + gap, y: target.y + offsetY };
+    const left = { x: target.x - width - gap, y: target.y + offsetY };
     const candidate = right.x + width <= area.x + area.width ? right : left;
     return {
       x: Math.max(area.x, Math.min(candidate.x, area.x + area.width - width)),
@@ -3424,8 +4024,8 @@ function registerIpcHandlers() {
     const owner = BrowserWindow.fromWebContents(event.sender) || mainWindow;
     if (!owner || owner.isDestroyed()) return false;
 
-    const width = 350;
-    const height = 260;
+    const width = scaleDesktopUiValue(350);
+    const height = scaleDesktopUiValue(260);
     wheelInformationAnchor = { owner, rect: payload.rect || {} };
     const bounds = getWheelInformationBounds(owner, wheelInformationAnchor.rect, width, height);
 
@@ -3449,6 +4049,7 @@ function registerIpcHandlers() {
           sandbox: false
         }
       });
+      setDesktopWindowZoom(wheelInformationWindow);
       wheelInformationWindow.setIgnoreMouseEvents(true);
       wheelInformationWindow.setAlwaysOnTop(true, "pop-up-menu");
       wheelInformationWindow.on("closed", () => {
@@ -3459,6 +4060,7 @@ function registerIpcHandlers() {
     } else {
       wheelInformationWindow.setParentWindow(owner);
       wheelInformationWindow.setBounds(bounds, false);
+      setDesktopWindowZoom(wheelInformationWindow);
     }
 
     wheelInformationWindow.webContents.send("wheel-information:render", payload);
@@ -3480,7 +4082,7 @@ function registerIpcHandlers() {
       || wheelInformationAnchor.owner.isDestroyed()) {
       return;
     }
-    const height = Math.max(120, Math.min(520, Math.round(Number(requestedHeight) || 260)));
+    const height = Math.max(scaleDesktopUiValue(120), Math.min(scaleDesktopUiValue(520), scaleDesktopUiValue(Number(requestedHeight) || 260)));
     const bounds = getWheelInformationBounds(
       wheelInformationAnchor.owner,
       wheelInformationAnchor.rect,
@@ -3504,13 +4106,13 @@ function registerIpcHandlers() {
       return false;
     }
 
-    const width = 390;
+    const width = scaleDesktopUiValue(390);
     // Start every auto-sized tutorial at the same safe baseline. The popover
     // renderer immediately adapts this to the media and localized copy.
     const requestedHeight = payload.autoHeight === true
-      ? 360
-      : Number(payload.height);
-    const height = Math.max(220, Math.min(900, Math.round(requestedHeight || 330)));
+      ? scaleDesktopUiValue(360)
+      : scaleDesktopUiValue(Number(payload.height));
+    const height = Math.max(scaleDesktopUiValue(220), Math.min(scaleDesktopUiValue(900), Math.round(requestedHeight || scaleDesktopUiValue(330))));
     const ownerBounds = owner.getBounds();
     const rect = payload.rect || {};
     const screenRect = payload.screenRect && typeof payload.screenRect === "object"
@@ -3529,7 +4131,7 @@ function registerIpcHandlers() {
     };
     const display = screen.getDisplayMatching(target);
     const area = display.workArea;
-    const gap = 12;
+    const gap = scaleDesktopUiValue(12);
     const buildCandidate = (placement) => {
       if (placement === "bottom") {
         return { x: target.x + Math.round((target.width - width) / 2), y: target.y + target.height + gap };
@@ -3615,8 +4217,13 @@ function registerIpcHandlers() {
 
     const bounds = tutorialPopoverWindow.getBounds();
     const area = screen.getDisplayMatching(bounds).workArea;
-    const desiredHeight = Math.max(220, Math.round(Number(requestedHeight) || bounds.height));
-    const maximumHeight = Math.max(220, area.height - 16);
+    const desiredHeight = Math.max(
+      scaleDesktopUiValue(220),
+      Math.round(Number.isFinite(Number(requestedHeight))
+        ? Number(requestedHeight) * desktopUiScale
+        : bounds.height)
+    );
+    const maximumHeight = Math.max(scaleDesktopUiValue(220), area.height - scaleDesktopUiValue(16));
     const height = Math.min(maximumHeight, desiredHeight);
     if (height !== bounds.height) {
       const heightDelta = height - bounds.height;
@@ -3878,11 +4485,28 @@ function registerIpcHandlers() {
       : BrowserWindow.fromWebContents(event.sender);
 
     if (window && !window.isDestroyed()) {
+      mainWindowRendererReady = true;
       window.show();
       restoreMainWindowTopmost(window);
+      // Electron's owner-level call is kept as the first layer. The native
+      // helper only repairs this main HWND after the shell is visible; the
+      // Toolkit-owned auxiliary/modal stack is restored afterwards.
+      void reassertMainWindowZOrderNoActivate("ready-to-show").then(() => {
+        if (!windowMoveHandleDragState && !isTutorialPriorityActive()) {
+          void restoreAuxiliaryStackAfterMainZOrder("ready-to-show");
+        }
+      });
       window.focus();
       await ensureWindowMoveHandle(window);
+      await ensureWindowScaleHandle(window);
       syncWindowMoveHandle({ forceShow: true });
+      syncWindowScaleHandle({ forceShow: true });
+      // The move handle is created after the renderer-ready signal. Finalize
+      // the hierarchy once more so its owned HWND cannot leave the main shell
+      // in the normal z-order band during startup.
+      if (!isTutorialPriorityActive()) {
+        void reassertMainWindowZOrderNoActivate("ready-to-show-after-auxiliary");
+      }
       await writeDebugLog(`renderer-ready-show visible=${window.isVisible()} minimized=${window.isMinimized()}`);
       scheduleDeferredNativeRuntimeStartup();
       if (app.isPackaged && isProductionRuntime) {
@@ -3932,7 +4556,7 @@ function registerIpcHandlers() {
     }
 
     const bundle = JSON.parse(await fs.readFile(assetPath, "utf8"));
-    return normalizedPath === "assets/data/site-library-canonical.json"
+    return normalizedPath === "assets/library/catalogs/site-library-canonical.json"
       ? applyLibraryCatalogOverlay(bundle, libraryCatalogOverlayActive)
       : bundle;
   });
@@ -3964,7 +4588,7 @@ function registerIpcHandlers() {
         cancelTooltip: tr("updater.downloadLater"),
         tone: "success",
         flat: true,
-        mediaPath: path.join("assets", "ui", "tutorial", "update.gif"),
+        mediaPath: path.join("assets", "tutorial", "update.gif"),
         mediaWidth: 240,
         width: 456,
         height: 430,
@@ -4433,7 +5057,7 @@ function registerIpcHandlers() {
         maxLength: 200,
         checkboxLabel: tr("screenVision.obs.savePassword"),
         checkboxChecked: Boolean(savedPassword),
-        mediaPath: path.join("assets", "ui", "tutorial", "websocketobs.gif"),
+        mediaPath: path.join("assets", "tutorial", "websocketobs.gif"),
         external: true,
         flat: true,
         returnPayload: true
@@ -5397,7 +6021,7 @@ function showAppUpdateDownloadProgressDialog(info = {}) {
     message: tr("updater.downloadingMessage", { percent: 0 }),
     tone: "success",
     flat: true,
-    mediaPath: path.join("assets", "ui", "tutorial", "update.gif"),
+    mediaPath: path.join("assets", "tutorial", "update.gif"),
     mediaWidth: 280,
     width: 456,
     height: 560,
@@ -5427,7 +6051,7 @@ async function showAppUpdateDownloadedDialog(info = {}) {
     hideCancel: true,
     tone: "success",
     flat: true,
-    mediaPath: path.join("assets", "ui", "tutorial", "update.gif"),
+    mediaPath: path.join("assets", "tutorial", "update.gif"),
     mediaWidth: 240,
     width: 800,
     height: 540,
@@ -7311,10 +7935,11 @@ async function ensureDesktopScreenshotAssistant(settings = null, { allowDisabled
   const cursorPoint = screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(cursorPoint);
   const { workArea } = display;
-  const width = 276;
-  const height = 154;
-  const x = Math.max(workArea.x + 16, Math.min(cursorPoint.x + 20, workArea.x + workArea.width - width - 16));
-  const y = Math.max(workArea.y + 16, Math.min(cursorPoint.y + 20, workArea.y + workArea.height - height - 16));
+  const width = scaleDesktopUiValue(276);
+  const height = scaleDesktopUiValue(154);
+  const margin = scaleDesktopUiValue(16);
+  const x = Math.max(workArea.x + margin, Math.min(cursorPoint.x + scaleDesktopUiValue(20), workArea.x + workArea.width - width - margin));
+  const y = Math.max(workArea.y + margin, Math.min(cursorPoint.y + scaleDesktopUiValue(20), workArea.y + workArea.height - height - margin));
   const window = new BrowserWindow({
     width,
     height,
@@ -7339,6 +7964,7 @@ async function ensureDesktopScreenshotAssistant(settings = null, { allowDisabled
     }
   });
   desktopScreenshotAssistantWindow = window;
+  setDesktopWindowZoom(window);
   window.on("closed", () => {
     const elapsedMs = desktopScreenshotAssistantOpenedAt
       ? Math.max(0, Math.round(performance.now() - desktopScreenshotAssistantOpenedAt))
@@ -7350,6 +7976,7 @@ async function ensureDesktopScreenshotAssistant(settings = null, { allowDisabled
   });
   await window.loadFile(path.join(__dirname, "screenshot-assistant.html"));
   if (!window.isDestroyed()) {
+    setDesktopWindowZoom(window);
     desktopScreenshotAssistantOpenedAt = performance.now();
     window.showInactive();
     prioritizeDesktopScreenshotAssistant(window);
@@ -7382,7 +8009,7 @@ async function renderDesktopScreenshotAssistantHelpStep() {
 
   const isFolderStep = desktopScreenshotAssistantHelpStep === 1;
   const payload = {
-    gif: getRuntimeContentUrl(isFolderStep ? "assets/ui/tutorial/openscreenshotfolder.png" : "assets/ui/tutorial/uncheck.png"),
+    gif: getRuntimeContentUrl(isFolderStep ? "assets/tutorial/openscreenshotfolder.png" : "assets/tutorial/uncheck.png"),
     gifNatural: true,
     hideGif: false,
     text: isFolderStep
@@ -7394,9 +8021,9 @@ async function renderDesktopScreenshotAssistantHelpStep() {
     placement: tutorialPopoverResizePlacement,
     autoHeight: true,
     progress: `Ajuda ${desktopScreenshotAssistantHelpStep + 1}/2`,
-    buttonIcon: getRuntimeContentUrl(isFolderStep ? "assets/ui/Tick.png" : "assets/ui/tutorial/continuar.png"),
+    buttonIcon: getRuntimeContentUrl(isFolderStep ? "assets/common/actions/Tick.png" : "assets/tutorial/continuar.png"),
     buttonLabel: isFolderStep ? "Fechar" : "Continuar",
-    cancelIcon: getRuntimeContentUrl("assets/ui/Cross.png"),
+    cancelIcon: getRuntimeContentUrl("assets/common/actions/Cross.png"),
     cancelLabel: "Fechar"
   };
 
@@ -7439,9 +8066,9 @@ async function showDesktopScreenshotFolderCreationHelp(owner = mainWindow) {
   const ownerBounds = ownerWindow.getBounds();
   const display = screen.getDisplayMatching(ownerBounds);
   const area = display.workArea;
-  const width = 390;
-  const height = 360;
-  const gap = 12;
+  const width = scaleDesktopUiValue(390);
+  const height = scaleDesktopUiValue(360);
+  const gap = scaleDesktopUiValue(12);
   const candidates = [
     { placement: "right", x: ownerBounds.x + ownerBounds.width + gap, y: ownerBounds.y + Math.round((ownerBounds.height - height) / 2) },
     { placement: "left", x: ownerBounds.x - width - gap, y: ownerBounds.y + Math.round((ownerBounds.height - height) / 2) },
@@ -7466,7 +8093,7 @@ async function showDesktopScreenshotFolderCreationHelp(owner = mainWindow) {
   });
   desktopScreenshotFolderCreationHelpResolver = resolveHelp;
   const payload = {
-    gif: getRuntimeContentUrl("assets/ui/tutorial/openscreenshotfolder.png"),
+    gif: getRuntimeContentUrl("assets/tutorial/openscreenshotfolder.png"),
     gifNatural: true,
     hideGif: false,
     text: "Se você ainda não abriu a pasta de screenshots do Tibia, abra-a uma vez para criá-la. No Tibia, vá em Options > Misc. > Screenshots e clique em Open Screenshot Folder. Para a busca automática reconhecer a pasta, reinicie o TibiaToolkit após criá-la.",
@@ -7474,9 +8101,9 @@ async function showDesktopScreenshotFolderCreationHelp(owner = mainWindow) {
     placement: chosen.placement,
     autoHeight: true,
     progress: "ScreenshotToolkit",
-    buttonIcon: getRuntimeContentUrl("assets/ui/Tick.png"),
+    buttonIcon: getRuntimeContentUrl("assets/common/actions/Tick.png"),
     buttonLabel: "Continuar para selecionar a pasta",
-    cancelIcon: getRuntimeContentUrl("assets/ui/Cross.png"),
+    cancelIcon: getRuntimeContentUrl("assets/common/actions/Cross.png"),
     cancelLabel: "Fechar"
   };
   await popover.webContents.executeJavaScript(
@@ -7569,9 +8196,9 @@ async function showDesktopScreenshotAssistantHelp() {
   const assistantBounds = assistant.getBounds();
   const display = screen.getDisplayMatching(assistantBounds);
   const area = display.workArea;
-  const width = 390;
-  const height = 360;
-  const gap = 12;
+  const width = scaleDesktopUiValue(390);
+  const height = scaleDesktopUiValue(360);
+  const gap = scaleDesktopUiValue(12);
   const candidates = [
     { placement: "left", x: assistantBounds.x - width - gap, y: assistantBounds.y + Math.round((assistantBounds.height - height) / 2) },
     { placement: "right", x: assistantBounds.x + assistantBounds.width + gap, y: assistantBounds.y + Math.round((assistantBounds.height - height) / 2) },
@@ -8197,9 +8824,9 @@ function updateManualSelectionCrossPosition() {
 
   const display = screen.getDisplayNearestPoint(cursor);
   const displayBounds = display?.bounds || screen.getPrimaryDisplay().bounds;
-  const previewSize = 200;
-  const cursorGap = 28;
-  const crossSize = 19;
+  const previewSize = scaleDesktopUiValue(200);
+  const cursorGap = scaleDesktopUiValue(28);
+  const crossSize = scaleDesktopUiValue(19);
   let previewLeft = cursor.x + cursorGap;
   let previewTop = cursor.y + cursorGap;
 
@@ -8227,8 +8854,8 @@ async function startManualSelectionCrossWindow() {
   closeManualSelectionCrossWindow();
 
   const window = new BrowserWindow({
-    width: 19,
-    height: 19,
+    width: scaleDesktopUiValue(19),
+    height: scaleDesktopUiValue(19),
     frame: false,
     transparent: true,
     resizable: false,
@@ -8246,6 +8873,7 @@ async function startManualSelectionCrossWindow() {
   });
 
   manualSelectionCrossWindow = window;
+  setDesktopWindowZoom(window);
   window.setIgnoreMouseEvents(true);
   window.setAlwaysOnTop(true, "screen-saver");
   window.on("closed", () => {
@@ -8590,6 +9218,10 @@ async function stopNativeHostIfIdle() {
   if (appIsQuitting || nativeHostStartPromise || !nativeHostProcess || nativeHostProcess.exitCode !== null || nativeHostProcess.killed) {
     return;
   }
+  if (isWindowHandleDragActive()) {
+    scheduleNativeHostIdleShutdown();
+    return;
+  }
 
   const state = await readOverlayToolsState().catch(() => null);
   if (hasActiveNativeRuntimeWork(state)) {
@@ -8869,8 +9501,8 @@ async function createSplashWindow() {
   const cursorPoint = screen.getCursorScreenPoint();
   const activeDisplay = screen.getDisplayNearestPoint(cursorPoint);
   const { workArea } = activeDisplay;
-  const width = 392;
-  const height = 292;
+  const width = scaleDesktopUiValue(392);
+  const height = scaleDesktopUiValue(292);
   const x = Math.round(workArea.x + (workArea.width - width) / 2);
   const y = Math.round(workArea.y + (workArea.height - height) / 2);
   const iconUrl = await getSplashIconDataUrl();
@@ -8900,6 +9532,8 @@ async function createSplashWindow() {
       sandbox: true
     }
   });
+
+  setDesktopWindowZoom(splashWindow);
 
   splashWindow.setIgnoreMouseEvents(true, { forward: true });
   splashWindow.setAlwaysOnTop(true, "screen-saver");
@@ -9076,6 +9710,12 @@ function normalizeRuntimeBaseList(...values) {
 
 function resolveRuntimeFilePath(relativePath) {
   const normalized = String(relativePath || "").replaceAll("\\", "/").replace(/^\/+/, "");
+  const legacyItemSprite = normalized.match(/^assets\/data\/items\/sprites\/(\d+)\.png$/i);
+  if (legacyItemSprite) {
+    // Keep old content-pack/runtime URLs readable while the canonical asset
+    // lives under the organized library catalog.
+    return path.join(runtimeAssetsRoot, "library", "items", "catalog", "sprites", `${legacyItemSprite[1]}.png`);
+  }
   const mediaPrefix = "assets/library-media/library/";
   if (normalized.startsWith(mediaPrefix)) {
     const sitePath = `/${normalized.slice("assets/library-media/".length)}`;
@@ -9363,7 +10003,12 @@ async function loadRuntimeConfig() {
           ["http://127.0.0.1:3042/api/app-market", ...configuredMarketBases],
         );
     const fileGameDataHubBase = String(parsed?.gameDataHubBase || "").trim();
-    const fileGameDataHubBases = normalizeRuntimeBaseList(parsed?.gameDataHubBases || [], fileGameDataHubBase);
+    const configuredGameDataHubBases = normalizeRuntimeBaseList(parsed?.gameDataHubBases || [], fileGameDataHubBase);
+    const fileGameDataHubBases = usesProductionDataServices
+      ? configuredGameDataHubBases
+      : normalizeRuntimeBaseList(
+          ["http://127.0.0.1:3042/api/app-game", ...configuredGameDataHubBases],
+        );
     const fileSupportersDataUrl = String(parsed?.supportersDataUrl || "").trim();
     const configuredSupportersDataUrls = normalizeRuntimeBaseList(parsed?.supportersDataUrls || [], fileSupportersDataUrl);
     const fileSupportersDataUrls = usesProductionDataServices
@@ -9748,10 +10393,11 @@ function setDockedToolPanelWindowConstraints(panelWidth) {
     return;
   }
 
-  const minWidth = Math.max(320, Math.round((mainWindow.__dockedToolPanelBaseMinWidth || 535) + panelWidth));
-  const minHeight = Math.max(240, Math.round(mainWindow.__dockedToolPanelBaseMinHeight || 320));
-  const maxWidth = Math.round((mainWindow.__dockedToolPanelBaseMaxWidth || 860) + panelWidth);
-  const maxHeight = Math.round(mainWindow.__dockedToolPanelBaseMaxHeight || screen.getPrimaryDisplay().workArea.height);
+  const scaledPanelWidth = scaleDesktopUiValue(panelWidth);
+  const minWidth = Math.max(320, Math.round(((mainWindow.__dockedToolPanelBaseMinWidth || 535) * desktopUiScale) + scaledPanelWidth));
+  const minHeight = Math.max(240, Math.round((mainWindow.__dockedToolPanelBaseMinHeight || 320) * desktopUiScale));
+  const maxWidth = Math.round(((mainWindow.__dockedToolPanelBaseMaxWidth || 860) * desktopUiScale) + scaledPanelWidth);
+  const maxHeight = Math.round((mainWindow.__dockedToolPanelBaseMaxHeight || screen.getPrimaryDisplay().workArea.height) * desktopUiScale);
   mainWindow.setMinimumSize(minWidth, minHeight);
   mainWindow.setMaximumSize(maxWidth, maxHeight);
 }
@@ -9762,12 +10408,12 @@ function restoreDockedToolPanelWindowConstraints() {
   }
 
   mainWindow.setMinimumSize(
-    Math.round(mainWindow.__dockedToolPanelBaseMinWidth || 535),
-    Math.round(mainWindow.__dockedToolPanelBaseMinHeight || 320)
+    Math.round((mainWindow.__dockedToolPanelBaseMinWidth || 535) * desktopUiScale),
+    Math.round((mainWindow.__dockedToolPanelBaseMinHeight || 320) * desktopUiScale)
   );
   mainWindow.setMaximumSize(
-    Math.round(mainWindow.__dockedToolPanelBaseMaxWidth || 860),
-    Math.round(mainWindow.__dockedToolPanelBaseMaxHeight || screen.getPrimaryDisplay().workArea.height)
+    Math.round((mainWindow.__dockedToolPanelBaseMaxWidth || 860) * desktopUiScale),
+    Math.round((mainWindow.__dockedToolPanelBaseMaxHeight || screen.getPrimaryDisplay().workArea.height) * desktopUiScale)
   );
 }
 
@@ -9834,7 +10480,7 @@ async function transitionDockedToolPanelSide(definition, fromSide, toSide) {
   }
 
   const currentBounds = mainWindow.getBounds();
-  const baseBounds = deriveDockedToolPanelBaseBounds(currentBounds, definition.width, fromSide);
+  const baseBounds = deriveDockedToolPanelBaseBounds(currentBounds, scaleDesktopUiValue(definition.width), fromSide);
 
   if (!baseBounds) {
     return;
@@ -9850,7 +10496,7 @@ async function transitionDockedToolPanelSide(definition, fromSide, toSide) {
 
   dockedToolPanelSide = toSide;
   dockedToolPanelBaseBounds = baseBounds;
-  const targetBounds = getDockedToolPanelExpandedBounds(baseBounds, definition.width, toSide);
+  const targetBounds = getDockedToolPanelExpandedBounds(baseBounds, scaleDesktopUiValue(definition.width), toSide);
   setMainWindowBoundsImmediate(mainWindow, targetBounds);
   dockedToolPanelPhase = "switch-in";
   setDockedToolPanelRendererContext(dockedToolPanelKey, toSide, "switch-in");
@@ -9876,14 +10522,15 @@ async function syncDockedToolPanelWindow(options = {}) {
   }
 
   const currentBounds = mainWindow.getBounds();
-  const baseBounds = deriveDockedToolPanelBaseBounds(currentBounds, definition.width, dockedToolPanelSide);
+  const scaledPanelWidth = scaleDesktopUiValue(definition.width);
+  const baseBounds = deriveDockedToolPanelBaseBounds(currentBounds, scaledPanelWidth, dockedToolPanelSide);
 
   if (!baseBounds) {
     return;
   }
 
   dockedToolPanelBaseBounds = baseBounds;
-  const nextSide = resolveDockedToolPanelSide(baseBounds, definition.width, dockedToolPanelSide || "");
+  const nextSide = resolveDockedToolPanelSide(baseBounds, scaledPanelWidth, dockedToolPanelSide || "");
 
   if (nextSide !== dockedToolPanelSide && animateSideChange) {
     await transitionDockedToolPanelSide(definition, dockedToolPanelSide, nextSide);
@@ -9919,14 +10566,15 @@ async function openDockedToolPanel(panelKey, options = {}) {
 
   dockedToolPanelKey = panelKey;
   dockedToolPanelBaseBounds = mainWindow.getBounds();
-  dockedToolPanelSide = resolveDockedToolPanelSide(dockedToolPanelBaseBounds, definition.width, "");
+  const scaledPanelWidth = scaleDesktopUiValue(definition.width);
+  dockedToolPanelSide = resolveDockedToolPanelSide(dockedToolPanelBaseBounds, scaledPanelWidth, "");
   setMainWindowResizeBackdrop("#20242d");
 
   if (dockedToolPanelSide === "left") {
     emitDockedToolPanelRendererPreview(panelKey, "left", "left-pre-shift");
     await waitForDockedToolPanelFrame();
     setMainWindowBoundsImmediate(mainWindow, {
-      x: Math.round(dockedToolPanelBaseBounds.x - definition.width),
+      x: Math.round(dockedToolPanelBaseBounds.x - scaledPanelWidth),
       y: Math.round(dockedToolPanelBaseBounds.y),
       width: Math.round(dockedToolPanelBaseBounds.width),
       height: Math.round(dockedToolPanelBaseBounds.height)
@@ -9938,7 +10586,7 @@ async function openDockedToolPanel(panelKey, options = {}) {
   setMainWindowDockedPanelState(true);
   dockedToolPanelPhase = "opening";
   setDockedToolPanelRendererContext(panelKey, dockedToolPanelSide, "opening");
-  const targetBounds = getDockedToolPanelExpandedBounds(dockedToolPanelBaseBounds, definition.width, dockedToolPanelSide);
+  const targetBounds = getDockedToolPanelExpandedBounds(dockedToolPanelBaseBounds, scaledPanelWidth, dockedToolPanelSide);
   setMainWindowBoundsImmediate(mainWindow, targetBounds);
   await waitForDockedToolPanelDuration(dockedToolPanelOpenDurationMs);
   dockedToolPanelPhase = "open";
@@ -9959,7 +10607,7 @@ async function openScreenVisionWindow(tool = "screen-vision", options = {}) {
     await writeDebugLog("screen-vision-alertas-panel-blocked source=rubinot");
     return null;
   }
-  if (tool === "alertas-panel" || tool === "authenticator-panel" || tool === "profiles-panel" || tool === "sqm-finder-panel" || tool === "tibia-coins-panel" || tool === "supporters-panel" || tool === "buy-me-a-coffee-panel" || tool === "settings-panel" || tool === "account-panel" || tool === "report-panel" || tool === "wheel-perks-panel") {
+  if (tool === "alertas-panel" || tool === "authenticator-panel" || tool === "profiles-panel" || tool === "sqm-finder-panel" || tool === "tibia-coins-panel" || tool === "supporters-panel" || tool === "support-panel" || tool === "settings-panel" || tool === "account-panel" || tool === "report-panel" || tool === "wheel-perks-panel") {
     return openDockedToolPanel(tool, { ...options, focusWindow });
   }
   const normalizedTool = tool === "alertas" || tool === "visual-customization"
@@ -12341,10 +12989,10 @@ function resolveAlertTimerSoundFile(timer) {
     return "";
   };
   const bundled = {
-    "default": resolveSoundAsset("assets/screen-vision/reference/sounds/spells/utura gran.ogg"),
-    "utura-gran": resolveSoundAsset("assets/screen-vision/reference/sounds/spells/utura gran.ogg"),
-    "exura-gran-ico": resolveSoundAsset("assets/screen-vision/reference/sounds/spells/exura gran ico.ogg"),
-    "utito-tempo": resolveSoundAsset("assets/screen-vision/reference/sounds/spells/utito tempo.ogg")
+    "default": resolveSoundAsset("assets/tools/tibia-mirror/reference/sounds/spells/utura gran.ogg"),
+    "utura-gran": resolveSoundAsset("assets/tools/tibia-mirror/reference/sounds/spells/utura gran.ogg"),
+    "exura-gran-ico": resolveSoundAsset("assets/tools/tibia-mirror/reference/sounds/spells/exura gran ico.ogg"),
+    "utito-tempo": resolveSoundAsset("assets/tools/tibia-mirror/reference/sounds/spells/utito tempo.ogg")
   };
 
   if (typeof timer?.customSoundPath === "string" && timer.customSoundPath.trim()) {
@@ -13059,7 +13707,7 @@ function ensureAppTray() {
   const trayIcon = nativeImage.createFromPath(appIconPath);
   const openIcon = nativeImage.createFromPath(appIconPath).resize({ width: 16, height: 16 });
   const closeIcon = nativeImage
-    .createFromPath(resolveRuntimeFilePath("assets/ui/Cross.png") || appIconPath)
+    .createFromPath(resolveRuntimeFilePath("assets/common/actions/Cross.png") || appIconPath)
     .resize({ width: 16, height: 16 });
 
   if (!tray || tray.isDestroyed()) {
@@ -13110,11 +13758,11 @@ async function performMainWindowCloseChoice(action, rememberChoice = false) {
 }
 
 function buildAppCloseChoiceDialogHtml() {
-  const minimizeIdleUrl = readDialogAssetDataUrl(path.join("assets", "ui", "desktop-controls", "desktop-minimize-idle.png"));
-  const minimizeActiveUrl = readDialogAssetDataUrl(path.join("assets", "ui", "desktop-controls", "desktop-minimize-active.png"));
-  const closeIdleUrl = readDialogAssetDataUrl(path.join("assets", "ui", "desktop-controls", "desktop-close-idle.png"));
-  const closeActiveUrl = readDialogAssetDataUrl(path.join("assets", "ui", "desktop-controls", "desktop-close-active.png"));
-  const checkboxIconUrl = readDialogAssetDataUrl(path.join("assets", "ui", "Tick.png"));
+  const minimizeIdleUrl = readDialogAssetDataUrl(path.join("assets", "navigation", "desktop-controls", "desktop-minimize-idle.png"));
+  const minimizeActiveUrl = readDialogAssetDataUrl(path.join("assets", "navigation", "desktop-controls", "desktop-minimize-active.png"));
+  const closeIdleUrl = readDialogAssetDataUrl(path.join("assets", "navigation", "desktop-controls", "desktop-close-idle.png"));
+  const closeActiveUrl = readDialogAssetDataUrl(path.join("assets", "navigation", "desktop-controls", "desktop-close-active.png"));
+  const checkboxIconUrl = readDialogAssetDataUrl(path.join("assets", "common", "actions", "Tick.png"));
   const dialogTitle = escapeDialogHtml(tr("dialog.closeApp.title"));
   const dialogMessage = escapeDialogHtml(tr("dialog.closeApp.message"));
   const minimizeLabel = escapeDialogHtml(tr("common.minimize"));
@@ -13335,8 +13983,8 @@ async function showAppCloseChoiceDialog() {
 
   closeChoiceDialogOpen = true;
   const dialogId = crypto.randomUUID();
-  const width = 430;
-  const height = 286;
+  const width = scaleDesktopUiValue(430);
+  const height = scaleDesktopUiValue(286);
   const parentBounds = mainWindow.getBounds();
   const dialogWindow = new BrowserWindow({
     width,
@@ -13362,6 +14010,7 @@ async function showAppCloseChoiceDialog() {
       additionalArguments: [`--screenvision-confirm-dialog-id=${dialogId}`]
     }
   });
+  setDesktopWindowZoom(dialogWindow);
 
   const htmlPath = path.join(app.getPath("temp"), `tibia-toolkit-close-${dialogId}.html`);
   await fs.writeFile(htmlPath, buildAppCloseChoiceDialogHtml(), "utf8");
@@ -13465,14 +14114,14 @@ function buildScreenVisionConfirmDialogHtml(options = {}) {
   const mediaWidth = Math.max(180, Math.min(320, Number(options.mediaWidth) || 208));
   const confirmTooltip = escapeDialogHtml(options.confirmTooltip || confirmLabel);
   const cancelTooltip = escapeDialogHtml(options.cancelTooltip || cancelLabel);
-  const checkboxIconUrl = readDialogAssetDataUrl(path.join("assets", "ui", "Tick.png"));
-  const confirmIconUrl = readDialogAssetDataUrl(path.join("assets", "ui", "Tick.png"));
-  const cancelIconUrl = readDialogAssetDataUrl(path.join("assets", "ui", "Cross.png"));
+  const checkboxIconUrl = readDialogAssetDataUrl(path.join("assets", "common", "actions", "Tick.png"));
+  const confirmIconUrl = readDialogAssetDataUrl(path.join("assets", "common", "actions", "Tick.png"));
+  const cancelIconUrl = readDialogAssetDataUrl(path.join("assets", "common", "actions", "Cross.png"));
   const mediaPath = typeof options.mediaPath === "string" && options.mediaPath.trim()
     ? options.mediaPath.trim()
     : tone === "warning"
-      ? path.join("assets", "ui", "tools", "tibia-eye", "states", "atencao.gif")
-      : path.join("assets", "ui", "tools", "tibia-eye", "states", "cuidado.gif");
+      ? path.join("assets", "tools", "tibia-mirror", "states", "atencao.gif")
+      : path.join("assets", "tools", "tibia-mirror", "states", "cuidado.gif");
   const warningGifUrl = readDialogAssetDataUrl(mediaPath);
   const checkboxLabel = typeof options.checkboxLabel === "string" && options.checkboxLabel.trim()
     ? escapeDialogHtml(options.checkboxLabel.trim())
@@ -13903,9 +14552,9 @@ function buildScreenVisionPromptDialogHtml(options = {}) {
   const checkboxLabel = typeof options.checkboxLabel === "string" ? escapeDialogHtml(options.checkboxLabel.trim()) : "";
   const checkboxChecked = options.checkboxChecked === true ? " checked" : "";
   const flat = options.flat === true;
-  const checkboxIconUrl = readDialogAssetDataUrl(path.join("assets", "ui", "Tick.png"));
-  const confirmIconUrl = readDialogAssetDataUrl(path.join("assets", "ui", "Tick.png"));
-  const cancelIconUrl = readDialogAssetDataUrl(path.join("assets", "ui", "Cross.png"));
+  const checkboxIconUrl = readDialogAssetDataUrl(path.join("assets", "common", "actions", "Tick.png"));
+  const confirmIconUrl = readDialogAssetDataUrl(path.join("assets", "common", "actions", "Tick.png"));
+  const cancelIconUrl = readDialogAssetDataUrl(path.join("assets", "common", "actions", "Cross.png"));
   const mediaPath = typeof options.mediaPath === "string" && options.mediaPath.trim() ? options.mediaPath.trim() : "";
   const mediaFilePath = resolveRuntimeFilePath(mediaPath);
   const mediaUrl = mediaFilePath && fsSync.existsSync(mediaFilePath)
@@ -14238,10 +14887,10 @@ async function showScreenVisionConfirmDialog(ownerWindow, options = {}) {
     : (hasMedia ? 322 : 252));
   const parentBounds = parentWindow && !parentWindow.isDestroyed() ? parentWindow.getBounds() : null;
   const parentDisplay = parentBounds ? screen.getDisplayMatching(parentBounds) : screen.getPrimaryDisplay();
-  const availableWidth = Math.max(320, parentDisplay.workArea.width - 24);
-  const availableHeight = Math.max(240, parentDisplay.workArea.height - 24);
-  const width = Math.min(Math.max(320, requestedWidth), availableWidth);
-  const height = Math.min(Math.max(240, requestedHeight), availableHeight);
+  const availableWidth = Math.max(scaleDesktopUiValue(320), parentDisplay.workArea.width - 24);
+  const availableHeight = Math.max(scaleDesktopUiValue(240), parentDisplay.workArea.height - 24);
+  const width = Math.min(Math.max(scaleDesktopUiValue(320), scaleDesktopUiValue(requestedWidth)), availableWidth);
+  const height = Math.min(Math.max(scaleDesktopUiValue(240), scaleDesktopUiValue(requestedHeight)), availableHeight);
   const external = options.external === true;
   const centerOnDisplay = options.centerOnDisplay === true;
   const role = typeof options.dialogRole === "string" ? options.dialogRole.trim() : "";
@@ -14276,6 +14925,7 @@ async function showScreenVisionConfirmDialog(ownerWindow, options = {}) {
       additionalArguments: [`--screenvision-confirm-dialog-id=${dialogId}`]
     }
   });
+  setDesktopWindowZoom(dialogWindow);
 
   dialogWindow.removeMenu();
   dialogWindow.setMenuBarVisibility(false);
@@ -14359,8 +15009,8 @@ async function showScreenVisionPromptDialog(ownerWindow, options = {}) {
   const requestedHeight = hasMedia ? (hasCheckbox ? 600 : 540) : (hasCheckbox ? 318 : 258);
   const parentBounds = parentWindow && !parentWindow.isDestroyed() ? parentWindow.getBounds() : null;
   const parentDisplay = parentBounds ? screen.getDisplayMatching(parentBounds) : screen.getPrimaryDisplay();
-  const width = Math.min(requestedWidth, Math.max(320, parentDisplay.workArea.width - 24));
-  const height = Math.min(requestedHeight, Math.max(240, parentDisplay.workArea.height - 24));
+  const width = Math.min(scaleDesktopUiValue(requestedWidth), Math.max(scaleDesktopUiValue(320), parentDisplay.workArea.width - 24));
+  const height = Math.min(scaleDesktopUiValue(requestedHeight), Math.max(scaleDesktopUiValue(240), parentDisplay.workArea.height - 24));
   const external = options.external === true;
   const initialBounds = getConfirmDialogBounds({
     parentBounds,
@@ -14393,6 +15043,7 @@ async function showScreenVisionPromptDialog(ownerWindow, options = {}) {
       additionalArguments: [`--screenvision-confirm-dialog-id=${dialogId}`]
     }
   });
+  setDesktopWindowZoom(dialogWindow);
 
   dialogWindow.removeMenu();
   dialogWindow.setMenuBarVisibility(false);
@@ -14484,6 +15135,7 @@ async function showTimerVisualAlertWindow(payload = {}) {
     }
   });
 
+  setDesktopWindowZoom(alertWindow);
   alertWindow.setAlwaysOnTop(true, "screen-saver");
   alertWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   alertWindow.setIgnoreMouseEvents(true);
@@ -14609,6 +15261,7 @@ async function openAlertPositionEditorWindow(payload = {}) {
     }
   });
 
+  setDesktopWindowZoom(previewWindow);
   previewWindow.setAlwaysOnTop(true, "screen-saver");
   previewWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   previewWindow.on("closed", () => {
@@ -14654,6 +15307,7 @@ async function updateAlertPositionEditorWindow(payload = {}) {
 
   await previewWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
   previewWindow.setBounds(bounds, false);
+  setDesktopWindowZoom(previewWindow);
   return getAlertEditorCenter(previewWindow);
 }
 
@@ -14759,21 +15413,23 @@ function computeAlertWindowBounds(payload, options = {}) {
     ? Math.max(16, Math.round(payload.fontSize * 0.5))
     : 0;
   const horizontalPadding = (includeInstruction ? 120 : 96) + (shadowPaddingX * 2);
-  const width = Math.max(
+  const logicalWidth = Math.max(
     260,
     Math.round((payload.fontSize * textLength * familyWidthFactor) + horizontalPadding)
   );
-  const height = Math.max(
+  const logicalHeight = Math.max(
     (includeInstruction ? 124 : 84) + shadowPaddingY,
     Math.round((payload.fontSize * (includeInstruction ? 2.5 : 1.9)) + (includeInstruction ? 32 : 24) + shadowPaddingY)
   );
+  const width = scaleDesktopUiValue(logicalWidth);
+  const height = scaleDesktopUiValue(logicalHeight);
   const rawX = Number.isFinite(payload.centerX)
     ? Math.round(payload.centerX - (width / 2))
     : Math.round(workArea.x + ((workArea.width - width) / 2));
   const rawY = Number.isFinite(payload.centerY)
     ? Math.round(payload.centerY - (height / 2))
     : Math.round(workArea.y + ((workArea.height - height) / 2));
-  const margin = 16;
+  const margin = scaleDesktopUiValue(16);
   const minX = workArea.x + margin;
   const minY = workArea.y + margin;
   const maxX = Math.max(minX, (workArea.x + workArea.width) - width - margin);
@@ -15016,22 +15672,24 @@ async function shouldShowScreenVisionOverlays(tibiaState, options = {}) {
     return false;
   }
 
-  if (tibiaState.isForeground) {
-    return true;
-  }
-
-  const controllerFocused = controllerWindowFocusState || await isAnyControllerWindowFocused();
-
-  if (!controllerFocused) {
-    return false;
-  }
-
   const sourceGame = normalizeMirrorSourceGame(options.sourceGame || tibiaState?.sourceGame || "tibia");
-  return await isTibiaDirectlyBehindControllerWindows(sourceGame).catch(async (error) => {
-    screenVisionNativeHostUnavailable = true;
-    await writeDebugLog(`screen-vision-tibia-behind-controller-error ${error?.message || String(error)} retry=next-session`);
-    return false;
-  });
+  let requestedVisibility = false;
+
+  if (tibiaState.isForeground) {
+    requestedVisibility = true;
+  } else {
+    const controllerFocused = controllerWindowFocusState || await isAnyControllerWindowFocused();
+
+    if (controllerFocused) {
+      requestedVisibility = await isTibiaDirectlyBehindControllerWindows(sourceGame).catch(async (error) => {
+        screenVisionNativeHostUnavailable = true;
+        await writeDebugLog(`screen-vision-tibia-behind-controller-error ${error?.message || String(error)} retry=next-session`);
+        return false;
+      });
+    }
+  }
+
+  return requestedVisibility;
 }
 
 async function shouldShowTibiaMirrorSurface(tibiaState, options = {}) {
@@ -15524,7 +16182,7 @@ async function saveOverlayBounds(window) {
     const definition = getDockedToolPanelDefinition(dockedToolPanelKey);
 
     if (definition) {
-      bounds = deriveDockedToolPanelBaseBounds(bounds, definition.width, dockedToolPanelSide) || bounds;
+      bounds = deriveDockedToolPanelBaseBounds(bounds, scaleDesktopUiValue(definition.width), dockedToolPanelSide) || bounds;
     }
   }
 
@@ -16271,11 +16929,11 @@ function mergeStoreEntries(entries) {
 }
 
 async function writeStoreFile(value) {
-  await fs.mkdir(path.dirname(overlayStorePath), { recursive: true });
-  const tempPath = `${overlayStorePath}.tmp`;
-  await fs.writeFile(tempPath, JSON.stringify(value, null, 2), "utf8");
-  await fs.rm(overlayStorePath, { force: true }).catch(() => {});
-  await fs.rename(tempPath, overlayStorePath);
+  await writeJsonFileResilient(overlayStorePath, value, {
+    onDirectWriteFallback: (error) => writeDebugLog(
+      `overlay-storage-direct-write-fallback code=${getStorageErrorCode(error) || "unknown"}`
+    )
+  });
 }
 
 async function readRuntimeCacheStore() {

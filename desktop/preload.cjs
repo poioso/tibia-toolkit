@@ -256,6 +256,9 @@ contextBridge.exposeInMainWorld("desktopApi", {
     open(payload) {
       return ipcRenderer.invoke("desktop:global-world-picker:open", payload || {});
     },
+    update(payload) {
+      return ipcRenderer.invoke("desktop:global-world-picker:update", payload || {});
+    },
     onSelected(callback) {
       const listener = (_event, slug) => callback(String(slug || ""));
       ipcRenderer.on("desktop:global-world-picker:selected", listener);

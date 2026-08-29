@@ -86,8 +86,8 @@ function setNewScreenshotCount(value) {
     const icon = els.openFolder.querySelector("img");
     if (icon) {
       icon.src = count > 0
-      ? "tibiatoolkit://app/assets/ui/tutorial/folder.gif"
-      : "tibiatoolkit://app/assets/ui/tutorial/folder-inactive.png";
+      ? "tibiatoolkit://app/assets/tutorial/folder.gif"
+      : "tibiatoolkit://app/assets/tutorial/folder-inactive.png";
   }
   els.openFolder.classList.toggle("has-new-screenshots", count > 0);
   els.openFolderCount.hidden = count < 1;

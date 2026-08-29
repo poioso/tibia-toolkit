@@ -8947,7 +8947,7 @@ body.desktop-mode .desktop-toolbar span {
   width: 81px;
   height: 46px;
   padding: 0 3px;
-  background: url("assets/ui/world-status/boosted-panel-frame.png") center / 81px 46px no-repeat;
+  background: url("assets/world-status/boosted-panel-frame.png") center / 81px 46px no-repeat;
 }
 
 .desktop-boosted-card {
@@ -8985,7 +8985,7 @@ body.desktop-mode .desktop-toolbar span {
   padding: 0;
   border: 0;
   place-items: center;
-  background: url("assets/ui/world-status/yasir-podium.webp") center top / 46px 37px no-repeat;
+  background: url("assets/world-status/yasir-podium.webp") center top / 46px 37px no-repeat;
   cursor: pointer;
 }
 
@@ -9096,18 +9096,21 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
 }
 
 .desktop-library-content-update-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  margin-left: -6px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
   -webkit-app-region: no-drag;
   animation: desktop-update-available 1.8s ease-in-out infinite;
+  transform: translate(-50%, -50%);
 }
 
 .desktop-library-content-update-button[hidden] {
@@ -9116,8 +9119,8 @@ body.tt-tutorial-update-demo #desktop-toolbar-brand .desktop-brand-logo {
 
 .desktop-library-content-update-button img {
   display: block;
-  width: 20px;
-  height: 20px;
+  width: 30px;
+  height: 30px;
   object-fit: contain;
   image-rendering: pixelated;
   transition: transform 140ms ease, filter 140ms ease;
@@ -12759,23 +12762,23 @@ body.desktop-mode .docked-supporter-card-tier-iron {
 }
 
 body.desktop-mode .docked-supporter-card-tier-diamond.docked-supporter-card-highlighted {
-  background-image: url("assets/ui/supporters/fundo-diamante.gif");
+  background-image: url("assets/monetization/supporters/fundo-diamante.gif");
 }
 
 body.desktop-mode .docked-supporter-card-tier-gold.docked-supporter-card-highlighted {
-  background-image: url("assets/ui/supporters/fundo-ouro.gif");
+  background-image: url("assets/monetization/supporters/fundo-ouro.gif");
 }
 
 body.desktop-mode .docked-supporter-card-tier-silver.docked-supporter-card-highlighted {
-  background-image: url("assets/ui/supporters/fundo-prata.gif");
+  background-image: url("assets/monetization/supporters/fundo-prata.gif");
 }
 
 body.desktop-mode .docked-supporter-card-tier-bronze.docked-supporter-card-highlighted {
-  background-image: url("assets/ui/supporters/fundo-bronze.gif");
+  background-image: url("assets/monetization/supporters/fundo-bronze.gif");
 }
 
 body.desktop-mode .docked-supporter-card-tier-iron.docked-supporter-card-highlighted {
-  background-image: url("assets/ui/supporters/fundo-ferro.gif");
+  background-image: url("assets/monetization/supporters/fundo-ferro.gif");
 }
 
 body.desktop-mode .docked-supporter-card-main {
@@ -18252,7 +18255,7 @@ body.desktop-mode .desktop-report-picker-hud { position: fixed; z-index: 2147483
 body.desktop-mode .desktop-report-picker-hud small { margin-left: 8px; color: #aab3c1; font-size: .68rem; }
 body.desktop-mode .desktop-report-element-highlight { position: fixed; z-index: 2147483646; box-sizing: border-box; border: 2px solid #f2c64c; outline: 1px solid rgba(255,242,185,.82); background: rgba(216,179,88,.11); box-shadow: 0 0 0 4px rgba(216,179,88,.16); pointer-events: none; }
 body.desktop-mode.desktop-report-element-picker-active,
-body.desktop-mode.desktop-report-element-picker-active * { cursor: url("assets/ui/feedback/select-element.png") 8 8, crosshair !important; }
+body.desktop-mode.desktop-report-element-picker-active * { cursor: url("assets/feedback/select-element.png") 8 8, crosshair !important; }
 
 body.desktop-mode .tt-tour-context-button:hover,
 body.desktop-mode .tt-tour-context-button:focus-visible {

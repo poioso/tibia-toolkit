@@ -23,14 +23,13 @@ const requiredFiles = [
   "desktop/build/icon.ico",
   "desktop/screen-vision-native/publish/win-x64/ScreenVision.NativeHost.exe",
   "node_modules/@msgpack/msgpack/package.json",
-  "node_modules/@msgpack/msgpack/dist/index.js",
   "node_modules/@msgpack/msgpack/dist.es5+esm/index.mjs",
-  "assets/screen-vision/reference/sounds/spells/utura gran.ogg",
-  "assets/screen-vision/reference/sounds/spells/exura gran ico.ogg",
-  "assets/screen-vision/reference/sounds/spells/utito tempo.ogg",
-  "assets/ui/Tick.png",
-  "assets/ui/Cross.png",
-  "assets/ui/tutorial/update.gif"
+  "assets/tools/tibia-mirror/reference/sounds/spells/utura gran.ogg",
+  "assets/tools/tibia-mirror/reference/sounds/spells/exura gran ico.ogg",
+  "assets/tools/tibia-mirror/reference/sounds/spells/utito tempo.ogg",
+  "assets/common/actions/Tick.png",
+  "assets/common/actions/Cross.png",
+  "assets/tutorial/update.gif"
 ];
 
 const missing = [];

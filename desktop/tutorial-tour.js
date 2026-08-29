@@ -30,53 +30,53 @@ window.addEventListener("unhandledrejection", (event) => {
 });
 
 const TUTORIAL_ASSETS = {
-  welcome: "assets/ui/tutorial/tibia-toolkit-logo.png",
-  market: "assets/ui/tutorial/mercado.gif",
-  analyzer: "assets/ui/tutorial/analyzer-loupe.gif",
-  partyHunt: "assets/ui/tutorial/party-hunt.gif",
-  soloHunt: "assets/ui/tutorial/lutando.gif",
-  partyFinder: "assets/ui/tutorial/taverna.gif",
-  npcsCreatures: "assets/ui/tutorial/npcs-criaturas.gif",
-  bestiary: "assets/ui/tutorial/bestiario.gif",
-  bosstiary: "assets/ui/tutorial/bosstiario.gif",
-  skillCalculator: "assets/ui/tutorial/transacao-treino.gif",
-  skillDummy: "assets/ui/tutorial/treino-dummy.gif",
-  skillBonus: "assets/ui/tutorial/duo-sword.gif",
-  sqmFinder: "assets/ui/tutorial/sqmfindertutorial.gif",
-  alerts: "assets/ui/tutorial/alertas.gif",
-  screenshot: "assets/ui/tutorial/screenshot.png",
-  screenshotUncheck: "assets/ui/tutorial/uncheck.png",
-  screenshotOpenFolder: "assets/ui/tutorial/openscreenshotfolder.png",
-  obs: "assets/ui/tutorial/obs.gif",
+  welcome: "assets/tutorial/tibia-toolkit-logo.png",
+  market: "assets/tutorial/mercado.gif",
+  analyzer: "assets/tutorial/analyzer-loupe.gif",
+  partyHunt: "assets/tutorial/party-hunt.gif",
+  soloHunt: "assets/tutorial/lutando.gif",
+  partyFinder: "assets/tutorial/taverna.gif",
+  npcsCreatures: "assets/tutorial/npcs-criaturas.gif",
+  bestiary: "assets/tutorial/bestiario.gif",
+  bosstiary: "assets/tutorial/bosstiario.gif",
+  skillCalculator: "assets/tutorial/transacao-treino.gif",
+  skillDummy: "assets/tutorial/treino-dummy.gif",
+  skillBonus: "assets/tutorial/duo-sword.gif",
+  sqmFinder: "assets/tutorial/sqmfindertutorial.gif",
+  alerts: "assets/tutorial/alertas.gif",
+  screenshot: "assets/tutorial/screenshot.png",
+  screenshotUncheck: "assets/tutorial/uncheck.png",
+  screenshotOpenFolder: "assets/tutorial/openscreenshotfolder.png",
+  obs: "assets/tutorial/obs.gif",
   bossCategoryIcons: [
-    "assets/ui/bestiary/Bosstiary_Bane.png",
-    "assets/ui/bestiary/Bosstiary_Archfoe.png",
-    "assets/ui/bestiary/Bosstiary_Nemesis.png"
+    "assets/bestiary/bosstiary/Bosstiary_Bane.png",
+    "assets/bestiary/bosstiary/Bosstiary_Archfoe.png",
+    "assets/bestiary/bosstiary/Bosstiary_Nemesis.png"
   ],
-  waiting: "assets/ui/tools/tibia-eye/states/esperando.gif",
-  tibiaMirror: "assets/ui/tutorial/casadosespelhos.gif",
-  tibiaMirrorClients: "assets/ui/tutorial/tibia-mirror-clientes.png",
-  analyzerHelp: "assets/ui/analyzer/party-loot-help.jpg",
-  soloAnalyzerHelp: "assets/ui/analyzer/hunt-analyzer-help.png",
-  npcMarket: "assets/ui/tutorial/npc-mercado.png",
-  worldList: "assets/ui/tutorial/lista-mundos.gif",
-  list: "assets/ui/tutorial/lista.gif",
-  tools: "assets/ui/tutorial/ferramentas-canivete.gif",
-  wheelOfDestiny: "assets/ui/tutorial/roda-do-destino.png",
-  worldBoard: "assets/ui/tutorial/world-board.png",
-  books: "assets/ui/tutorial/biblioteca.gif",
-  imbuement: "assets/ui/tutorial/imbuement.gif",
-  default: "assets/ui/tutorial/inicio.gif",
-  invisible: "assets/ui/tutorial/invisivel.gif",
-  update: "assets/ui/tutorial/update.gif",
-  coffee: "assets/ui/tools/tibia-eye/buy-me-a-coffee/coffee-hero.gif",
-  supporters: "assets/ui/tutorial/top-apoiadores.gif",
-  supportersThanks: "assets/ui/tutorial/obrigado.gif",
-  itemStatus: "assets/ui/tutorial/item-status.gif",
-  question: "assets/ui/tutorial/balao-interrogacao.gif",
-  continue: "assets/ui/tutorial/continuar.png",
-  tick: "assets/ui/Tick.png",
-  cancel: "assets/ui/Cross.png"
+  waiting: "assets/tools/tibia-mirror/states/esperando.gif",
+  tibiaMirror: "assets/tutorial/casadosespelhos.gif",
+  tibiaMirrorClients: "assets/tutorial/tibia-mirror-clientes.png",
+  analyzerHelp: "assets/tools/analyzer/party-loot-help.jpg",
+  soloAnalyzerHelp: "assets/tools/analyzer/hunt-analyzer-help.png",
+  npcMarket: "assets/tutorial/npc-mercado.png",
+  worldList: "assets/tutorial/lista-mundos.gif",
+  list: "assets/tutorial/lista.gif",
+  tools: "assets/tutorial/ferramentas-canivete.gif",
+  wheelOfDestiny: "assets/tutorial/roda-do-destino.png",
+  worldBoard: "assets/tutorial/world-board.png",
+  books: "assets/tutorial/biblioteca.gif",
+  imbuement: "assets/tutorial/imbuement.gif",
+  default: "assets/tutorial/inicio.gif",
+  invisible: "assets/tutorial/invisivel.gif",
+  update: "assets/tutorial/update.gif",
+  coffee: "assets/monetization/support/coffee-hero.gif",
+  supporters: "assets/tutorial/top-apoiadores.gif",
+  supportersThanks: "assets/tutorial/obrigado.gif",
+  itemStatus: "assets/tutorial/item-status.gif",
+  question: "assets/tutorial/balao-interrogacao.gif",
+  continue: "assets/tutorial/continuar.png",
+  tick: "assets/common/actions/Tick.png",
+  cancel: "assets/common/actions/Cross.png"
 };
 
 const PARTY_ANALYZER_TUTORIAL_SAMPLE = `Session data: From 2019-12-02, 15:00:18 to 2019-12-02, 15:56:19
@@ -184,9 +184,9 @@ Looted Items:
   1x bamboo leaves`;
 
 const TUTORIAL_LOCALE_OPTIONS = [
-  { code: "pt-BR", flagSrc: "assets/ui/flags/pt-BR.svg", flagAlt: "Português (Brasil)", labelKey: "locale.current.pt-BR" },
-  { code: "en", flagSrc: "assets/ui/flags/en.svg", flagAlt: "English", labelKey: "locale.current.en" },
-  { code: "de", flagSrc: "assets/ui/flags/de.svg", flagAlt: "Deutsch", labelKey: "locale.current.de" }
+  { code: "pt-BR", flagSrc: "assets/flags/pt-BR.svg", flagAlt: "Português (Brasil)", labelKey: "locale.current.pt-BR" },
+  { code: "en", flagSrc: "assets/flags/en.svg", flagAlt: "English", labelKey: "locale.current.en" },
+  { code: "de", flagSrc: "assets/flags/de.svg", flagAlt: "Deutsch", labelKey: "locale.current.de" }
 ];
 
 const TUTORIAL_WELCOME_COPY = {
@@ -285,7 +285,7 @@ const RECENT_NEWS_COPY = {
   de: "Aktuelle Tibia-Neuigkeiten"
 };
 
-const RECENT_NEWS_URL = "https://tibiatoolkit.com/news";
+const RECENT_NEWS_URL = "https://tibiarealm.com/news";
 
 // Every route uses durable first-visit state. Manual question buttons bypass
 // this gate, while Settings can clear all keys and start the welcome flow again.
@@ -4584,7 +4584,7 @@ function openTutorialConfirmation({ tourName = "item-prices", resetAll = false }
 
 function getTutorialConfirmationGif() {
   return window.desktopApi?.app?.runtimeChannel === "production"
-    ? "assets/ui/tutorial/tutorial.gif"
+    ? "assets/tutorial/tutorial.gif"
     : TUTORIAL_ASSETS.default;
 }
 
@@ -4697,8 +4697,8 @@ function bindContextButtonTooltip(button) {
 
 const DESKTOP_SCREENSHOT_SOURCE_MISSING_COPY = "Pasta de screenshot do Tibia não identificada. Clique aqui para selecionar a pasta de screenshots do Tibia.";
 const DESKTOP_SCREENSHOT_ENABLE_COPY = "Ativar ScreenshotToolkit";
-const DESKTOP_SCREENSHOT_ACTIVE_ICON = "assets/ui/tutorial/polaroid.gif";
-const DESKTOP_SCREENSHOT_INACTIVE_ICON = "assets/ui/tutorial/polaroid-inactive.png";
+const DESKTOP_SCREENSHOT_ACTIVE_ICON = "assets/tutorial/polaroid.gif";
+const DESKTOP_SCREENSHOT_INACTIVE_ICON = "assets/tutorial/polaroid-inactive.png";
 
 async function refreshContextScreenshotButtonState(button) {
   if (!button) return;
@@ -4742,7 +4742,7 @@ function ensureContextNewsButton(host, hidden) {
     button.id = "tt-news-context-button";
     button.type = "button";
     button.className = "tt-tour-context-button tt-news-context-button";
-    button.innerHTML = '<img src="assets/ui/navigation/icon-news.gif" alt="">';
+    button.innerHTML = '<img src="assets/navigation/menus/icon-news.gif" alt="">';
     button.addEventListener("click", () => {
       const openExternal = window.desktopApi?.links?.openExternal;
       if (typeof openExternal === "function") {
@@ -4774,7 +4774,7 @@ function ensureContextReportButton(host, hidden) {
     button.className = "tt-tour-context-button tt-report-context-button";
     // Use the same report icon as the site launcher.  The tutorial question
     // remains a separate control on the opposite side of this navigation row.
-    button.innerHTML = '<img src="assets/ui/feedback/report.png" alt="">';
+    button.innerHTML = '<img src="assets/feedback/report.png" alt="">';
     button.addEventListener("click", () => window.dispatchEvent(new CustomEvent("tibia-toolkit:open-report")));
     bindContextButtonTooltip(button);
   }

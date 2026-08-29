@@ -17,14 +17,7 @@ test("every tutorial bullet uses the shared proportional media layout", () => {
   assert.match(popover, /card\.scrollHeight\s*\+\s*verticalPadding/);
   assert.match(popover, /result\?\.constrained/);
 
-  const lowerPopover = popover.toLowerCase();
-  const openingScriptStart = lowerPopover.indexOf("<script");
-  const openingScriptEnd = openingScriptStart >= 0 ? lowerPopover.indexOf(">", openingScriptStart) : -1;
-  const closingScriptStart = openingScriptEnd >= 0 ? lowerPopover.indexOf("</script", openingScriptEnd + 1) : -1;
-  const closingScriptEnd = closingScriptStart >= 0 ? lowerPopover.indexOf(">", closingScriptStart) : -1;
-  const inlineScript = openingScriptEnd >= 0 && closingScriptStart >= 0 && closingScriptEnd >= 0
-    ? popover.slice(openingScriptEnd + 1, closingScriptStart)
-    : "";
+  const inlineScript = popover.match(/<script>([\s\S]*?)<\/script>/)?.[1] || "";
   assert.ok(inlineScript, "tutorial popover inline script must exist");
   assert.doesNotThrow(() => new Function(inlineScript));
 
@@ -40,20 +33,16 @@ test("tutorial resizing reports monitor constraints back to the renderer", () =>
   assert.match(preload, /ipcRenderer\.invoke\("tutorial-popover:resize-to-content", height\)/);
   assert.match(main, /ipcMain\.handle\("tutorial-popover:resize-to-content"/);
   assert.match(main, /constrained:\s*desiredHeight\s*>\s*maximumHeight/);
-  assert.match(main, /payload\.autoHeight\s*===\s*true\s*\?\s*360/);
+  assert.match(main, /payload\.autoHeight\s*===\s*true\s*\?\s*scaleDesktopUiValue\(360\)/);
 });
 
-test("all media registered for tutorials exists locally or in the content pack contract", () => {
+test("all media registered for tutorials exists locally", () => {
   const tour = read("desktop/tutorial-tour.js");
-  const contentContract = JSON.parse(read("tools/content-pack-contract.json"));
   const assetBlock = tour.match(/const TUTORIAL_ASSETS\s*=\s*\{([\s\S]*?)\n\};/)?.[1] || "";
   const assets = [...assetBlock.matchAll(/["'](assets\/[^"]+?\.(?:gif|png|jpe?g|webp))["']/gi)]
     .map((match) => match[1]);
 
   assert.ok(assets.length >= 40, `expected the complete tutorial asset registry, found ${assets.length}`);
-  const declaredContentAssets = new Set(contentContract.requiredAssetReferences || []);
-  const missing = assets.filter((relativePath) => (
-    !fs.existsSync(path.join(projectRoot, relativePath)) && !declaredContentAssets.has(relativePath)
-  ));
+  const missing = assets.filter((relativePath) => !fs.existsSync(path.join(projectRoot, relativePath)));
   assert.deepEqual(missing, []);
 });

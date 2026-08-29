@@ -132,6 +132,49 @@ internal static class WindowStyleInterop
         return success && IsWindowAlwaysOnTop(hwnd);
     }
 
+    internal static bool ForceWindowTopmostNoActivate(IntPtr hwnd, out int error)
+    {
+        error = 0;
+        if (hwnd == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        // Electron's Chromium shell can remain in the normal z-order band
+        // after a borderless/fullscreen client raises itself. A single
+        // HWND_TOPMOST call reports success but may leave this specific
+        // window behind. Cross the boundary explicitly, without activating
+        // the window, so the main Toolkit shell is actually reinserted into
+        // the topmost band.
+        SetWindowPos(
+            hwnd,
+            HwndNotTopmost,
+            0,
+            0,
+            0,
+            0,
+            SwpNoMove | SwpNoSize | SwpNoActivate);
+
+        var success = SetWindowPos(
+            hwnd,
+            HwndTopmost,
+            0,
+            0,
+            0,
+            0,
+            SwpNoMove | SwpNoSize | SwpNoActivate);
+        if (!success)
+        {
+            error = Marshal.GetLastWin32Error();
+        }
+
+        // SetWindowPos is the authoritative operation here. Windows does not
+        // always reflect the topmost band through GetWindowLong for Chromium
+        // windows, so do not reject a successful native reorder based on that
+        // optional diagnostic bit.
+        return success;
+    }
+
     internal static void PlaceWindowAbove(IntPtr hwnd, IntPtr referenceHwnd)
     {
         if (hwnd == IntPtr.Zero || referenceHwnd == IntPtr.Zero)

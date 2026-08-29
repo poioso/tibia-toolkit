@@ -15,10 +15,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 300,
     "cooldownSeconds": 30,
     "description": "This technique is a curious mixture of various fighting techniques as well as self-control and advanced magic. It was developed by a secret order of battle mages that only reluctantly made it more or less public to better its reputation in the eyes of the ever vigilant inquisition. It is unknown what led to the development of this spell but it seems to be a curious blend of seemingly contradicting traditions. It is often called the pinnacle of fighting techniques as it uses weapon and body of the combatant in such a devastating and efficient destruction that it rivals the powerful spells of sorcerers and druids. For a moment the fighter turns into a whirlwind of steel, muscle and determination that can strike down even the most powerful foes.",
-    "imagePath": "assets/screen-vision/reference/spells/annihilation.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/annihilation.png",
     "soundKey": "spell:annihilation",
     "soundLabel": "Annihilation",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran ico.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran ico.ogg",
     "sortIndex": 1
   },
   {
@@ -38,10 +38,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 6,
     "cooldownSeconds": 2,
     "description": "This very basic spell is available free of cost, though any other magic instructor will also teach it to any sorcerer or druid who desires to learn it. The advantages and the dangers of this attack spell were the subject of heated discussions within the magic academy council. In the end, however, it was agreed to make it available as a starter spell, as it was somewhat naively hoped that this measure would reduce the death rates among freshly initiated sorcerers and druids to more acceptable levels because of the comparatively limited damage. When cast, the spell will singe the opponent facing the caster.",
-    "imagePath": "assets/screen-vision/reference/spells/apprentices-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/apprentices-strike.png",
     "soundKey": "spell:apprentices-strike",
     "soundLabel": "Apprentice's Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori min flam.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori min flam.ogg",
     "sortIndex": 2
   },
   {
@@ -60,10 +60,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 1500,
     "cooldownSeconds": 30,
     "description": "This stance is a side effect of the failed attempts to create a countermeasure to Zarganash's draining effects and curses. While it proved to be too difficult to produce a reliable shielding, knowledge about the draining energies enabled the creation of this stance, mimicking their effects. Sorcerers all over the known worlds embraced the new stance. However, cautious voices warned about its untested nature, possible side effects and long term consequences of its continuous usage. Hence some caution is applied and the stance is taught only to experienced casters that are left on their own to decide when or where to apply this potentially dangerous magic to make enemies more vulnerable to their attacks.",
-    "imagePath": "assets/screen-vision/reference/spells/aura-of-exposed-weakness.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/aura-of-exposed-weakness.png",
     "soundKey": "spell:aura-of-exposed-weakness",
     "soundLabel": "Aura of Exposed Weakness",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori moe tempo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori moe tempo.ogg",
     "sortIndex": 4
   },
   {
@@ -82,10 +82,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 1500,
     "cooldownSeconds": 30,
     "description": "After facing the challenges of Zarganash the development of this stance was somewhat of a low hanging fruit. Several accomplished sorcerers developed it almost simultaneously with little variation. In the end the Noodles Academy gathered the different versions of the stance, streamlined and optimized it a public release. At first, elemental energies that sorcerers are used to wield are broken down into their more basic and unspecific components, which mimics their corruption while bypassing a real tainting effect to the caster. Then it uses this raw negative energy to reduce the damage a creature is able to deal. While sorcerers were eager to adapt this new spell, it was found that the splicing of elemental forces needs a certain finesse that only comes with practice and experience.",
-    "imagePath": "assets/screen-vision/reference/spells/aura-of-sapped-strength.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/aura-of-sapped-strength.png",
     "soundKey": "spell:aura-of-sapped-strength",
     "soundLabel": "Aura of Sapped Strength",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori kor tempo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori kor tempo.ogg",
     "sortIndex": 5
   },
   {
@@ -104,10 +104,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 1200,
     "cooldownSeconds": 7200,
     "description": "In ancient times, even before the first primeval Merudri settlements formed, dark felines roamed the mountains surrounding the Blue Valley. Taming these creatures has proven impossible for the first Merudri to inhabit the valley. Most of the time they hunted alone, dangerous and silent killers, nocturnal and relentless. The mere sighting of one such beast could mean impending doom for an early enclave of the valley dwellers. An extraordinary ferocious specimen terrorising these primal precursors was known as the 'Blue Claw'. Once this voracious monstrosity set eyes on a victim, there was little to no chance of escape. Larger groups managed to drive it back, only to return to the location a few days later until its prey was either killed or gave up and relocated. A strong Merudri leader from these times was confronted with the creature during a dire time of need and hunger. There was no way to relocate the whole village, sheltering his starving people. As many early Merudri, this leader practised simple combat techniques, including the skill of using his own body as a weapon. Albeit primitive, it required an iron will to completely focus the mind and control every limb and movement to achieve maximum impact in the quickest, most efficient ways.",
-    "imagePath": "assets/screen-vision/reference/spells/avatar-of-balance.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/avatar-of-balance.png",
     "soundKey": "spell:avatar-of-balance",
     "soundLabel": "Avatar of Balance",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/uteta res tio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/uteta res tio.ogg",
     "sortIndex": 7
   },
   {
@@ -126,10 +126,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 1500,
     "cooldownSeconds": 7200,
     "description": "The modern research of new found sources of power, like the secrets of exaltation, have led to parallel breakthroughs in magical traditions. Ignoring the heated discussion who was first to channel the purest power of their area of expertise, it can be said that all traditions came up with their results almost simultaneously. Probably due to the general knowledge that the other guilds were experimenting on that matter, a competitive race to reach that goal first had started. In the end the result was the creation of an avatar empowerment by each of the guilds. By focusing on their spiritual purity, experienced paladins learned to focus the holy light into their own bodies. Over the course exploring his own devotion the paladin creates a projection of his ideal self into the core of his soul. When a paladin channels this devotion he actually switches places with this ideal form and his physical body is engulfed in his own soul, while his consciousness inhabits the holy projection which becomes physical.",
-    "imagePath": "assets/screen-vision/reference/spells/avatar-of-light.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/avatar-of-light.png",
     "soundKey": "spell:avatar-of-light",
     "soundLabel": "Avatar of Light",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/uteta res sac.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/uteta res sac.ogg",
     "sortIndex": 8
   },
   {
@@ -148,10 +148,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 2200,
     "cooldownSeconds": 7200,
     "description": "The modern research of new found sources of power, like the secrets of exaltation, have led to parallel breakthroughs in magical traditions. Ignoring the heated discussion who was first to channel the purest power of their area of expertise, it can be said that all traditions came up with their results almost simultaneously. Probably due to the general knowledge that the other guilds were experimenting on that matter, a competitive race to reach that goal first had started. In the end the result was the creation of an avatar empowerment by each of the guilds. Most druids strife to become one with nature. To most that end is only reached when they finally return to the soil that nourished them in their lifetime. A few powerful individuals though gain the insight, self-control and power to channel nature into themselves. While at first only practicable at certain holy places where the power of nature is strong, the masters of the druidic arts learn to embrace nature so intensely that they can carry it within themselves. Unleashing this primal energy transforms them spiritually and physically. While originally meant to be a religious experience to reach further enlightenment, the transformation has an undeniable application in battle or other forms of danger. Though some more spiritualistic druids shunned such a misuse of nature's gifts, most readily embraced the opportunities it presented.",
-    "imagePath": "assets/screen-vision/reference/spells/avatar-of-nature.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/avatar-of-nature.png",
     "soundKey": "spell:avatar-of-nature",
     "soundLabel": "Avatar of Nature",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/uteta res dru.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/uteta res dru.ogg",
     "sortIndex": 9
   },
   {
@@ -170,10 +170,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 800,
     "cooldownSeconds": 7200,
     "description": "The modern research of new found sources of power, like the secrets of exaltation, have led to parallel breakthroughs in magical traditions. Ignoring the heated discussion who was first to channel the purest power of their area of expertise, it can be said that all traditions came up with their results almost simultaneously. Probably due to the general knowledge that the other guilds were experimenting on that matter, a competitive race to reach that goal first had started. In the end the result was the creation of an avatar empowerment by each of the guilds. The Avatar of Steel is a form that needs some sort of self-control that has to develop over a long period of time. Eventually a knight that can steel his will can connect to an individual patron entity, which is believed to be one of the partly ascended followers of Banor. By channelling the force of their patron into their body, the knight physically transforms into a colossus of steel and embodiment of war. This state puts a heavy toll on even the most experienced knight. The first attempts often left the practitioners stuck in immobile metallic forms without any sentience. Even the more refined versions of the spell left the user with metallic marks like iron fingernails. The modern version of the spell fixed those problems, aside from a neglectable few occasions in which the spell causes the wielder's hair to stand up and turn to solid gold.",
-    "imagePath": "assets/screen-vision/reference/spells/avatar-of-steel.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/avatar-of-steel.png",
     "soundKey": "spell:avatar-of-steel",
     "soundLabel": "Avatar of Steel",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/uteta res eq.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/uteta res eq.ogg",
     "sortIndex": 10
   },
   {
@@ -192,10 +192,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 2200,
     "cooldownSeconds": 7200,
     "description": "The modern research of new found sources of power, like the secrets of exaltation, have led to parallel breakthroughs in magical traditions. Ignoring the heated discussion who was first to channel the purest power of their area of expertise, it can be said that all traditions came up with their results almost simultaneously. Probably due to the general knowledge that the other guilds were experimenting on that matter, a competitive race to reach that goal first had started. In the end the result was the creation of an avatar empowerment by each of the guilds. The transformation into an Avatar of Storm is an offshoot of alchemical research to transform lead to gold. While being unsuccessful, the experiments yielded several side results that had little to do with their original intention but have proven worthwhile nonetheless. In this case one of the results was a potion, that in itself seemed of little effect. Yet prolonged exposure makes a body highly reactive to the channelling of elemental powers. By usage of said potions over time and the simple usage of elemental spells, a sorcerer attunes his body more and more to the elements. If the attunement has reached a certain point, it's relatively easy for the disciplined mind of a sorcerer to channel said elements through his living body like using a complicated yet controllable spell from his spell book. The sole problem is the amount of strain such a transformation puts on a caster and maintaining it for too long lead the first users to explode in spectacular manner. Since it is sorcery work, in a formulaic way, it was easy to put several restrictions into the formula and create a powerful and manageable spell that puts the caster into minimal danger.",
-    "imagePath": "assets/screen-vision/reference/spells/avatar-of-storm.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/avatar-of-storm.png",
     "soundKey": "spell:avatar-of-storm",
     "soundLabel": "Avatar of Storm",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/uteta res ven.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/uteta res ven.ogg",
     "sortIndex": 11
   },
   {
@@ -214,10 +214,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 80,
     "cooldownSeconds": 10,
     "description": "Through perfect inner balance and honed combat expertise, monks find ways to adjust their power to very specific situations. When focusing enough, there will be enough power in a monk's finger to unhinge an enemy with a single well-placed punch.",
-    "imagePath": "assets/screen-vision/reference/spells/balanced-brawl.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/balanced-brawl.png",
     "soundKey": "spell:balanced-brawl",
     "soundLabel": "Balanced Brawl",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori mas res.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori mas res.ogg",
     "sortIndex": 12
   },
   {
@@ -236,10 +236,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 125,
     "cooldownSeconds": 4,
     "description": "Handling a weapon well demands great skill and long training. Experienced knights can perform a magically enhanced special attack that no other vocation can master. The Berserk spell enables a warrior to lash out at all enemies surrounding him with one devastating attack. The power of the attack will rise with his skill to handle the weapon he is carrying. Moreover, the type of damage a knight is dealing when casting this spell, always depends on the weapon he is carrying.",
-    "imagePath": "assets/screen-vision/reference/spells/berserk.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/berserk.png",
     "soundKey": "spell:berserk",
     "soundLabel": "Berserk",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori.ogg",
     "sortIndex": 13
   },
   {
@@ -258,10 +258,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "In certain situations, such as the final stage of a fight, it can be very useful to have an extremely powerful attack. For this reason, some clever mages have developed a stance that allows a knight to raise his weapon skills significantly. During this time, the knight is in a Blood Rage that gives him incredible attack power but clouds his awareness to a certain degree as well, taking additional damage. A knight is versatile, however and can alter quickly between an aggressive and a defensive stance by casting Protector to remove Blood Rage.",
-    "imagePath": "assets/screen-vision/reference/spells/blood-rage.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/blood-rage.png",
     "soundKey": "spell:blood-rage",
     "soundLabel": "Blood Rage",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utito tempo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utito tempo.ogg",
     "sortIndex": 14
   },
   {
@@ -280,10 +280,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 6,
     "description": "This ability has been taught by renegade Mooh'Tah masters and is based on focusing one's inner strength into a single overpowering blow. It takes a great deal of training in meditation as well as in various combat techniques. The inner power is suddenly and often surprisingly unleashed into a forceful blow that uses the body's momentum and the combatant's concentration to achieve a maximum effect.",
-    "imagePath": "assets/screen-vision/reference/spells/brutal-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/brutal-strike.png",
     "soundKey": "spell:brutal-strike",
     "soundLabel": "Brutal Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori ico.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori ico.ogg",
     "sortIndex": 16
   },
   {
@@ -302,10 +302,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 200,
     "cooldownSeconds": 2,
     "description": "It is widely known that enemies who have mastered the secret of invisibility rank among the most challenging of opponents. They can corner unsuspecting adventurers or launch deadly sneak attacks from behind. By casting Cancel Invisibility, a paladin can reveal all hidden creatures or players in his surrounding. Please note that on optional PvP game worlds, this spell will not remove the invisibility of other characters.",
-    "imagePath": "assets/screen-vision/reference/spells/cancel-invisibility.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/cancel-invisibility.png",
     "soundKey": "spell:cancel-invisibility",
     "soundLabel": "Cancel Invisibility",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exana ina.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exana ina.ogg",
     "sortIndex": 18
   },
   {
@@ -325,10 +325,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 50,
     "cooldownSeconds": 2,
     "description": "With greater expertise a spell caster gains not only more power over their spells but also greater control. The cancelation of magic shields is an application of this knowledge. It was formalized in an own spell by usage of researches for a spell to disrupt the magic shields of enemies. While the creation of this offensive spell run into all kinds of problems and was ultimately abandoned, valuable insights in the working of the rather ancient magic shield spell was gained. Though formalized into a new spell, the application requires a certain amount of finesse and knowledge that isn't available to novice spell casters.",
-    "imagePath": "assets/screen-vision/reference/spells/cancel-magic-shield.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/cancel-magic-shield.png",
     "soundKey": "spell:cancel-magic-shield",
     "soundLabel": "Cancel Magic Shield",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exana vita.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exana vita.ogg",
     "sortIndex": 19
   },
   {
@@ -347,10 +347,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 180,
     "cooldownSeconds": 4,
     "description": "A blow performed by skilled monks with high levels of focus. So swift and deadly, that ripples of his brutal force extend towards other enemies in the vicinity.",
-    "imagePath": "assets/screen-vision/reference/spells/chained-penance.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/chained-penance.png",
     "soundKey": "spell:chained-penance",
     "soundLabel": "Chained Penance",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori med pug.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori med pug.ogg",
     "sortIndex": 20
   },
   {
@@ -369,10 +369,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 40,
     "cooldownSeconds": 2,
     "description": "In the heat of battle it is crucial to distract the monsters' attention from weaker party members. For this reason the knights, who are traditionally the best melee fighters in Tibia, have developed this remarkable spell. Whenever it is cast in combat, all surrounding monsters will be filled with blind rage and rush to attack the knight, forgetting their current targets. Many lives have been saved by this spell, but quite a number of knights have also paid their courage with their lives, so make sure you are strong enough to meet those you challenge by casting this spell. The sage Eremo teaches this spell to elite knights, who are exceptionally strong in close combat and thus predestined for using it.",
-    "imagePath": "assets/screen-vision/reference/spells/challenge.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/challenge.png",
     "soundKey": "spell:challenge",
     "soundLabel": "Challenge",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exeta res.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exeta res.ogg",
     "sortIndex": 21
   },
   {
@@ -391,10 +391,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 100,
     "cooldownSeconds": 2,
     "description": "Even the bravest fighter might encounter situations in which it is impossible to leave the battle field as the winner. In such hopeless situations, escape might be the only chance to survive. After all, what good does it do to fight till the bitter end if all that awaits you is death. If there is no other way out, clever knights will cast the Charge spell that allows them to run as quick as lightning to save their lives, to be precise, the speed of a knight will be raised by 90% for 5 seconds, which should provide them with a good head start.",
-    "imagePath": "assets/screen-vision/reference/spells/charge.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/charge.png",
     "soundKey": "spell:charge",
     "soundLabel": "Charge",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utani tempo hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utani tempo hur.ogg",
     "sortIndex": 23
   },
   {
@@ -413,10 +413,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 80,
     "cooldownSeconds": 2,
     "description": "This spell is one of the spoils of war that was recovered by adventurous knights from the vaults of Zaoan dragon kings, where it was locked away as a forbidden secret. It is assumed that in ancient days the spell was developed by unknown powers to fight the dragon kings. Their obvious failure and supposed annihilation lead to the spell being captured as a trophy of some dragon lords. After been kept a secret by an inner circle of knights, the imminent threats to the whole world order lead to the sharing of said spell by unanimous decree of the heads of the local knight guilds. This spell enables a knight to use his own willpower to force an opponent into chivalrous close combat instead of relying on 'dirty and cowardly tactics' like distance fighting.",
-    "imagePath": "assets/screen-vision/reference/spells/chivalrous-challenge.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/chivalrous-challenge.png",
     "soundKey": "spell:chivalrous-challenge",
     "soundLabel": "Chivalrous Challenge",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exeta amp res.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exeta amp res.ogg",
     "sortIndex": 25
   },
   {
@@ -435,10 +435,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 100,
     "cooldownSeconds": 2,
     "description": "Due to the paladins' specialisation in distance fighting adventurers of this vocation are almost always in short supply of ammunition. For this reason the high paladins have sought to push the research into the creation of ammunition by magical means. The Conjure Arrow spell was the first major breakthrough that was achieved, and it has been one of the most important entries in the paladins' spellbooks ever since. By casting this handy spell, 10 arrows are magically created, seemingly out of thin air. The truth is, however, that the required material is magically extracted from the surrounding area.",
-    "imagePath": "assets/screen-vision/reference/spells/conjure-arrow.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/conjure-arrow.png",
     "soundKey": "spell:conjure-arrow",
     "soundLabel": "Conjure Arrow",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo con.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo con.ogg",
     "sortIndex": 26
   },
   {
@@ -457,10 +457,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 290,
     "cooldownSeconds": 2,
     "description": "The result of tedious studies by Tibia's foremost paladins, this spell is used to create fiery ammunition which explodes when hitting a target. To reach its full destructive potential, a paladin should be very well skilled in handling its bow. Casting this spell will create 8 of this highly explosive arrows which can be conjured by every slightly experienced paladin.",
-    "imagePath": "assets/screen-vision/reference/spells/conjure-explosive-arrow.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/conjure-explosive-arrow.png",
     "soundKey": "spell:conjure-explosive-arrow",
     "soundLabel": "Conjure Explosive Arrow",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo con flam.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo con flam.ogg",
     "sortIndex": 27
   },
   {
@@ -479,10 +479,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 250,
     "cooldownSeconds": 1800,
     "description": "Through this wand sorcerers are able to execute deadly attacks. It channels the darkness of this world and hurls it towards its wielder's foes in a relentless barrage of death.",
-    "imagePath": "assets/screen-vision/reference/spells/conjure-wand-of-darkness.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/conjure-wand-of-darkness.png",
     "soundKey": "spell:conjure-wand-of-darkness",
     "soundLabel": "Conjure Wand of Darkness",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo gran mort.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo gran mort.ogg",
     "sortIndex": 28
   },
   {
@@ -502,7 +502,7 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 100,
     "cooldownSeconds": 2,
     "description": "This spell was developed by druids for the specific purpose of studying wild life from within, as it were. Although they succeeded in devising an enchantment that allows the caster to take on the physical form of nearly any animate creature, the spell was in fact a failure because the metamorphosis is strictly limited to optical effects. Taking apart the appearance, the caster remains normal in any other aspect, and no special abilities such as flying or breathing fire are attained. Consequently, few creatures are fooled by Creature Illusion. However, the spell is far from superfluous, as it allows for some terrific effects on Halloween.",
-    "imagePath": "assets/screen-vision/reference/spells/creature-illusion.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/creature-illusion.png",
     "soundKey": "default",
     "soundLabel": "",
     "soundPath": "",
@@ -525,10 +525,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 6,
     "description": "Being aware of the own body and its functions, the caster can assert a certain amount of body function controls that are usually beyond conscious control. Using this awareness, it is possible to force gaping wounds to close and to stop any blood loss immediately. This necessary and often life-saving spell was derived from more powerful healing spells and condensed to an energy-saving, to the point healing that addresses the all too common danger of bleeding to death.",
-    "imagePath": "assets/screen-vision/reference/spells/cure-bleeding.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/cure-bleeding.png",
     "soundKey": "spell:cure-bleeding",
     "soundLabel": "Cure Bleeding",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exana kor.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exana kor.ogg",
     "sortIndex": 31
   },
   {
@@ -547,10 +547,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 6,
     "description": "This spell skilfully redirects the power of fire back to its elemental source and stops burnings completely. Formerly planned as a battle spell for sieges it proved ineffective to stop great fires but was found quite useful in stopping local burnings or extinguishing burning persons.",
-    "imagePath": "assets/screen-vision/reference/spells/cure-burning.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/cure-burning.png",
     "soundKey": "spell:cure-burning",
     "soundLabel": "Cure Burning",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exana flam.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exana flam.ogg",
     "sortIndex": 32
   },
   {
@@ -569,10 +569,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 40,
     "cooldownSeconds": 6,
     "description": "By concentrating on all that is pure and good and focusing this into a spell, the body of the caster goes through a swift spiritual cleansing that wards off all ill and negative energy associated with curses. There are rumours about less righteous versions of this spell in which servants of evil are fighting fire with fire by",
-    "imagePath": "assets/screen-vision/reference/spells/cure-curse.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/cure-curse.png",
     "soundKey": "spell:cure-curse",
     "soundLabel": "Cure Curse",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exana mort.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exana mort.ogg",
     "sortIndex": 33
   },
   {
@@ -591,10 +591,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 6,
     "description": "By directing the flow of electricity, this spell easily dissipates electrical energy into the surroundings so that it can no longer cause harm. Still the formerly electrified victim may still experience some strange electrical effects for a while and like history teaches us, persons that have been cured from an electrification should not shake the hand of a king for a while.",
-    "imagePath": "assets/screen-vision/reference/spells/cure-electrification.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/cure-electrification.png",
     "soundKey": "spell:cure-electrification",
     "soundLabel": "Cure Electrification",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exana vis.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exana vis.ogg",
     "sortIndex": 34
   },
   {
@@ -617,10 +617,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 6,
     "description": "Few spells need as little recommendation as Cure Poison. It is cheap, it is fast and it will cleanse your body from any poison, no matter how serious or aggressive it is. All adventurers should buy this extremely useful spell as soon as possible, as those who don't are almost certain to pay for their negligence with their lives.",
-    "imagePath": "assets/screen-vision/reference/spells/cure-poison.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/cure-poison.png",
     "soundKey": "spell:cure-poison",
     "soundLabel": "Cure Poison",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exana pox.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exana pox.ogg",
     "sortIndex": 35
   },
   {
@@ -639,10 +639,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 40,
     "description": "Drawing upon the powers of darkness is always walking a thin line. This spell focuses amounts of raw dark power to curse an enemy with deathly magic that more and more destroys the victim's body. Attacking inner organs, it becomes more and more dangerous the longer it can do its evil work. A victim is well advised to seek out a cure as soon as possible before the dark magic can reach its dreadful peak.",
-    "imagePath": "assets/screen-vision/reference/spells/curse.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/curse.png",
     "soundKey": "spell:curse",
     "soundLabel": "Curse",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori mort.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori mort.ogg",
     "sortIndex": 37
   },
   {
@@ -661,10 +661,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 150,
     "cooldownSeconds": 6,
     "description": "Wielding death magic, the power to end anything once and for all is a dangerous weapon that needs to be mastered to be controlled. The Death Echo requires a devoted sorcerer to willingly pull the thread of his own life with enough force to unleash a devastating wave of death energy. Mighty enough for it to echo a second impact in quick succession.",
-    "imagePath": "assets/screen-vision/reference/spells/death-echo.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/death-echo.png",
     "soundKey": "spell:death-echo",
     "soundLabel": "Death Echo",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo mort ora.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo mort ora.ogg",
     "sortIndex": 38
   },
   {
@@ -683,10 +683,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "Death Strike belongs to a series of strike attack spells that combine low mana cost with reliable, instantaneous performance. When this spell is cast, the aimed character is struck by a blow of magical force that causes considerable death damage. The extent of the wounds that are inflicted is largely determined by the caster's skill, making this an impressive spell when used by an experienced sorcerer or druid.",
-    "imagePath": "assets/screen-vision/reference/spells/death-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/death-strike.png",
     "soundKey": "spell:death-strike",
     "soundLabel": "Death Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori mort.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori mort.ogg",
     "sortIndex": 39
   },
   {
@@ -705,10 +705,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 210,
     "cooldownSeconds": 24,
     "description": "Several strong punches to the head, delivered swiftly an with vigour causing a quick knockout of the enemy. A high impact attack that causes severe damage to any target.",
-    "imagePath": "assets/screen-vision/reference/spells/devastating-knockout.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/devastating-knockout.png",
     "soundKey": "spell:devastating-knockout",
     "soundLabel": "Devastating Knockout",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran nia.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran nia.ogg",
     "sortIndex": 41
   },
   {
@@ -727,10 +727,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 175,
     "cooldownSeconds": 4,
     "description": "As the most holy of paladins are trained in wielding divine might, a lifetime of training and exercise can perfect certain skills. Devotion and continued practice allows a skilled paladin to unfetter a barrage of holy energy. Destined to teach a valuable lesson to any target, the after-effect of this spell will definitely leave a lasting impression.",
-    "imagePath": "assets/screen-vision/reference/spells/divine-barrage.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/divine-barrage.png",
     "soundKey": "spell:divine-barrage",
     "soundLabel": "Divine Barrage",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori dir san.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori dir san.ogg",
     "sortIndex": 43
   },
   {
@@ -749,10 +749,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 160,
     "cooldownSeconds": 4,
     "description": "Ever since Elane was old enough to control her magical powers, paladins have been researching a spell with which they can bring down several creatures at once and which is particularly effective against the undead. Only recently, they mastered to control holy powers to their full extent. There are rumours that the elder gods themselves had their hands in the development of the Divine Caldera spell. Whenever this powerful spell is cast, small holy fires appear which rise to powerful ankhs blasting your foe's body and finally burst into little sparkles that quickly fade away. Every paladin that has this spell at his disposal has a great advantage in every fight against the undead.",
-    "imagePath": "assets/screen-vision/reference/spells/divine-caldera.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/divine-caldera.png",
     "soundKey": "spell:divine-caldera",
     "soundLabel": "Divine Caldera",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo mas san.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo mas san.ogg",
     "sortIndex": 44
   },
   {
@@ -771,10 +771,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 80,
     "cooldownSeconds": 16,
     "description": "This spell is the result of somewhat of a reverse engineering of the knights spell with similar effects. Elane managed to mimic the effects with the application of holy power. Whereas the knights version of the spell forces the opponent into close combat, the paladin version attacks their senses. It doesn't affect any sensory organs but directly affects the processing of such information in the mind of the targeted creature. The now, so to say, short-sighted creatures have to engage in close combat, to be able to hit their enemy at all. To this end ironically principles are applied that were observed in botched healing spells of novice paladins. Technically holy energy is sent to the enemy and then just released, but in a controlled way. Another irony is, that this faked botch needs a high amount of experience and skill.",
-    "imagePath": "assets/screen-vision/reference/spells/divine-dazzle.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/divine-dazzle.png",
     "soundKey": "spell:divine-dazzle",
     "soundLabel": "Divine Dazzle",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exana amp res.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exana amp res.ogg",
     "sortIndex": 45
   },
   {
@@ -793,10 +793,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 250,
     "cooldownSeconds": 10,
     "description": "Calling on his divine powers allows a Paladin to build up a high level of speed, perfecting the ability to dodge enemies. This goes along with a benefitial shift of distance fighting skills towards the magical potential of holy and healing magic.",
-    "imagePath": "assets/screen-vision/reference/spells/divine-defiance.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/divine-defiance.png",
     "soundKey": "spell:divine-defiance",
     "soundLabel": "Divine Defiance",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori hur.ogg",
     "sortIndex": 46
   },
   {
@@ -815,10 +815,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 500,
     "cooldownSeconds": 32,
     "description": "Channelling divine power is not an easy task by any means and most of the earliest paladins weren't able to cast conventional spells. Instead they embraced the principles of order in favour of a stationary approach. They called down powers, that would shatter their mortal shells by the sheer power called upon and imbued the very ground on which they stood with divine energy. In this way they could tap into a part of that energy to empower their attacks with holy force without risking to be turned in a burned out shell. These ancient techniques have recently been rediscovered and honed by the greatest users of divine magic that out time could muster. The result is a stunning new approach to amplify the fighting force of the modern paladins.",
-    "imagePath": "assets/screen-vision/reference/spells/divine-empowerment.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/divine-empowerment.png",
     "soundKey": "spell:divine-empowerment",
     "soundLabel": "Divine Empowerment",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo grav san.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo grav san.ogg",
     "sortIndex": 47
   },
   {
@@ -837,10 +837,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 160,
     "cooldownSeconds": 26,
     "description": "Devotion and dedication are the powers that fuel the paladin's divine wrath. As a life of piety and contemplation is a paladins very essence, the power of Divine Grenade comes rather natural to a paladin over time. By channelling faith and resolve the greatest of paladins manage to call down the wrath of the heavens to smite their foes. It takes time and effort to build up the immense power to facilitate such a feat, yet the result is more than worth the effort. While channelling such immense powers it's seemingly inevitable to experience strange visions and hard to grasp insights. To the untrained user it is a disorienting and overwhelming experience and only over time a paladin manages to use the Divine Grenade in an actual battle. A trained user is able to suppress the visions for the moment, though many paladins tend to meditate on them later, looking for hidden insights and wisdom.",
-    "imagePath": "assets/screen-vision/reference/spells/divine-grenade.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/divine-grenade.png",
     "soundKey": "spell:divine-grenade",
     "soundLabel": "Divine Grenade",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo tempo mas san.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo tempo mas san.ogg",
     "sortIndex": 48
   },
   {
@@ -859,10 +859,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 160,
     "cooldownSeconds": 1,
     "description": "It is said the healing hands of Uman himself help paladins to recover from heavy wounds when speaking the magic formula of the Divine Healing spell. Developed directly for the needs and magical abilities for the holy vocation, it is a spell that every paladin should learn before heeding the call of battle.",
-    "imagePath": "assets/screen-vision/reference/spells/divine-healing.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/divine-healing.png",
     "soundKey": "spell:divine-healing",
     "soundLabel": "Divine Healing",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura san.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura san.ogg",
     "sortIndex": 49
   },
   {
@@ -881,10 +881,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "Already Banor, the father of the first paladin Elane, had godly assistance during his battles. Until today, paladins are holy fighters who are not only skilled in distance fighting but also in the use of magic. Magic needs it to concentrate the divine powers of a paladin to a fairly good spell who is especially effective against undead creatures. If a paladin aims this spell at an opponent who is standing in a short distance, a holy light appears causing painful wounds.",
-    "imagePath": "assets/screen-vision/reference/spells/divine-missile.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/divine-missile.png",
     "soundKey": "spell:divine-missile",
     "soundLabel": "Divine Missile",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori san.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori san.ogg",
     "sortIndex": 50
   },
   {
@@ -903,10 +903,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 4,
     "description": "A double strike where two jabs quickly follow each other. If delivered swiftly, this medium impact attack can be devastating to its recipient.",
-    "imagePath": "assets/screen-vision/reference/spells/double-jab.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/double-jab.png",
     "soundKey": "spell:double-jab",
     "soundLabel": "Double Jab",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori pug.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori pug.ogg",
     "sortIndex": 51
   },
   {
@@ -925,10 +925,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 30,
     "description": "From an unspectacular beginning as a party gag among mages, this spell was heavily modified by a duo of geekish mages that felt they had become the victim of their colleagues once too often. The result of their research surprised them and led to their execution after what has become known as the 'birthday party incident'.",
-    "imagePath": "assets/screen-vision/reference/spells/electrify.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/electrify.png",
     "soundKey": "spell:electrify",
     "soundLabel": "Electrify",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori vis.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori vis.ogg",
     "sortIndex": 52
   },
   {
@@ -947,10 +947,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 400,
     "cooldownSeconds": 10,
     "description": "Druids can tap into the eternal synthesis of the elements by using fractions of magic in synchronicity with the elemental forces of nature to gain substantial amounts of magical power.",
-    "imagePath": "assets/screen-vision/reference/spells/elemental-synthesis.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/elemental-synthesis.png",
     "soundKey": "spell:elemental-synthesis",
     "soundLabel": "Elemental Synthesis",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utito dru.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utito dru.ogg",
     "sortIndex": 53
   },
   {
@@ -969,10 +969,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 0,
     "cooldownSeconds": 2,
     "description": "The Enchant Party spell enables sorcerers to raise the magic level of themselves and their party members by 1 for 2 minutes. However, due to the huge amount of magical energy that is needed for such a spell, sorcerers can only cast this spell on party members that are within range of the spell. The Enchant Party spell will affect an area of 37 squares including the one the sorcerer is standing on. Even though the spell costs extra mana for every profiting party member, the average mana costs decrease with every additional member.",
-    "imagePath": "assets/screen-vision/reference/spells/enchant-party.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/enchant-party.png",
     "soundKey": "spell:enchant-party",
     "soundLabel": "Enchant Party",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori mas sio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori mas sio.ogg",
     "sortIndex": 54
   },
   {
@@ -991,10 +991,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 350,
     "cooldownSeconds": 2,
     "description": "Spears are especially popular among young paladins. To make spears more attractive also for more experienced distance fighters, Tibia's most talented paladins set together and developed the Enchant Spear spell with which regular spears can be greatly improved. To cast this useful spell, the paladin needs to have a spear in his inventory and speak the right formula. The spear will fill up with magic now. Such an Enchanted Spear does not only have more power, but it is also much more durable than a regular spear.",
-    "imagePath": "assets/screen-vision/reference/spells/enchant-spear.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/enchant-spear.png",
     "soundKey": "spell:enchant-spear",
     "soundLabel": "Enchant Spear",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exeta con.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exeta con.ogg",
     "sortIndex": 55
   },
   {
@@ -1013,10 +1013,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 40,
     "cooldownSeconds": 4,
     "description": "The Energy Beam was one of the first instant attack spells to be devised. Its development sprang from the need to allow for quick offensive magic that did not rely on the use of runes. The result of this endeavour was this handy spell which is capable of dealing massive damage in the blink of an eye. On casting this spell, a ray of concentrated energy is shot in the direction the caster is facing, electrifying everything in its way. A clever sorcerer will use this spell in narrow passageways where his opponents have no choice but to line up.",
-    "imagePath": "assets/screen-vision/reference/spells/energy-beam.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/energy-beam.png",
     "soundKey": "spell:energy-beam",
     "soundLabel": "Energy Beam",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo vis lux.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo vis lux.ogg",
     "sortIndex": 56
   },
   {
@@ -1036,10 +1036,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "Another spell from the trusty strike spell series, this particular version is based on energy. When cast a powerful flash of lightning strikes the unfortunate aimed target that stands in a short distance to the caster. As with all other strike spells the effect of Energy Strike is instant and the damage that is caused is largely determined by the caster's magic skill.",
-    "imagePath": "assets/screen-vision/reference/spells/energy-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/energy-strike.png",
     "soundKey": "spell:energy-strike",
     "soundLabel": "Energy Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori vis.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori vis.ogg",
     "sortIndex": 59
   },
   {
@@ -1058,10 +1058,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 170,
     "cooldownSeconds": 8,
     "description": "A variation of the popular Energy Beam , casting this spell causes a cone of energy to unfold in front of the caster that inflicts considerable damage to all unfortunate creatures that are hit. Due to its peculiar form it is especially useful when used in closed spaces or against fleeing enemies. Like its relative, the Energy Wave spell is not bound to a rune, requiring the sorcerer to invest mana at the point of time when it is cast. Although the cost is substantial the comparatively large area of effect and the amount of damage that is caused usually justify using the spell.",
-    "imagePath": "assets/screen-vision/reference/spells/energy-wave.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/energy-wave.png",
     "soundKey": "spell:energy-wave",
     "soundLabel": "Energy Wave",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo vis hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo vis hur.ogg",
     "sortIndex": 61
   },
   {
@@ -1080,10 +1080,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 75,
     "cooldownSeconds": 300,
     "description": "Enlightened monks have the ability to pass their knowledge, wisdom and skill onto others. Consolidating their expertise and freeing the mind from unnecessary ballast.",
-    "imagePath": "assets/screen-vision/reference/spells/enlighten-party.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/enlighten-party.png",
     "soundKey": "spell:enlighten-party",
     "soundLabel": "Enlighten Party",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo mas sio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo mas sio.ogg",
     "sortIndex": 62
   },
   {
@@ -1102,10 +1102,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 40,
     "description": "This spell is actually a reversal of the well-known Cure Poison spell. By 'reverse engineering' this spell and analysing its components, the researches of the Noodles Academy came up with this poisonous variant. As expected it works contrary to the Cure Poison spell and inflicts a powerful poison upon its victim.",
-    "imagePath": "assets/screen-vision/reference/spells/envenom.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/envenom.png",
     "soundKey": "spell:envenom",
     "soundLabel": "Envenom",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori pox.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori pox.ogg",
     "sortIndex": 63
   },
   {
@@ -1124,10 +1124,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 1050,
     "cooldownSeconds": 40,
     "description": "Freezing, enormous and painful - all those words describe perfectly the most powerful spell a druid can have at his disposal. It took a long time to develop the Eternal Winter spell, and only recently the dominators of the element ice have successfully mastered this mighty spell. The effects of this spell are so vastly that a single druid is able to bring down a whole army of strong opponents by himself. Murmuring the formula of this deathly cold spell lets up to 37 blizzards appear that wind around everybody who is unlucky enough to stand in its range. As beautiful the sparkling blizzards appear from a distance, as gruesome are the effects for the druid's opponents. Particularly creatures with an affiliation to fire seldom stand the grim pain that iciness can cause. As the magic potential of a druid is only strong enough to master one such powerful spell, Wrath of Nature and Eternal Winter share the same cooldown, before either of them can be cast again.",
-    "imagePath": "assets/screen-vision/reference/spells/eternal-winter.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/eternal-winter.png",
     "soundKey": "spell:eternal-winter",
     "soundLabel": "Eternal Winter",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo gran mas frigo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo gran mas frigo.ogg",
     "sortIndex": 64
   },
   {
@@ -1146,10 +1146,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 135,
     "cooldownSeconds": 4,
     "description": "An ethereal spear in itself is a manifestation of godly power, wielded only by the most righteous of paladins. Unleashing a whole barrage of ethereal energy will demand a great deal from its holy wielder. Besides the actual target, this spell will also harm everything in its surrounding area.",
-    "imagePath": "assets/screen-vision/reference/spells/ethereal-barrage.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ethereal-barrage.png",
     "soundKey": "spell:ethereal-barrage",
     "soundLabel": "Ethereal Barrage",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori dir moe.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori dir moe.ogg",
     "sortIndex": 65
   },
   {
@@ -1168,10 +1168,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 25,
     "cooldownSeconds": 2,
     "description": "Every paladin is kind of lost when he runs out of ammunition. For this reason, a spell was developed which might save the life of a paladin in a risky situation. When the formula of the Ethereal Spear spell is spoken, a magic spear is created by the sheer willpower of the caster and shoot on the selected opponent. The power of this attack will rise with the paladin's skill to handle distance weapons.",
-    "imagePath": "assets/screen-vision/reference/spells/ethereal-spear.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ethereal-spear.png",
     "soundKey": "spell:ethereal-spear",
     "soundLabel": "Ethereal Spear",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori con.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori con.ogg",
     "sortIndex": 66
   },
   {
@@ -1190,10 +1190,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 225,
     "cooldownSeconds": 18,
     "description": "Albeit knights relying on close combat, the need of means to have an answer to attacks from distance fighters made it evident, that even a knight has need for a more diverse arsenal of abilities at his disposal. The endeavour to find such has led to several more or less effective techniques, with most of them shunned for their lack of effectiveness and impact. This changed with the development of the Executioner's Throw. Even the earliest incarnations of this technique showed great promise and many of the finest knights took effort in honing and perfecting this skill. In our days the Executioner's Throw is becoming a difficult to learn but greatly prized ability that has earned its place in the array of skills that a true knight has to possess to be recognized as equal amongst its peers.",
-    "imagePath": "assets/screen-vision/reference/spells/executioners-throw.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/executioners-throw.png",
     "soundKey": "spell:executioners-throw",
     "soundLabel": "Executioner's Throw",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori amp kor.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori amp kor.ogg",
     "sortIndex": 67
   },
   {
@@ -1212,10 +1212,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 135,
     "cooldownSeconds": 2,
     "description": "One of the newest approaches of the knights guild to handle injuries completely lacks any subtlety and acquires its end by the means of brute force. This spell painfully cauterizes any wound and instantly forces mana to be converted to raw life-force. Therefore the spell is known to leave hideous scars but the knights guild has little concern for vanity and approves only usability. Though druids see this spell more as butchery than healing art, even they can't deny the efficiency of this primal approach. The immense pain that accompanies the usage of the spell is nothing for the squeamish and so the spell is only taught to veterans who have proven to be able to handle pain and injury in countless battles.",
-    "imagePath": "assets/screen-vision/reference/spells/fair-wound-cleansing.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/fair-wound-cleansing.png",
     "soundKey": "spell:fair-wound-cleansing",
     "soundLabel": "Fair Wound Cleansing",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura med ico.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura med ico.ogg",
     "sortIndex": 69
   },
   {
@@ -1234,10 +1234,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 360,
     "cooldownSeconds": 6,
     "description": "One of the most effective knight spells is the Berserk spell. For this reason a lot of research has been done to develop this spell further. Finally, the Fierce Berserk spell could be presented. This spell works exactly like the original spell but it is much more effective and knights can deal out a lot more damage with it. Of course, such a great performance has its price. The Fierce Berserk spell requires almost 3 times as much of mana as the regular Berserk spell and can only be cast by very experienced knights. The type of damage a knight is dealing when casting this spell, always depends on the weapon he is carrying.",
-    "imagePath": "assets/screen-vision/reference/spells/fierce-berserk.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/fierce-berserk.png",
     "soundKey": "spell:fierce-berserk",
     "soundLabel": "Fierce Berserk",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran.ogg",
     "sortIndex": 70
   },
   {
@@ -1260,10 +1260,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "The rise of incursions by powers and entities from beyond space and comprehension has changed the known world and certainly not for the better. Certain creatures have for unfathomable reasons become the prime carriers of such unnatural energies that taint and change them. They have become wounds in the world that can be felt by sensitive creatures over great distances. In a rare joint effort of different magic traditions this spell was created to help to locate such blasphemous mockeries of all live that is, to root them out and cleanse the world of their presence. After overcoming the challenge to fine tune the spell to this specific threat, it was made public to be used for the greater good of purifying creation. It's yet only able to target specimens that were changed involuntarily by the natural influx of the anti-life that is seeping into our world and can't find tainted creatures or invaders of other kind. This spell, albeit its limitations, will point out the next source of such living taint in the natural fabric of the world.",
-    "imagePath": "assets/screen-vision/reference/spells/find-fiend.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/find-fiend.png",
     "soundKey": "spell:find-fiend",
     "soundLabel": "Find Fiend",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exiva moe res.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exiva moe res.ogg",
     "sortIndex": 71
   },
   {
@@ -1286,7 +1286,7 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "Another cheap, but useful spell that is highly popular with all vocations, Find Person will allow the caster to locate the life essence of any character that is currently online. Unfortunately, it is not possible to identify the exact whereabouts due to the complexity of this ritual. Rather, the caster will only learn the general direction in which the targeted character can be found. For this reason it may be necessary to cast the spell a couple of times before you will meet the character you are looking for. Players on Optional PvP game worlds can use a button in the chat console to determine which characters are able to find their characters with this spell.",
-    "imagePath": "assets/screen-vision/reference/spells/find-person.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/find-person.png",
     "soundKey": "default",
     "soundLabel": "",
     "soundPath": "",
@@ -1308,10 +1308,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 25,
     "cooldownSeconds": 4,
     "description": "This was one of the very first spells ever to be created. Impressed by the destructive power of dragon fire, some of the foremost sorcerers agreed to cooperate in order to develop a spell that would resemble the magical flames both in spatial extent and in destructive potential. The result was an instant spell that causes streams of searing fire to shoot from the caster's hand which unfold into massive cones as they go along. While the fire created this way never really matched its model in its sheer destructive effect, the spell is still capable of wreaking havoc among those that are hit, especially if the caster manages to direct the fire wave right into the middle of a group of enemies. However, the caster should be careful not use this spell too liberally in order to avoid serious mana drain.",
-    "imagePath": "assets/screen-vision/reference/spells/fire-wave.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/fire-wave.png",
     "soundKey": "spell:fire-wave",
     "soundLabel": "Fire Wave",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo flam hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo flam hur.ogg",
     "sortIndex": 76
   },
   {
@@ -1331,10 +1331,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "Realising there was a need for cheap, precise attack magic the sorcerers at Edron's magic academy came up with a series of simple strike spells that combined low mana cost with instant casting capability and solid, reliable performance. This particular version is based on the element of fire. When it is cast a vicious flame lashes out from the ground, scorching the aimed target standing in a short distance to the caster.",
-    "imagePath": "assets/screen-vision/reference/spells/flame-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/flame-strike.png",
     "soundKey": "spell:flame-strike",
     "soundLabel": "Flame Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori flam.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori flam.ogg",
     "sortIndex": 78
   },
   {
@@ -1353,10 +1353,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 110,
     "cooldownSeconds": 4,
     "description": "The flurry of a thousand blows hits unsuspecting enemies like a devastating whirlwind of raw force. Monks performing this technique require a high amount of concentration and rigorous training to maintain the necessary stamina and strength of the upper arms.",
-    "imagePath": "assets/screen-vision/reference/spells/flurry-of-blows.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/flurry-of-blows.png",
     "soundKey": "spell:flurry-of-blows",
     "soundLabel": "Flurry of Blows",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori mas pug.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori mas pug.ogg",
     "sortIndex": 79
   },
   {
@@ -1375,10 +1375,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 500,
     "cooldownSeconds": 120,
     "description": "Focusing their inner power and balancing their emotions allows monks to harmonize and become one with the universe.",
-    "imagePath": "assets/screen-vision/reference/spells/focus-harmony.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/focus-harmony.png",
     "soundKey": "spell:focus-harmony",
     "soundLabel": "Focus Harmony",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo nia.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo nia.ogg",
     "sortIndex": 80
   },
   {
@@ -1397,10 +1397,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 500,
     "cooldownSeconds": 600,
     "description": "Keeping enlightenment, true harmony and the balance of all emotions in perfect equilibrium, lets a dedicated monk enter a state of complete serenity.",
-    "imagePath": "assets/screen-vision/reference/spells/focus-serenity.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/focus-serenity.png",
     "soundKey": "spell:focus-serenity",
     "soundLabel": "Focus Serenity",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utamo tio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utamo tio.ogg",
     "sortIndex": 81
   },
   {
@@ -1419,10 +1419,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 120,
     "cooldownSeconds": 2,
     "description": "",
-    "imagePath": "assets/screen-vision/reference/spells/food.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/food.png",
     "soundKey": "spell:food",
     "soundLabel": "Food",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo pan.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo pan.ogg",
     "sortIndex": 82
   },
   {
@@ -1441,10 +1441,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 325,
     "cooldownSeconds": 60,
     "description": "A very fast uppercut with a high impact. A slight twist of the upper body during the attack takes any enemy by surprise and causes a large amount of damage.",
-    "imagePath": "assets/screen-vision/reference/spells/forceful-uppercut.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/forceful-uppercut.png",
     "soundKey": "spell:forceful-uppercut",
     "soundLabel": "Forceful Uppercut",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran pug.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran pug.ogg",
     "sortIndex": 83
   },
   {
@@ -1463,10 +1463,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 180,
     "cooldownSeconds": 6,
     "description": "Druids that wield this mighty spell focus on the very air surrounding them. Lowering the temperature of any water in the vicinity of a target to the freezing point causes a concentric burst of piercing crystal to enclose it and ice up everything around it. The result will fork out to any bystanders as well which results in an impressive overall radius for this destructive spell.",
-    "imagePath": "assets/screen-vision/reference/spells/forked-glacier.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/forked-glacier.png",
     "soundKey": "spell:forked-glacier",
     "soundLabel": "Forked Glacier",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo fur frigo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo fur frigo.ogg",
     "sortIndex": 84
   },
   {
@@ -1485,10 +1485,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 180,
     "cooldownSeconds": 6,
     "description": "Making the flora bend at the will of the druid is a skill that can be learned by an apprentice relatively early but takes a considerable time to master and wield correctly. Given enough practice, a skilled druid can enclose targets in a mesh of thorns that will fork out to nearby opponents. Trying to escape this wicked braiding will leave its victims with a lot more painful than bruises and scratches.",
-    "imagePath": "assets/screen-vision/reference/spells/forked-thorns.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/forked-thorns.png",
     "soundKey": "spell:forked-thorns",
     "soundLabel": "Forked Thorns",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo fur tera.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo fur tera.ogg",
     "sortIndex": 85
   },
   {
@@ -1507,10 +1507,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 200,
     "cooldownSeconds": 6,
     "description": "This spell is a concentrated attack that focuses one's strength into a powerful blow that hits a row of opponents that the attacker is facing. As experienced fighters say, this ability divides the boys from the men. It has been created in the past when the focus of battle switched from division tactics to single combatants fights.",
-    "imagePath": "assets/screen-vision/reference/spells/front-sweep.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/front-sweep.png",
     "soundKey": "spell:front-sweep",
     "soundLabel": "Front Sweep",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori min.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori min.ogg",
     "sortIndex": 86
   },
   {
@@ -1529,10 +1529,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 140,
     "cooldownSeconds": 6,
     "description": "To all of the great fighting vocations there comes a point, where dabbling in the arts of their trade just doesn't cut it anymore. This is when talent and force have to make room to dedication and training. The point where the amateurs are left behind by the committed. The true skill of their vocation's trade comes into play and creates the experts that become the reference for their traditions. Yet there are a few skilled individuals, that push their skill and knowledge further. They leave behind the assumed restrictions of their trade and become the epitome of their line of training. Those individuals are beyond the confinement of training and their abilities begin to base on the understanding of their art. One of the trademark skills of such individuals is the ability to concentrate the essence of their tradition and release it in one powerful beam attack. Though it's theorized that with a longer build-up an even more powerful beam could be produced, in practise the attempts to contain the raw energies for longer are more disastrous for the wielder then for the intended targets. Research of the great scientist Kameha lead to the discovery of the ideal build up and cooldown tomes to maximise the beams effectiveness.",
-    "imagePath": "assets/screen-vision/reference/spells/great-death-beam.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/great-death-beam.png",
     "soundKey": "spell:great-death-beam",
     "soundLabel": "Great Death Beam",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo max mort.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo max mort.ogg",
     "sortIndex": 87
   },
   {
@@ -1551,10 +1551,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 110,
     "cooldownSeconds": 6,
     "description": "The Energy Beam continues to be a favourite among sorcerers. For this reason, a lot of research has gone into the spell to make it even more effective. The Great Energy Beam was the result of these endeavours. It is very similar to the original spell in appearance and in the way it is used, but its effect has been greatly improved. Of course, better performance comes with a price: The mana cost of the Great Energy Beam spell is considerably higher than that of its lesser relative.",
-    "imagePath": "assets/screen-vision/reference/spells/great-energy-beam.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/great-energy-beam.png",
     "soundKey": "spell:great-energy-beam",
     "soundLabel": "Great Energy Beam",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo gran vis lux.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo gran vis lux.ogg",
     "sortIndex": 88
   },
   {
@@ -1573,10 +1573,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 120,
     "cooldownSeconds": 4,
     "description": "While most heroes who followed the rumors about Zathroth's forbidden library to fight evil, some more practical sorcerers used the opportunity to delve deeper in forbidden secrets. Most of them died. Many of them got mad. Several were viciously mutated and transformed. A few got away. Only a handful survived and gained knowledge that they could apply to new and powerful spells. The knowledge of this particular spell has come with massive casualties and suffering. A dedicated group of sorcerers managed to piece it together with bits and pieces that were gathered by the few survivors. Internal struggles of that group lead to the spell, that was intended to be kept as a secret between few, to be released to the public, probably in an act of spite of one of their members that felt unappreciated. Now the spell is taught buy the guild to its most experienced and supposedly most trustworthy members.",
-    "imagePath": "assets/screen-vision/reference/spells/great-fire-wave.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/great-fire-wave.png",
     "soundKey": "spell:great-fire-wave",
     "soundLabel": "Great Fire Wave",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo gran flam hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo gran flam hur.ogg",
     "sortIndex": 89
   },
   {
@@ -1599,10 +1599,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 60,
     "cooldownSeconds": 2,
     "description": "While the common light spell is usually quite sufficient under normal conditions, it was still widely agreed that a brighter and longer lasting light was desirable, as many of the more challenging dungeons are dreary places that require careful examination in order to prevent ambushes or other unpleasant surprises. The Great Light spell was developed to meet these demands. Because of its practical use it was made available to all vocations in Tibia.",
-    "imagePath": "assets/screen-vision/reference/spells/great-light.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/great-light.png",
     "soundKey": "spell:great-light",
     "soundLabel": "Great Light",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo gran lux.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo gran lux.ogg",
     "sortIndex": 91
   },
   {
@@ -1621,10 +1621,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 300,
     "cooldownSeconds": 16,
     "description": "An even more destructive variante of the Flurry of Blows. Hard to master and difficult to execute, this expert attack will deal large amounts of damage to every enemy in the vicinity.",
-    "imagePath": "assets/screen-vision/reference/spells/greater-flurry-of-blows.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/greater-flurry-of-blows.png",
     "soundKey": "spell:greater-flurry-of-blows",
     "soundLabel": "Greater Flurry of Blows",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran mas pug.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran mas pug.ogg",
     "sortIndex": 92
   },
   {
@@ -1643,10 +1643,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 50,
     "cooldownSeconds": 8,
     "description": "A stronger variant of the Tiger Clash, improving the delivery and refining transmission of the Monk's raw power into their fists to cause greater damage.",
-    "imagePath": "assets/screen-vision/reference/spells/greater-tiger-clash.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/greater-tiger-clash.png",
     "soundKey": "spell:greater-tiger-clash",
     "soundLabel": "Greater Tiger Clash",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori nia.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori nia.ogg",
     "sortIndex": 93
   },
   {
@@ -1665,10 +1665,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 200,
     "cooldownSeconds": 8,
     "description": "Often enough, a knight finds himself in a situation in which he is surrounded by various enemies. Of course it would take very long and would therefore be also quite dangerous if the knight needed to kill them all one by one. For this reason some smart knights have set together and developed the Groundshaker. If a knight speaks the magic words for this spell, his weapon will be dashed against the floor and let the ground shake. The power of the attack will rise with his skill to handle the weapon he is fighting with. The type of damage a knight is dealing when casting this spell depends on the weapon he is carrying. Covering an area up to 36 square metres, this spell should be used carefully as it will not only bring down monsters surrounding you but might also hurt your close-by friends.",
-    "imagePath": "assets/screen-vision/reference/spells/groundshaker.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/groundshaker.png",
     "soundKey": "spell:groundshaker",
     "soundLabel": "Groundshaker",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori mas.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori mas.ogg",
     "sortIndex": 94
   },
   {
@@ -1691,10 +1691,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 60,
     "cooldownSeconds": 2,
     "description": "",
-    "imagePath": "assets/screen-vision/reference/spells/haste.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/haste.png",
     "soundKey": "spell:haste",
     "soundLabel": "Haste",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utani hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utani hur.ogg",
     "sortIndex": 95
   },
   {
@@ -1713,7 +1713,7 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 120,
     "cooldownSeconds": 1,
     "description": "Heal Friend is an instant spell that allows a caster to magically heal other characters. When cast it causes powerful healing magic to be infused into the target, quickly closing wounds and stopping bleedings. Needless to say, this is a very useful spell to be used during combat, and a strong fighter who is supported by a druid casting this spell is very difficult to overcome indeed. However, keep in mind that the caster must not move too far away from the designated target for the spell to work. Moreover, only druids are capable of performing the complex channelling ritual that is required to transfer the healing energy into living targets.",
-    "imagePath": "assets/screen-vision/reference/spells/heal-friend.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/heal-friend.png",
     "soundKey": "default",
     "soundLabel": "",
     "soundPath": "",
@@ -1735,10 +1735,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 0,
     "cooldownSeconds": 2,
     "description": "Just recently, a group of druids finished a long-term research to develop a new spell that allows a druid to improve the regeneration ability for a certain period of time. However, only in a party, the druid has enough magical energy to cast this spell that will increase the regeneration speed to 20 hit points every 2 seconds for a period of 2 minutes. However, the spell can only boost an already running regeneration, so adventurers with an empty stomach will not profit from this spell. This spell can be cast on an area of 37 squares including the one the casting druid is standing on. Even though the spell costs extra mana for every profiting party member, the average mana costs decrease with every additional member.",
-    "imagePath": "assets/screen-vision/reference/spells/heal-party.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/heal-party.png",
     "soundKey": "spell:heal-party",
     "soundLabel": "Heal Party",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utura mas sio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utura mas sio.ogg",
     "sortIndex": 97
   },
   {
@@ -1757,10 +1757,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 1100,
     "cooldownSeconds": 40,
     "description": "Like the name indicates, this spell is as destructive as hell itself. By tapping the most inner forces of the universe, sorcerers can unleash frightful fire explosions that surpass all other spells in their devastating effect and their range of effect. The raw destructive power of the Hell's Core spell is such that it can instantly kill all but the most powerful of creatures that are caught within its enormous blast radius. For this reason it must be used with extreme caution. More than one well-meaning sorcerer accidentally fried his own party members. Worse, the enormous physical and mental strain will leave the sorcerer crippled and drained of mana. A badly placed Hell's Core spell could well be the last thing a sorcerer does before being torn apart in combat. As the magic potential of a sorcerer is only strong enough to master one such powerful spell, Rage of the Skies and Hell's Core share the same cooldown, before either of them can be cast again.",
-    "imagePath": "assets/screen-vision/reference/spells/hells-core.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/hells-core.png",
     "soundKey": "spell:hells-core",
     "soundLabel": "Hell's Core",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo gran mas flam.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo gran mas flam.ogg",
     "sortIndex": 99
   },
   {
@@ -1779,10 +1779,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 40,
     "description": "The spell combines the power sources of the more powerful healing spells with a forceful manifestation of holy might. This empowers the holy damage of the spell significantly, often giving the caster the decided advantage against the forces of evil.",
-    "imagePath": "assets/screen-vision/reference/spells/holy-flash.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/holy-flash.png",
     "soundKey": "spell:holy-flash",
     "soundLabel": "Holy Flash",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori san.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori san.ogg",
     "sortIndex": 100
   },
   {
@@ -1801,10 +1801,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 230,
     "cooldownSeconds": 22,
     "description": "At a certain point of expertise an experienced druid is so much in harmony with the elements, that he can just ask them to do his bidding. Though other traditions object such views, the druids vehemently insist on their interpretation. Following their reasoning the elements are ever-present at any place where things exists. It is the druids view, that they just gently nudge this ever-present forces to awake and to assist them. Reaching a point where such feats are possible is a tedious and long process but the true druids find it even more rewarding and natural that way. They learn to harness such forces along with the flow of nature's power through their surroundings and themselves. This necessary attunement is seen as a natural evolution and leaves behind the artificial burdens and restrictions that human existence imposes on them. As the shackles of the unnatural fall, the power of harmony grows within the druid. The manifestation of such powers can come in different ways, according to the druid's wishes. The usage of such powers in form of several burst spells is a rather mundane incarnation of the things such an attunement is capable of.",
-    "imagePath": "assets/screen-vision/reference/spells/ice-burst.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ice-burst.png",
     "soundKey": "spell:ice-burst",
     "soundLabel": "Ice Burst",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo ulus frigo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo ulus frigo.ogg",
     "sortIndex": 102
   },
   {
@@ -1824,10 +1824,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "Even though ice spells are clearly the resort of druids, this spell can be learnt by both magically gifted vocations. If a sorcerer or druid casts an Ice Strike, a freezing arrow hits any aimed opponent in a close range. Especially creatures with a sensitivity to ice, so to speak all fire dominated beings, will be wounded badly by this reliable spell which can already be learnt by rather young magicians. As the damage caused by this spell is determined by the caster's magical abilities, this spell can be a deadly weapon in the hands of an experienced magician.",
-    "imagePath": "assets/screen-vision/reference/spells/ice-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ice-strike.png",
     "soundKey": "spell:ice-strike",
     "soundLabel": "Ice Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori frigo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori frigo.ogg",
     "sortIndex": 103
   },
   {
@@ -1846,10 +1846,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 25,
     "cooldownSeconds": 4,
     "description": "The Ice Wave was invented by druids to attack all foes in a small range in front of the caster. Everybody that is unlucky enough to be hit by this wave of freezing air, will suffer great pain, especially when having an affiliation to the element fire. Like most spells, also the Ice Wave becomes more powerful with the growing magic abilities of its user. In the hands of an experienced druid it becomes a powerful weapon which can cause heavy damage to a remarkable number of enemies.",
-    "imagePath": "assets/screen-vision/reference/spells/ice-wave.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ice-wave.png",
     "soundKey": "spell:ice-wave",
     "soundLabel": "Ice Wave",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo frigo hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo frigo hur.ogg",
     "sortIndex": 104
   },
   {
@@ -1868,10 +1868,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 30,
     "description": "Wielding raw elemental forces, the caster calls down a concentration of destructive elemental energy engulfing the victim with fire. This spell was the logical extension of the commonly known spell of destructive fire magic. While prior spells suffered from the amount of control a caster had to put into shaping the effect, this spell in the contrary embraces the uncontrollable aspects of fire. This makes the spell highly capable to destroy things, although not always reliable. Some scientists warn about the possibility to accidentally create an unstable but permanent rift to the elemental realm of fire by using this spell but this notion is usually waved aside as only a theoretical side-note by their colleagues.",
-    "imagePath": "assets/screen-vision/reference/spells/ignite.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ignite.png",
     "soundKey": "spell:ignite",
     "soundLabel": "Ignite",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori flam.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori flam.ogg",
     "sortIndex": 106
   },
   {
@@ -1891,10 +1891,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 30,
     "description": "By focusing the inner strength into a sudden attack on an unprotected spot of an opponent, the victim suffers a deep wound which will lead to a considerable blood loss. This technique had been forbidden for quite a while because it was considered unnecessary cruel and harmful. Only a change of paradigm in the guild leadership reintroduced the once popular spell to the school canon.",
-    "imagePath": "assets/screen-vision/reference/spells/inflict-wound.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/inflict-wound.png",
     "soundKey": "spell:inflict-wound",
     "soundLabel": "Inflict Wound",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori kor.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori kor.ogg",
     "sortIndex": 107
   },
   {
@@ -1916,10 +1916,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 70,
     "cooldownSeconds": 1,
     "description": "Ever since their revolutionary discovery of magic that was capable of healing wounds and injuries, the druid researchers have been looking for ways to improve and to perfect this magic. The Intense Healing spell was a major step forward in these efforts. Its healing effect easily surpasses that of the common healing spell, and for obvious reasons the spell gained immediate and lasting popularity. Unfortunately, the spell's complexity is way above the knights' limited grasp of magic, so adventurers of this class cannot master this spell. Admittedly, Intense Healing is not as frequently cast today because its successor, the Ultimate Healing spell, provides even better healing, but it is still commonly used among less experienced adventurers as well as among skilled spell casters who know how to make the most of the spells they cast.",
-    "imagePath": "assets/screen-vision/reference/spells/intense-healing.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/intense-healing.png",
     "soundKey": "spell:intense-healing",
     "soundLabel": "Intense Healing",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura gran.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura gran.ogg",
     "sortIndex": 108
   },
   {
@@ -1939,10 +1939,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 165,
     "cooldownSeconds": 60,
     "description": "This spell breaks the bound between ordinary spell casting and divine incantations. It draws heavily on the help of the gods to do its work in such efficient ways. For a while this spell was only rewarded to the most honoured followers of certain gods, but this lead to envy and corruption and so it has been made available to public as well. Though it is said that the spell will fail the unworthy, there are no verified cases of this spell malfunctioning or backfiring. It seems to work well for each and everyone that is able to cast it.",
-    "imagePath": "assets/screen-vision/reference/spells/intense-recovery.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/intense-recovery.png",
     "soundKey": "spell:intense-recovery",
     "soundLabel": "Intense Recovery",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utura gran.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utura gran.ogg",
     "sortIndex": 110
   },
   {
@@ -1961,10 +1961,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 300,
     "cooldownSeconds": 120,
     "description": "This is a powerful self-healing spell that was developed with the help of druids and shamans to be efficient in modern combat situations. It might not be the most powerful of all known healing spells but it is certainly the mostly sophisticated. It is streamlined and optimised and often serves as an example of modern healing magic.",
-    "imagePath": "assets/screen-vision/reference/spells/intense-wound-cleansing.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/intense-wound-cleansing.png",
     "soundKey": "spell:intense-wound-cleansing",
     "soundLabel": "Intense Wound Cleansing",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura gran ico.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura gran ico.ogg",
     "sortIndex": 111
   },
   {
@@ -1984,10 +1984,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 440,
     "cooldownSeconds": 2,
     "description": "Despite its obvious potential, the Invisible spell's attractiveness is somewhat diminished by the fact that many creatures as well as most experienced adventurers are capable of perceiving the subtle traces left by its magic, thus being able to effectively see through the spell. However, most minor creatures in Tibia are still fooled by the spell's effect, giving the skilled caster who knows how to cast Invisible an invaluable advantage over such opponents. The life of many a sorcerer who was surprised by a hostile crowd has been saved by this spell, but it is also highly recommended for daring explorers who like to delve into unknown dungeons. Although Invisible is not a rune spell, knights and paladins can profit of the same effect by wearing a stealth ring.",
-    "imagePath": "assets/screen-vision/reference/spells/invisible.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/invisible.png",
     "soundKey": "spell:invisible",
     "soundLabel": "Invisible",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utana vid.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utana vid.ogg",
     "sortIndex": 112
   },
   {
@@ -2010,7 +2010,7 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 50,
     "cooldownSeconds": 2,
     "description": "A variation of the Magic Rope spell, Levitate allows the caster to swiftly move onto suitable obstacles without having to climb stairs or to use ramps. The practical value of this spell is far greater than may be readily apparent, as large obstacles are a daily nuisance to the exploring adventurer. Besides, the spell is quite useful to make a quick escape in case of danger, as creatures usually abandon pursuit if their enemy moves onto higher terrain. When casting this spell you should not forget to add the necessary parameter \"up\" or \"down\" to specify whether you want to move upwards or downwards.",
-    "imagePath": "assets/screen-vision/reference/spells/levitate.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/levitate.png",
     "soundKey": "default",
     "soundLabel": "",
     "soundPath": "",
@@ -2036,10 +2036,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "Every character can learn this very basic spell for free. By using it the caster will activate the inherent magic energy of his immediate surrounding to provide him with decent illumination for about ten minutes. While it is hardly brighter than your average torch, it is always good to have this spell in the book in case you are stuck in a deep dungeon and run out of non-magical light sources.",
-    "imagePath": "assets/screen-vision/reference/spells/light.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/light.png",
     "soundKey": "spell:light",
     "soundLabel": "Light",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo lux.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo lux.ogg",
     "sortIndex": 117
   },
   {
@@ -2061,10 +2061,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 1,
     "description": "This spell is awarded free to all newly chosen paladins, druids, sorcerers and monks. Although its salutary effect is limited, its development represented a major breakthrough in spell research. For the first time, adventurers could quickly heal their own wounds and injuries, significantly increasing their chances to survive the dangers they are daily confronted with. Even today, Light Healing is still a very popular spell because of its reasonable mana cost.",
-    "imagePath": "assets/screen-vision/reference/spells/light-healing.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/light-healing.png",
     "soundKey": "spell:light-healing",
     "soundLabel": "Light Healing",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura.ogg",
     "sortIndex": 118
   },
   {
@@ -2083,10 +2083,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 60,
     "cooldownSeconds": 8,
     "description": "Calling upon elemental forces, the caster calls down a powerful lightning to strike his enemies down. This spell is a classic that has been rediscovered only recently. It passed out of use in the years of the great rain that made its usage extremely dangerous even for the caster. The modern version has been modified successfully and now works even under water.",
-    "imagePath": "assets/screen-vision/reference/spells/lightning.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/lightning.png",
     "soundKey": "spell:lightning",
     "soundLabel": "Lightning",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori amp vis.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori amp vis.ogg",
     "sortIndex": 120
   },
   {
@@ -2109,10 +2109,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "This simple though clever spell has been hailed as a great achievement by many adventurers. When used the caster is carried instantly upwards through any opening in the ceiling without having to use a rope. Needless to say, however, the caster must be placed underneath a suitable hole in the ceiling for the spell to work. This spell is immensely useful when exploring unknown dungeons as it can be used to escape quickly in case there is danger.",
-    "imagePath": "assets/screen-vision/reference/spells/magic-rope.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/magic-rope.png",
     "soundKey": "spell:magic-rope",
     "soundLabel": "Magic Rope",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exani tera.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exani tera.ogg",
     "sortIndex": 122
   },
   {
@@ -2132,10 +2132,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 50,
     "cooldownSeconds": 14,
     "description": "The study of magic is a time-consuming activity that requires many years of dedicated research and academic work. For this reason those who have chosen the path of magic usually neglect physical exercise, training their minds rather than their bodies. As a result, spell casters are typically frail and cannot endure injuries the way skilled warriors can. However, sorcerers and druids reacted to this problem in their typical manner, looking for magical means to protect their weak bodies in battle. The Magic Shield spell was the result of this research. By casting this spell it is possible to deflect any physical or magical damage by using sheer will power. Unfortunately, however, the mental strain caused by the spell is tremendous, and any damage that is deflected by the magical shield is directly taken from the caster's mana reserve. For this reason the spell should be used wisely. While there is little point in using it against weak monsters, Magic Shield has saved the life of many a spell caster when battling strong monsters that otherwise would have killed him in a second.",
-    "imagePath": "assets/screen-vision/reference/spells/magic-shield.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/magic-shield.png",
     "soundKey": "spell:magic-shield",
     "soundLabel": "Magic Shield",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utamo vita.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utamo vita.ogg",
     "sortIndex": 123
   },
   {
@@ -2154,10 +2154,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 150,
     "cooldownSeconds": 2,
     "description": "Although this spell cannot restore as many hit points as certain other spells, it can still be considered to be the most powerful of all healing spells since its effect is not limited to a single target. Instead, every creature that is within the considerable range of effect of the caster will be healed. However, due to the large mental strain the mana cost of this spell should not be underestimated. Also, the druid should keep in mind that this spell will affect all targets, including any enemy that is within range! For this reason it is best to use the spell after combat when all opponents are slain and many members of the druid's party needs quick, effective healing. Please note that on optional PvP game worlds, this spell has no effect on wild creatures.",
-    "imagePath": "assets/screen-vision/reference/spells/mass-healing.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/mass-healing.png",
     "soundKey": "spell:mass-healing",
     "soundLabel": "Mass Healing",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura gran mas res.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura gran mas res.ogg",
     "sortIndex": 125
   },
   {
@@ -2176,10 +2176,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 400,
     "cooldownSeconds": 12,
     "description": "The power of Monks to use their inner power to concentrate and heal can be conveyed to allies by reaching a state of complete focus and harmony, resulting in a massive discharge of pure healing energies.",
-    "imagePath": "assets/screen-vision/reference/spells/mass-spirit-mend.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/mass-spirit-mend.png",
     "soundKey": "spell:mass-spirit-mend",
     "soundLabel": "Mass Spirit Mend",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura mas nia.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura mas nia.ogg",
     "sortIndex": 126
   },
   {
@@ -2198,10 +2198,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 400,
     "cooldownSeconds": 30,
     "description": "Death magic can be as dangerous as it is powerful. Sorcerers of decay have to wield this dark power without hesitation. The slightest miscast will yield catastrophic results, interwoven with other magic correctly, however, it will chain certain spells together for them to cause death damage, regardless of their element.",
-    "imagePath": "assets/screen-vision/reference/spells/master-of-decay.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/master-of-decay.png",
     "soundKey": "spell:master-of-decay",
     "soundLabel": "Master of Decay",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/uteta mort.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/uteta mort.ogg",
     "sortIndex": 127
   },
   {
@@ -2220,10 +2220,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 400,
     "cooldownSeconds": 30,
     "description": "Controlling the flame even an apprentice Sorcerer will be able to tell you a thing or two about. Mastering it, however, can take a lifetime of exercise.",
-    "imagePath": "assets/screen-vision/reference/spells/master-of-flames.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/master-of-flames.png",
     "soundKey": "spell:master-of-flames",
     "soundLabel": "Master of Flames",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/uteta flam.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/uteta flam.ogg",
     "sortIndex": 128
   },
   {
@@ -2242,10 +2242,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 400,
     "cooldownSeconds": 30,
     "description": "Sorcerers do not bend to the will of the skies and will not falter as thunder and lightning strike. Masters of thunder will wield bolts of light towards their enemies as if they were mere sticks.",
-    "imagePath": "assets/screen-vision/reference/spells/master-of-thunder.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/master-of-thunder.png",
     "soundKey": "spell:master-of-thunder",
     "soundLabel": "Master of Thunder",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/uteta vis.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/uteta vis.ogg",
     "sortIndex": 129
   },
   {
@@ -2264,10 +2264,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 150,
     "cooldownSeconds": 12,
     "description": "Reaching higher levels of focus and inner balance, skilled monks will be able to direct all energy in their body towards distant targets by allowing their mind to transcend and control their body like a precise weapon for split seconds.",
-    "imagePath": "assets/screen-vision/reference/spells/mystic-repulse.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/mystic-repulse.png",
     "soundKey": "spell:mystic-repulse",
     "soundLabel": "Mystic Repulse",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori amp pug.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori amp pug.ogg",
     "sortIndex": 131
   },
   {
@@ -2286,7 +2286,7 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 400,
     "cooldownSeconds": 60,
     "description": "The trials of Zarganash grinded down even the most pious souls. Yet some enlightened sages used the travel to this corrupting place to challenge their purity and hone their understanding of their soul. The most potent druids drew amazing new powers by using their own souls to magnify the power of certain spells. One of the results that is easier to learn is this powerful spell. By drawing upon the soulpower and dedication, it enables the druid to heal an ally with powerful surge of nature energy. Yet it takes some toll on the soul of the user, which needs a short time to recover from the stress.",
-    "imagePath": "assets/screen-vision/reference/spells/natures-embrace.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/natures-embrace.png",
     "soundKey": "default",
     "soundLabel": "",
     "soundPath": "",
@@ -2308,10 +2308,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "This spell is a rather simple application of well-known techniques. By creating a physical eruption of power, a powerful force-blow hits an opponent not unlike a weapon strike. Attempts to apply it to more complicated uses than cutting a cake led to disaster, though.",
-    "imagePath": "assets/screen-vision/reference/spells/physical-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/physical-strike.png",
     "soundKey": "spell:physical-strike",
     "soundLabel": "Physical Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori moe ico.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori moe ico.ogg",
     "sortIndex": 134
   },
   {
@@ -2330,10 +2330,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 0,
     "cooldownSeconds": 2,
     "description": "One of the paladin guild's principle has always been to support and help others. So it is not astonishing that they have developed a spell that helps to protect members of their party. Every paladin who is a member of a party can cast this spell to protect their fellows. Affecting 37 squares including the one the paladin stands on, the Protect Party spell will raise the shielding by 3 for 2 minutes for every party member standing on one of these fields. Even though the spell costs extra mana for every profiting party member, the average mana costs decrease with every additional member.",
-    "imagePath": "assets/screen-vision/reference/spells/protect-party.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/protect-party.png",
     "soundKey": "spell:protect-party",
     "soundLabel": "Protect Party",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utamo mas sio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utamo mas sio.ogg",
     "sortIndex": 138
   },
   {
@@ -2352,10 +2352,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "To be able to defend themselves against extremely powerful hits, experienced knights can utilise the Protector stance. If used, the shielding of the knight will strengthen and the knight will gain an overall damage reduction for a short amount of time. However, as the knight needs to concentrate all his energy on the stance, his attacks and spells suffer a penalty during this time. A knight is versatile, however and can alter quickly between an aggressive and a defensive stance by casting Blood Rage to remove Protector.",
-    "imagePath": "assets/screen-vision/reference/spells/protector.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/protector.png",
     "soundKey": "spell:protector",
     "soundLabel": "Protector",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utamo tempo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utamo tempo.ogg",
     "sortIndex": 139
   },
   {
@@ -2374,10 +2374,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 600,
     "cooldownSeconds": 40,
     "description": "Flashing lights and dark eerie thunderclouds appear in a huge area when an experienced sorcerer casts this mighty spell. Almost everybody that stands in sight of the caster will be hit by this dangerous energy spell. A sorcerer must be extremely careful when casting this spell as it happens all too often that a friend or party member is deadly hurt when the Rage of the Skies is unleashed. Not only ice dominated creatures should fear this powerful spell - an experienced sorcerer can bring down almost every enemy by speaking the magic words to call the Rage of the Skies. As the magic potential of a sorcerer is only strong enough to master one such powerful spell, Rage of the Skies and Hell's Core share the same cooldown, before either of them can be cast again.",
-    "imagePath": "assets/screen-vision/reference/spells/rage-of-the-skies.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/rage-of-the-skies.png",
     "soundKey": "spell:rage-of-the-skies",
     "soundLabel": "Rage of the Skies",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo gran mas vis.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo gran mas vis.ogg",
     "sortIndex": 140
   },
   {
@@ -2397,10 +2397,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 75,
     "cooldownSeconds": 60,
     "description": "By activating hidden inner reserves, this spell attempts continuously to bring back the body into a harmonic state without any wounds. Increasing the self-healing of the body considerably, the recipient gains enormous regenerative powers. This spell was derived from gruesome experiments with certain regenerative creatures by a cabal of necromancers. When the cabal was finally destroyed, also most of their blasphemous researches were destroyed. It was decided, though, that ignoring this helpful spell would be a disregard of the suffering of those who died for the creation of this spell.",
-    "imagePath": "assets/screen-vision/reference/spells/recovery.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/recovery.png",
     "soundKey": "spell:recovery",
     "soundLabel": "Recovery",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utura.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utura.ogg",
     "sortIndex": 141
   },
   {
@@ -2420,10 +2420,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 260,
     "cooldownSeconds": 6,
     "description": "Concerned with the growing threats to the world, the normally reclusive druids lately gathered in what they call a 'ting'. There they not only discussed the state of the worlds and shared experiences, but also actively worked on improvement of their arts. Over time the traditional tings had developed into endless debates that only the elderly attended and that more often than not ended in bickering about pointless interpretation of ancient lore. In modern days the tings are invigorated and see the attendance of some of the brightest minds of druidhood. For the first time in centuries constructive progression was pushed and this powerful healing spell is one of the most potent results.",
-    "imagePath": "assets/screen-vision/reference/spells/restoration.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/restoration.png",
     "soundKey": "spell:restoration",
     "soundLabel": "Restoration",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura max vita.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura max vita.ogg",
     "sortIndex": 142
   },
   {
@@ -2442,7 +2442,7 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 120,
     "cooldownSeconds": 2,
     "description": "Focusing their inner harmony to amplify their healing abilities, monks can channel enough energy to significantly restore the health of others.",
-    "imagePath": "assets/screen-vision/reference/spells/restore-balance.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/restore-balance.png",
     "soundKey": "default",
     "soundLabel": "",
     "soundPath": "",
@@ -2464,10 +2464,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 210,
     "cooldownSeconds": 1,
     "description": "Only those Paladins who achieved the highest level of sanctification are granted salvation by their god. With the cleansing of mind comes a cleansing of the body, healing even severe wounds. Salvation is the most effective and strongest healing spell a paladin has at his disposal. Still, it should be used wisely as the rather high amount of required mana does not allow an unlimited use of it.",
-    "imagePath": "assets/screen-vision/reference/spells/salvation.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/salvation.png",
     "soundKey": "spell:salvation",
     "soundLabel": "Salvation",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura gran san.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura gran san.ogg",
     "sortIndex": 144
   },
   {
@@ -2486,10 +2486,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 400,
     "cooldownSeconds": 10,
     "description": "There is said to be a secret bond between all creatures, living and even the dead. Finding and utilising these mystical energies enables the druid to enhance and expand his healing abilities.",
-    "imagePath": "assets/screen-vision/reference/spells/shared-conservation.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/shared-conservation.png",
     "soundKey": "spell:shared-conservation",
     "soundLabel": "Shared Conservation",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utura sio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utura sio.ogg",
     "sortIndex": 146
   },
   {
@@ -2508,10 +2508,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 250,
     "cooldownSeconds": 10,
     "description": "",
-    "imagePath": "assets/screen-vision/reference/spells/sharpshooter.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/sharpshooter.png",
     "soundKey": "spell:sharpshooter",
     "soundLabel": "Sharpshooter",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori con.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori con.ogg",
     "sortIndex": 147
   },
   {
@@ -2530,10 +2530,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 30,
     "cooldownSeconds": 4,
     "description": "A shield protects but can also be wielded like a weapon and deal a lot of damage in the right knightly hands. Based on its defensive qualities it will deal an appropriate amount of damage to its unsuspecting victim. Executed like a swift blow of a weapon directed towards the opponent, it will hit like the proverbial brick wall and prevent the next attack of the opponent.",
-    "imagePath": "assets/screen-vision/reference/spells/shield-bash.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/shield-bash.png",
     "soundKey": "spell:shield-bash",
     "soundLabel": "Shield Bash",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori ico scu.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori ico scu.ogg",
     "sortIndex": 148
   },
   {
@@ -2552,10 +2552,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 110,
     "cooldownSeconds": 6,
     "description": "The forceful bash of a shield towards a victim can not only deal a lot of damage but also disorientate any adversary. Executed as a massive slam towards the enemy, the impact will cause temporary shock and numbness, preventing the next attack of the opponent.",
-    "imagePath": "assets/screen-vision/reference/spells/shield-slam.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/shield-slam.png",
     "soundKey": "spell:shield-slam",
     "soundLabel": "Shield Slam",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori scu.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori scu.ogg",
     "sortIndex": 149
   },
   {
@@ -2574,10 +2574,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 210,
     "cooldownSeconds": 1,
     "description": "Monks are able to use their inner power to concentrate and heal. Reaching a state of complete focus and harmony, their energies will regenerate their body and mind.",
-    "imagePath": "assets/screen-vision/reference/spells/spirit-mend.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/spirit-mend.png",
     "soundKey": "spell:spirit-mend",
     "soundLabel": "Spirit Mend",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura gran tio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura gran tio.ogg",
     "sortIndex": 151
   },
   {
@@ -2596,10 +2596,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 425,
     "cooldownSeconds": 24,
     "description": "A spiritual outburst of inner power will affect and harm every enemy in the vicinity of the attacking Monk. Mastering this skill will take even hardened and experienced Monks a long time, allowing for a more refined and devastating attack.",
-    "imagePath": "assets/screen-vision/reference/spells/spiritual-outburst.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/spiritual-outburst.png",
     "soundKey": "spell:spiritual-outburst",
     "soundLabel": "Spiritual Outburst",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran mas nia.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran mas nia.ogg",
     "sortIndex": 152
   },
   {
@@ -2618,10 +2618,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 60,
     "cooldownSeconds": 8,
     "description": "This is an amplification of already known spells that was only a logical discovery given the heavy usage of the lesser spells in the past. It is easily learnt by everyone who already knows its predecessors and is used widely in the field.",
-    "imagePath": "assets/screen-vision/reference/spells/strong-energy-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/strong-energy-strike.png",
     "soundKey": "spell:strong-energy-strike",
     "soundLabel": "Strong Energy Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran vis.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran vis.ogg",
     "sortIndex": 155
   },
   {
@@ -2640,10 +2640,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 55,
     "cooldownSeconds": 8,
     "description": "Concentrating holy power allows the caster to create a weapon with sheer willpower. Drawing rather upon heavenly forces than on pure conjuration magic, this spell does not create a common item but an instrument of godly power that has been given an earthly look and shape, so it can be safely wielded by mortals.",
-    "imagePath": "assets/screen-vision/reference/spells/strong-ethereal-spear.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/strong-ethereal-spear.png",
     "soundKey": "spell:strong-ethereal-spear",
     "soundLabel": "Strong Ethereal Spear",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran con.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran con.ogg",
     "sortIndex": 156
   },
   {
@@ -2662,10 +2662,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 60,
     "cooldownSeconds": 8,
     "description": "The experiments that led to the ground-breaking discovery that allowed the use of fire spells also underwater paved the way for this spell. It is a powerful eruption of fire with such intense heat that it is almost impossible to stop it.",
-    "imagePath": "assets/screen-vision/reference/spells/strong-flame-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/strong-flame-strike.png",
     "soundKey": "spell:strong-flame-strike",
     "soundLabel": "Strong Flame Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran flam.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran flam.ogg",
     "sortIndex": 157
   },
   {
@@ -2686,10 +2686,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 100,
     "cooldownSeconds": 2,
     "description": "Another advancement of a well-known spell, Strong Haste works quite similar to its lesser relative, although the effect is much more impressive. However, all potential users should be warned: The use of this spell is not without risk. In fact, it was kept secret for a long time as many worried sorcerers warned of the dangers that might be involved in carelessly tampering with time itself. In the end, however, the spell was made public by some reckless sorcerers at Edron's magic academy, and so it is commonly available today. Still, it is advised to resort to this spell only in the most desperate of situations where nothing but fast flight can guarantee survival.",
-    "imagePath": "assets/screen-vision/reference/spells/strong-haste.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/strong-haste.png",
     "soundKey": "spell:strong-haste",
     "soundLabel": "Strong Haste",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utani gran hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utani gran hur.ogg",
     "sortIndex": 158
   },
   {
@@ -2708,10 +2708,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 60,
     "cooldownSeconds": 8,
     "description": "This is another spell that made its way to the magic schools from the shamans of Nibelor. Out of gratitude for the help the heroes provided for their cause, the shamans shared the knowledge of this spell that calls down the power of frost and ice to harm an opponent.",
-    "imagePath": "assets/screen-vision/reference/spells/strong-ice-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/strong-ice-strike.png",
     "soundKey": "spell:strong-ice-strike",
     "soundLabel": "Strong Ice Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran frigo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran frigo.ogg",
     "sortIndex": 159
   },
   {
@@ -2730,10 +2730,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 170,
     "cooldownSeconds": 4,
     "description": "The fights with the ice witches of the Ice Islands have taught the heroes many lessons. One of them is the usage of powerful ice magic that can be used to devastate opponents with storms of ice and cold. This spell has been discovered through painful observations as well as scientific research. In recent days it has found its way to the magic trainers and is very popular among their students.",
-    "imagePath": "assets/screen-vision/reference/spells/strong-ice-wave.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/strong-ice-wave.png",
     "soundKey": "spell:strong-ice-wave",
     "soundLabel": "Strong Ice Wave",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo gran frigo hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo gran frigo hur.ogg",
     "sortIndex": 160
   },
   {
@@ -2752,10 +2752,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 60,
     "cooldownSeconds": 8,
     "description": "Given the recent arms race considering spells, the usually peaceful druids came up with an invention of their own. The amplified version of the Terra Strike became widely known due to its inventor's unwise display on the docks near a shipment of Zaon glassware. It is said the damage caused used up all the money he had earned with selling his spell to the magic community.",
-    "imagePath": "assets/screen-vision/reference/spells/strong-terra-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/strong-terra-strike.png",
     "soundKey": "spell:strong-terra-strike",
     "soundLabel": "Strong Terra Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori gran tera.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori gran tera.ogg",
     "sortIndex": 161
   },
   {
@@ -2775,7 +2775,7 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 0,
     "cooldownSeconds": 2,
     "description": "By casting Summon Creature druids and sorcerers can call creatures to their sides that will do their bidding. This is a mysterious and demanding spell which to this day is not fully understood in many details, and for this reason there are many limitations. Thus, only certain creatures may be summoned, and no summoner has ever managed to control more than two creatures at a time. What is generally agreed upon, however, is that the mental effort that is necessary to summon a creature is determined by the summoned being's strength, so if a strong creature is conjured a lot of mana is required. Also, it has turned out that monsters may only be controlled within a certain radius. If a creature is left behind by its summoner it eventually disappears as the artificial bond that kept it in the world is broken. Needless to say, the spell is widely popular among spell casters, as summoned creatures can be used for a wide variety of tasks.",
-    "imagePath": "assets/screen-vision/reference/spells/summon-creature.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/summon-creature.png",
     "soundKey": "default",
     "soundLabel": "",
     "soundPath": "",
@@ -2797,10 +2797,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 3000,
     "cooldownSeconds": 1800,
     "description": "Looking for a suitable companion to help his followers in the dire days to come, Crunor looked at the most ancient spirits of nature that still roamed the world. They had shed their physical form in centuries long ago. By calling to the echoes of mother Tibia's own might the god formed new bodies for the spirits and Nornur spun his ghostly webs to bind the old spirits into the new bodies. This summon reflects the strong bond of the Druid towards nature. Besides being a faithful companion, it has a strong natural protection, unifying all powerful and wondrous forces of flora and fauna. Due to its robust wood-fortified arms and bark mask Grovebeast is able to lure hordes of monsters towards itself whilst its master is able to attack from a distance without taking the bulk of the damage. There are tales that all existing animals in the forest originate from an ancestor of this summon. Mother Tibia has endowed this creature with mighty earth spells. Furthermore, physical attacks, carried out by its horns, belong to its repertoire as well. So injured monsters suffer deep wounds, bleeding for quite a while. It is said, that the most devout and skilled heroes are able to gain an intrinsic understanding of such summoning spells, that they are able mould and warp it's energies to call forth a wider array of minions, that, though identical in power and abilities better suit their own taste and style. Initially it was debated if this might be a blasphemous tinkering with a gift of the gods, a rare consensus was reached, that the ability to summon more uncommon allies is rather a deeper understanding of the will and workings of the gods and in concordance with their divine will.",
-    "imagePath": "assets/screen-vision/reference/spells/summon-druid-familiar.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/summon-druid-familiar.png",
     "soundKey": "spell:summon-druid-familiar",
     "soundLabel": "Summon Druid Familiar",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo gran res dru.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo gran res dru.ogg",
     "sortIndex": 164
   },
   {
@@ -2819,10 +2819,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 1000,
     "cooldownSeconds": 1800,
     "description": "When the gods chose the humans as their champions for the coming age of discord, they granted them new powerful allies to stand a chance against the forces of destruction. The creature they made the knight's faithful companion is an icecold killer. Only the gods can tell where it originated. Vague legends of old told a story of a vanguard dedicated to Banor who ventured forth into the frozen north in a desperate attempt to stop a scheme of the forces of evil to build a powerful weapon. The heroes of Banor succeeded but at the cost of their lives. Honouring their dedication, Banor struck a deal with an elemental entity of the north who owed their existence to Banor and the heroes' sacrifice. They were entombed deep into the ice, save from all temperings of evil. Their noble souls, however, knew no rest and pleaded Banor to help humanity once again. At last the godly warrior agreed and with the help of Fardos he provided his champions a ghostly squire unlike anything seen before. The energetic essence of ice stemming from the surrounding area was conserved within the newly created ethereal creature. Its deadly sight alone makes not only humans but also monsters tremble in fear. The way of movement - just flying around like a ghost - makes it even more frightening. The Skullfrost doesn't have a very strong defence and prefers to attack from a safe distance. More precisely it uses death and ice attacks. Due to these skills the knight does well to pull its adversaries to himself while its summon attacks from afar. A powerful combination! It is said, that the most devout and skilled heroes are able to gain an intrinsic understanding of such summoning spells, that they are able mould and warp it's energies to call forth a wider array of minions, that, though identical in power and abilities better suit their own taste and style. Initially it was debated if this might be a blasphemous tinkering with a gift of the gods, a rare consensus was reached, that the ability to summon more uncommon allies is rather a deeper understanding of the will and workings of the gods and in concordance with their divine will.",
-    "imagePath": "assets/screen-vision/reference/spells/summon-knight-familiar.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/summon-knight-familiar.png",
     "soundKey": "spell:summon-knight-familiar",
     "soundLabel": "Summon Knight Familiar",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo gran res eq.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo gran res eq.ogg",
     "sortIndex": 165
   },
   {
@@ -2841,10 +2841,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 1500,
     "cooldownSeconds": 1800,
     "description": "Prior to their struggle against the hordes of Yng, the ancient Merudri found many pathways to other worlds. With the Blue Valley serving as a conjunction of dimensions, their manipulation of the reality rift that separated the valley from their ancient home allowed not only their own kin to traverse it, but foreign inhabitants of other dimensions as well. One expedition of the Merudri to find a way home led them to a bright world full of strange and colourful flora. A magnificent sky burned in a deep blue with a violent white sun, hurting the eyes and the skin of the travellers. The colours of blossoms, leaves and grass were so overwhelmingly bright, that they feared a mere touch would hurt or even kill them. Its waters were thicker than the water they knew, dripping from leaves, filling small and larger ponds and sparkling heavily down mighty waterfalls.",
-    "imagePath": "assets/screen-vision/reference/spells/summon-monk-familiar.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/summon-monk-familiar.png",
     "soundKey": "spell:summon-monk-familiar",
     "soundLabel": "Summon Monk Familiar",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo gran res tio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo gran res tio.ogg",
     "sortIndex": 166
   },
   {
@@ -2863,10 +2863,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 2000,
     "cooldownSeconds": 1800,
     "description": "When the gods looked for a way to prepare their human champions for a time of strife they ordered the reluctant Suon and Fafnar to combine their burning essence into a vessel the gods had formed from a part of the fallen Tibia's heart. Yet the powerful construct needed a soul. So the gods reached out and found a breed of firebirds that were trapped in the Pits of Inferno since aeons for the amusement of the demons. Their pligth and agony might have never ended if the divine forces had not torn down their prison and imbued their souls into their construct, merging it into a creature of overwhelming power, creating the Emberwing in the process. Due to its very long captivity it vowed vengeance to all forces of destruction. These circumstances also explain the passion and dedication with which Emberwing is protecting its master. Its goal is to raze all evil from the lands of Tibia alongside its noble master. The Emberwing is quite an elevated appearance. On first sight one might not think, that this creature is really protective, but indeed it is. The divine fire burning within the creature causes terrible damage to all its offenders. Guarding its master carefully, the summon is a faithful companion in dangerous situations. It is said, that the most devout and skilled heroes are able to gain an intrinsic understanding of such summoning spells, that they are able mould and warp it's energies to call forth a wider array of minions, that, though identical in power and abilities better suit their own taste and style. Initially it was debated if this might be a blasphemous tinkering with a gift of the gods, a rare consensus was reached, that the ability to summon more uncommon allies is rather a deeper understanding of the will and workings of the gods and in concordance with their divine will.",
-    "imagePath": "assets/screen-vision/reference/spells/summon-paladin-familiar.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/summon-paladin-familiar.png",
     "soundKey": "spell:summon-paladin-familiar",
     "soundLabel": "Summon Paladin Familiar",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo gran res sac.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo gran res sac.ogg",
     "sortIndex": 167
   },
   {
@@ -2885,10 +2885,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 3000,
     "cooldownSeconds": 1800,
     "description": "Uman-Zathroth was torn in the decision how to supply the faithful sorcerers with a suitable minion that would stand a chance in the days of war yet to come. Its dual nature made a decision almost impossible. Then his eyes fell upon a seemingly unimportant creature deep in the caverns of the mountain Kha'zeel. A group of stone golems had flourished in the magic that was seeping from the fortresses of the mighty Djinn. Their unaging bodies had assimilated more and more magic in the centuries and Uman-Zathroth sensed something else... unrealised possibilities. The godly entity subtly guided the golems to ascend the mighty mountain. Just when the stars were aligned right and another battle of the Djinn had infused a raging storm that ravaged the mountain. Not really recognizing what was driving them, the golems climbed tirelessly until the most sturdy of them managed to reach the peak. During their dangerous ascend, lots of them had ended up smashed on the steep rock face or burried by avalanches. In the end only a few of the mightiest and most self aware of the golems were left. They bathed in the raging forces, struck by lightning, both physical and magical. Again some of them perished but in the end the Thundergiants were born. Steeled by this exhausting journey to the top of Kha'zeel and imbued by mystical energies, the last creatures were chosen by Uman-Zathroth to become the mighty minions of the sorcerer. And it doesn't surprise that they are really strong and powerful, besides being faithful companions of their masters. In case of hordes of monsters the Thundergiant is a very useful bulwark protecting the sorcerer. It is said, that the most devout and skilled heroes are able to gain an intrinsic understanding of such summoning spells, that they are able mould and warp it's energies to call forth a wider array of minions, that, though identical in power and abilities better suit their own taste and style. Initially it was debated if this might be a blasphemous tinkering with a gift of the gods, a rare consensus was reached, that the ability to summon more uncommon allies is rather a deeper understanding of the will and workings of the gods and in concordance with their divine will.",
-    "imagePath": "assets/screen-vision/reference/spells/summon-sorcerer-familiar.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/summon-sorcerer-familiar.png",
     "soundKey": "spell:summon-sorcerer-familiar",
     "soundLabel": "Summon Sorcerer Familiar",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo gran res ven.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo gran res ven.ogg",
     "sortIndex": 168
   },
   {
@@ -2907,10 +2907,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 195,
     "cooldownSeconds": 8,
     "description": "Concentrating intensely while directing the focus of the monk's energy during a sequence of kicks and blows in quick succession allows skilled Monks to incapacitate their enemies instantly in a sweeping takedown.",
-    "imagePath": "assets/screen-vision/reference/spells/sweeping-takedown.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/sweeping-takedown.png",
     "soundKey": "spell:sweeping-takedown",
     "soundLabel": "Sweeping Takedown",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori mas nia.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori mas nia.ogg",
     "sortIndex": 169
   },
   {
@@ -2929,10 +2929,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 400,
     "cooldownSeconds": 10,
     "description": "This spell has been developed by and for paladins. In critical situations it might become necessary for a paladin to outrun his opponent. Casting it raises the speed of a paladin significantly, allowing for swift footwork during attacking and casting, parralleled by a decrease in overall damage output.",
-    "imagePath": "assets/screen-vision/reference/spells/swift-foot.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/swift-foot.png",
     "soundKey": "spell:swift-foot",
     "soundLabel": "Swift Foot",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utamo tempo san.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utamo tempo san.ogg",
     "sortIndex": 170
   },
   {
@@ -2951,10 +2951,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 230,
     "cooldownSeconds": 22,
     "description": "At a certain point of expertise an experienced druid is so much in harmony with the elements, that he can just ask them to do his bidding. Though other traditions object such views, the druids vehemently insist on their interpretation. Following their reasoning the elements are ever-present at any place where things exists. It is the druids view, that they just gently nudge this ever-present forces to awake and to assist them. Reaching a point where such feats are possible is a tedious and long process but the true druids find it even more rewarding and natural that way. They learn to harness such forces along with the flow of nature's power through their surroundings and themselves. This necessary attunement is seen as a natural evolution and leaves behind the artificial burdens and restrictions that human existence imposes on them. As the shackles of the unnatural fall, the power of harmony grows within the druid. The manifestation of such powers can come in different ways, according to the druid's wishes. The usage of such powers in form of several burst spells is a rather mundane incarnation of the things such an attunement is capable of.",
-    "imagePath": "assets/screen-vision/reference/spells/terra-burst.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/terra-burst.png",
     "soundKey": "spell:terra-burst",
     "soundLabel": "Terra Burst",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo ulus tera.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo ulus tera.ogg",
     "sortIndex": 172
   },
   {
@@ -2974,10 +2974,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 20,
     "cooldownSeconds": 2,
     "description": "When a caster is yelling the formula of this spell, the aimed opponent gets not seldom a horrified look at his face. A huge plant with enormous teeth seems to appear out of thin air trying to devour the unlucky being with neck and crop. Particularly against energy dominated creatures this spell can be deadly in the hands of an experienced sorcerer or druid. However, this spell is also popular among young magicians as it requires only little mana and offers a reliable, instantaneous performance.",
-    "imagePath": "assets/screen-vision/reference/spells/terra-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/terra-strike.png",
     "soundKey": "spell:terra-strike",
     "soundLabel": "Terra Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori tera.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori tera.ogg",
     "sortIndex": 173
   },
   {
@@ -2996,10 +2996,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 170,
     "cooldownSeconds": 4,
     "description": "Everybody that is hit by this powerful spell feels the concentrated powers of Mother Nature. No other vocation has ever had such a close connection to nature like the druids. For this reason, it is not amazing that this sophisticated earth spell was developed by Alois Treehugger, probably the most ingenious druid of his times. The spell becomes particularly hurtful when aimed at energy dominated creatures, but also other unlucky creatures who happen to stand in the blast of this powerful wave can be deadly wounded. Whenever an experienced druid is speaking the formula of this spell, you are well advised to stand behind his back to evade this fatal wave of mud and leaves.",
-    "imagePath": "assets/screen-vision/reference/spells/terra-wave.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/terra-wave.png",
     "soundKey": "spell:terra-wave",
     "soundLabel": "Terra Wave",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo tera hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo tera hur.ogg",
     "sortIndex": 174
   },
   {
@@ -3018,10 +3018,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 145,
     "cooldownSeconds": 12,
     "description": "The monk's most dangerous and versatile weapon is the own body. Using the fist as an extension of the monk's will is considered a last resort if all reason fails. Sometimes a confident blow is not enough and the composure of every Merudri's disciple is tested. Concentrating on an opponent and its surroundings with the utmost focus its every impulse can be analysed to predict the enemy's pattern exactly. A the right time, the monk will chain together very fast and concise blows, hammering any adversary so fast that the movement blurs to appear of a thousand fists at the same time.",
-    "imagePath": "assets/screen-vision/reference/spells/thousand-fist-blows.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/thousand-fist-blows.png",
     "soundKey": "spell:thousand-fist-blows",
     "soundLabel": "Thousand Fist Blows",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori mas amp pug.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori mas amp pug.ogg",
     "sortIndex": 175
   },
   {
@@ -3040,10 +3040,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 0,
     "cooldownSeconds": 2,
     "description": "When being in a party, knights are able to share one of their greatest talent with their party members. The weapon skills of the knight and all members standing on one of 36 fields surrounding him when casting will be raised by 3 for 2 minutes. The knight's long training hours are reflected in this spell that uses the powerful magical energy that develops at places with several joined adventurers. Even though the spell costs extra mana for every profiting party member, the average mana costs decrease with every additional member.",
-    "imagePath": "assets/screen-vision/reference/spells/train-party.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/train-party.png",
     "soundKey": "spell:train-party",
     "soundLabel": "Train Party",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utito mas sio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utito mas sio.ogg",
     "sortIndex": 178
   },
   {
@@ -3062,10 +3062,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 100,
     "cooldownSeconds": 30,
     "description": "This spell was formerly deemed as useless by its inventor. It took an whole hour to build up enough static to cause an eruption. Although the eruption was powerful, the whole process was by far too slow and so the spell was only used for certain traps. Only recently, better ways to build up energy have been discovered. They speed up the charge of the spell to an almost instant level. With this improvement, the spell has made its way from a list of curiosities to a quite popular spell. As the magic potential of a sorcerer is only strong enough to master one such powerful spell, Ultimate Flame Strike and Ultimate Energy Strike share the same cooldown, before either of them can be cast again.",
-    "imagePath": "assets/screen-vision/reference/spells/ultimate-energy-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ultimate-energy-strike.png",
     "soundKey": "spell:ultimate-energy-strike",
     "soundLabel": "Ultimate Energy Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori max vis.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori max vis.ogg",
     "sortIndex": 179
   },
   {
@@ -3084,10 +3084,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 100,
     "cooldownSeconds": 30,
     "description": "This is actually a summon spell that willingly sacrifices a specific creature. As the experiments to summon the powerful hellfire fighters led to no success, it was tried to utilize at least some of the results in some form. This led to the creation of this spell with which one can summon an unstable form of an hellfire fighter that spontaneously explodes into a fiery burst. As the magic potential of a sorcerer is only strong enough to master one such powerful spell, Ultimate Flame Strike and Ultimate Energy Strike share the same cooldown, before either of them can be cast again.",
-    "imagePath": "assets/screen-vision/reference/spells/ultimate-flame-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ultimate-flame-strike.png",
     "soundKey": "spell:ultimate-flame-strike",
     "soundLabel": "Ultimate Flame Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori max flam.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori max flam.ogg",
     "sortIndex": 180
   },
   {
@@ -3107,10 +3107,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 160,
     "cooldownSeconds": 1,
     "description": "",
-    "imagePath": "assets/screen-vision/reference/spells/ultimate-healing.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ultimate-healing.png",
     "soundKey": "spell:ultimate-healing",
     "soundLabel": "Ultimate Healing",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura vita.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura vita.ogg",
     "sortIndex": 181
   },
   {
@@ -3129,10 +3129,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 100,
     "cooldownSeconds": 30,
     "description": "This spell was developed by the ice witch Yakchal herself and has made its way to the magic community through renegade ice witches that fled her mistress's wrath. It concentrates the powers of cold to a level that is even dangerous for the casters. As the magic potential of a druid is only strong enough to master one such powerful spell, Ultimate Ice Strike and Ultimate Terra Strike share the same cooldown, before either of them can be cast again.",
-    "imagePath": "assets/screen-vision/reference/spells/ultimate-ice-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ultimate-ice-strike.png",
     "soundKey": "spell:ultimate-ice-strike",
     "soundLabel": "Ultimate Ice Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori max frigo.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori max frigo.ogg",
     "sortIndex": 183
   },
   {
@@ -3152,10 +3152,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 140,
     "cooldownSeconds": 2,
     "description": "Like the name says, this spell represents the ultimate achievement in illuminating magic. After centuries of painstaking research the wizards at Edron's magic academy have finally succeeded both in extending the Great Light spell's duration and its intensity to create a whole new enchantment that is almost literally capable of turning night into day. Except for those creatures that possess the uncanny ability to turn themselves invisible, no evil creature should ever be able to catch you by surprise if you have cast Ultimate Light.",
-    "imagePath": "assets/screen-vision/reference/spells/ultimate-light.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ultimate-light.png",
     "soundKey": "spell:ultimate-light",
     "soundLabel": "Ultimate Light",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utevo vis lux.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utevo vis lux.ogg",
     "sortIndex": 184
   },
   {
@@ -3174,10 +3174,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 100,
     "cooldownSeconds": 30,
     "description": "This is another spell that was reluctantly developed by the druids as a necessity. This spell calls upon the powers of earth and is often combined with a short incantation of Crunor. The display of power is awesome, but it is said this misuse of the element earth hurts the heart of the druids almost as much as it damages their foes. Younger, more practical druids are known to use this spell with little discretion, though. As the magic potential of a druid is only strong enough to master one such powerful spell, Ultimate Ice Strike and Ultimate Terra Strike share the same cooldown, before either of them can be cast again.",
-    "imagePath": "assets/screen-vision/reference/spells/ultimate-terra-strike.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/ultimate-terra-strike.png",
     "soundKey": "spell:ultimate-terra-strike",
     "soundLabel": "Ultimate Terra Strike",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori max tera.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori max tera.ogg",
     "sortIndex": 185
   },
   {
@@ -3196,10 +3196,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 210,
     "cooldownSeconds": 10,
     "description": "One of the core principles on the Three-Fold Path to enlightenment is the concept of harmony. An enlightened monk will find true harmony and utilize it to effectively strengthen both, body and soul. The fully unlocked inner power of true harmony will affect others as well.",
-    "imagePath": "assets/screen-vision/reference/spells/virtue-of-harmony.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/virtue-of-harmony.png",
     "soundKey": "spell:virtue-of-harmony",
     "soundLabel": "Virtue of Harmony",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utori virtu.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utori virtu.ogg",
     "sortIndex": 186
   },
   {
@@ -3218,10 +3218,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 210,
     "cooldownSeconds": 10,
     "description": "The battles of the righteous monk are fueled by the strive for justice and balance. The virtue of true justice will affect others as well.",
-    "imagePath": "assets/screen-vision/reference/spells/virtue-of-justice.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/virtue-of-justice.png",
     "soundKey": "spell:virtue-of-justice",
     "soundLabel": "Virtue of Justice",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utito virtu.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utito virtu.ogg",
     "sortIndex": 187
   },
   {
@@ -3240,10 +3240,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 210,
     "cooldownSeconds": 10,
     "description": "Sustaining their believes, harmony and inner balance, dedicated monks are able to inspire and energize others. The strong will to fulfill their purpose in light of their ancient legacy will strengthen others as well.",
-    "imagePath": "assets/screen-vision/reference/spells/virtue-of-sustain.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/virtue-of-sustain.png",
     "soundKey": "spell:virtue-of-sustain",
     "soundLabel": "Virtue of Sustain",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/utura tio.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/utura tio.ogg",
     "sortIndex": 188
   },
   {
@@ -3262,10 +3262,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 40,
     "cooldownSeconds": 6,
     "description": "Cowardly creatures that run away from a fight can still be brought down by a knight with the Whirlwind Throw. Just like a boomerang, this spell lets the knight fling his weapon on his enemy and then returns it to his hand. Already young knights are able to learn this useful spell. However, a knight is well advised to train his weapon skill beforehand as the damage will rise with the skill to handle the weapon he is wielding. Moreover, he should carefully consider which weapon he uses to perform this spell, as this determines the damage type he is dealing out.",
-    "imagePath": "assets/screen-vision/reference/spells/whirlwind-throw.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/whirlwind-throw.png",
     "soundKey": "spell:whirlwind-throw",
     "soundLabel": "Whirlwind Throw",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exori hur.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exori hur.ogg",
     "sortIndex": 189
   },
   {
@@ -3284,10 +3284,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 60,
     "cooldownSeconds": 2,
     "description": "Any newly appointed knight can learn this spell for free. It was invented by the knight's guild to provide their members with some much needed healing abilities. As the name indicates, the spell helps to clean wounds rather than to provide full healing to a seriously battered knight. Therefore, it is more of a pain relief rather than a true healing spell. Nonetheless, in extreme situations this spell can still serve as a last resource to escape death. As the spell was specifically developed for knights, it uses the limited magical potential of knights to its full extent.",
-    "imagePath": "assets/screen-vision/reference/spells/wound-cleansing.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/wound-cleansing.png",
     "soundKey": "spell:wound-cleansing",
     "soundLabel": "Wound Cleansing",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exura ico.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exura ico.ogg",
     "sortIndex": 191
   },
   {
@@ -3306,10 +3306,10 @@ export const SCREEN_VISION_SPELL_PRESETS = [
     "mana": 700,
     "cooldownSeconds": 40,
     "description": "The research into earth spells has a venerable tradition among druids, and over the centuries a number of corresponding spells have been devised. Not all of them are as deadly as this spell. Wrath of Nature represents the ultimate achievement of this research and is now the most powerful earth damage spell in the druid's arsenal. Whenever it is cast a huge cloud of grass and soil combined with the powers of Mother Nature hits any creature that is unfortunate enough to stand close enough to the caster. Only the immunity to earth damage will allow a victim to survive the effects of this powerful attack. All druids who are thinking about using this spell should be careful though, because of its massive range of effect and its substantial mana cost. As the magic potential of a druid is only strong enough to master one such powerful spell, Wrath of Nature and Eternal Winter share the same cooldown, before either of them can be cast again.",
-    "imagePath": "assets/screen-vision/reference/spells/wrath-of-nature.png",
+    "imagePath": "assets/tools/tibia-mirror/reference/spells/wrath-of-nature.png",
     "soundKey": "spell:wrath-of-nature",
     "soundLabel": "Wrath of Nature",
-    "soundPath": "assets/screen-vision/reference/sounds/spells/exevo gran mas tera.ogg",
+    "soundPath": "assets/tools/tibia-mirror/reference/sounds/spells/exevo gran mas tera.ogg",
     "sortIndex": 192
   }
 ];

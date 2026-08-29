@@ -12,13 +12,9 @@ const assetsRoot = path.join(root, "assets");
 const reportDirectory = path.join(root, ".local", "audits");
 const reportPath = path.join(reportDirectory, "app-runtime-assets-audit.json");
 const issues = [];
-const checked = { literalReferences: 0, assetFiles: 0, imageFiles: 0, webpStoredWithPngExtension: 0, spells: 0, librarySprites: 0, bookImages: 0, proficiencyIcons: 0, intentionallyExcluded: 0 };
+const checked = { literalReferences: 0, cssUrls: 0, assetFiles: 0, imageFiles: 0, webpStoredWithPngExtension: 0, spells: 0, librarySprites: 0, bookImages: 0, proficiencyIcons: 0, intentionallyExcluded: 0 };
 const allowedExtensions = new Set([".css", ".gif", ".html", ".jpg", ".js", ".json", ".md", ".ogg", ".png", ".svg", ".webp"]);
 const imageExtensions = new Set([".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"]);
-const runtimeAssetExceptions = new Set([
-  "assets/tibia-client/organized/client-ui/images/taskboard/icon-weeklytasks.png",
-  "assets/tibia-client/organized/objects/items/painting-equipment/artist-s-palette--item-3133.png"
-]);
 const externalWindowFiles = new Set([
   "desktop/supporters-showcase.html",
   "desktop/window-move-handle.html",
@@ -31,12 +27,39 @@ const externalWindowFiles = new Set([
 // This list is intentionally small and limited to bootstrap/UI assets that
 // must remain available even when the rest of the asset tree is reorganized.
 const dynamicAssetContracts = [
-  { reference: "assets/ui/Tick.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
-  { reference: "assets/ui/Cross.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
-  { reference: "assets/ui/desktop-controls/desktop-minimize-idle.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
-  { reference: "assets/ui/desktop-controls/desktop-minimize-active.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
-  { reference: "assets/ui/desktop-controls/desktop-close-idle.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
-  { reference: "assets/ui/desktop-controls/desktop-close-active.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" }
+  { reference: "assets/common/actions/Tick.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
+  { reference: "assets/common/actions/Cross.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
+  { reference: "assets/navigation/desktop-controls/desktop-minimize-idle.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
+  { reference: "assets/navigation/desktop-controls/desktop-minimize-active.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
+  { reference: "assets/navigation/desktop-controls/desktop-close-idle.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" },
+  { reference: "assets/navigation/desktop-controls/desktop-close-active.png", location: "desktop/main.js:buildAppCloseChoiceDialogHtml" }
+  ,{ reference: "assets/tutorial/update.gif", location: "desktop/main.js:dialog media" }
+  ,{ reference: "assets/tutorial/websocketobs.gif", location: "desktop/main.js:OBS tutorial dialog" }
+  ,{ reference: "assets/tools/tibia-mirror/states/atencao.gif", location: "desktop/main.js:warning dialog" }
+  ,{ reference: "assets/tools/tibia-mirror/states/cuidado.gif", location: "desktop/main.js:danger dialog" }
+  ,{ reference: "assets/library/items/catalog/sprites/1874.png", location: "assets/tools/wheel-of-destiny/frame.js:summary launcher" }
+  ,{ reference: "assets/tools/wheel-of-destiny/images/community/wheelofdestiny/icon-augmentation1-active.png", location: "assets/tools/wheel-of-destiny/wheelofdestinyplanner.min.js:augmentation tooltip" }
+  ,{ reference: "assets/tools/wheel-of-destiny/images/community/wheelofdestiny/icon-augmentation1-inactive.png", location: "assets/tools/wheel-of-destiny/wheelofdestinyplanner.min.js:augmentation tooltip" }
+  ,{ reference: "assets/tools/wheel-of-destiny/images/community/wheelofdestiny/icon-augmentation2-active.png", location: "assets/tools/wheel-of-destiny/wheelofdestinyplanner.min.js:augmentation tooltip" }
+  ,{ reference: "assets/tools/wheel-of-destiny/images/community/wheelofdestiny/icon-augmentation2-inactive.png", location: "assets/tools/wheel-of-destiny/wheelofdestinyplanner.min.js:augmentation tooltip" }
+  ,{ reference: "assets/tools/wheel-of-destiny/images/community/wheelofdestiny/icon_spelldamage.png", location: "assets/tools/wheel-of-destiny/wheelofdestinyplanner.min.js:perk summary icon" }
+  ,{ reference: "assets/tools/wheel-of-destiny/images/community/wheelofdestiny/icon_cooldown_reduction.png", location: "assets/tools/wheel-of-destiny/wheelofdestinyplanner.min.js:perk summary icon" }
+  ,{ reference: "assets/tools/wheel-of-destiny/images/community/wheelofdestiny/icon_crit.png", location: "assets/tools/wheel-of-destiny/wheelofdestinyplanner.min.js:perk summary icon" }
+];
+
+// Keep the top-level asset taxonomy closed. A new category must be justified
+// in ASSET_LAYOUT.md before it can silently become part of the runtime pack.
+const canonicalTopLevelAssetDirectories = new Set([
+  "bestiary", "common", "economy", "feedback", "flags", "library",
+  "localization", "maps", "mini-world-changes", "monetization", "navigation",
+  "settings", "spell-filters", "sprite-sheets", "tools", "tutorial", "vocations",
+  "window-controls", "world-status"
+]);
+
+const forbiddenLegacyPathPatterns = [
+  { pattern: /["']assets["']\s*,\s*["']ui["']/g, detail: "path.join ainda aponta para assets/ui" },
+  { pattern: /(?:\.\.\/)+data\/items\/sprites\//g, detail: "iframe ainda aponta para data/items/sprites" },
+  { pattern: /assets\/(?:game-client|tibia-client)\//g, detail: "referencia a pasta de cliente removida" }
 ];
 
 async function exists(file) {
@@ -81,15 +104,31 @@ const builder = JSON.parse(await fs.readFile(path.join(root, "desktop", "electro
 if (!Array.isArray(builder.files) || !builder.files.includes("!assets/**/*")) {
   issues.push({ kind: "installer-contract", detail: "A exclusao intencional de assets do instalador mudou." });
 }
+for (const contract of dynamicAssetContracts.filter((entry) => entry.location.startsWith("desktop/main.js:"))) {
+  const bundled = builder.files.some((entry) => {
+    const normalized = String(entry || "").replaceAll("\\", "/");
+    if (normalized === contract.reference) return true;
+    if (!normalized.endsWith("/**/*")) return false;
+    return contract.reference.startsWith(normalized.slice(0, -5));
+  });
+  if (!bundled) {
+    issues.push({ kind: "dialog-bootstrap-asset-not-bundled", reference: contract.reference, location: contract.location });
+  }
+}
 const contentBuilder = await fs.readFile(path.join(root, "tools", "build-content-pack.mjs"), "utf8");
 if (!contentBuilder.includes('archive.addLocalFolder(path.join(projectRoot, "assets"), "assets"')) {
   issues.push({ kind: "content-pack-contract", detail: "O gerador nao inclui a arvore assets completa." });
 }
 
 const allAssets = await walk(assetsRoot);
+for (const entry of await fs.readdir(assetsRoot, { withFileTypes: true })) {
+  if (!entry.isDirectory()) continue;
+  if (!canonicalTopLevelAssetDirectories.has(entry.name)) {
+    issues.push({ kind: "undeclared-asset-category", directory: `assets/${entry.name}` });
+  }
+}
 for (const file of allAssets) {
   const relative = path.relative(root, file).replaceAll("\\", "/");
-  if (relative.startsWith("assets/tibia-client/organized/") && !runtimeAssetExceptions.has(relative)) continue;
   const extension = path.extname(file).toLowerCase();
   if (imageExtensions.has(extension)) {
     checked.imageFiles += 1;
@@ -134,12 +173,38 @@ const sourceFiles = [
   path.join(root, "index.html"),
   ...(await walk(path.join(root, "desktop"))).filter((file) => /\.(?:c?js|json|css|html)$/i.test(file)),
   ...(await walk(path.join(root, "lib"))).filter((file) => /\.(?:c?js|json|css|html)$/i.test(file)),
+  ...(await walk(path.join(root, "assets", "tools"))).filter((file) => /\.(?:c?js|css|html)$/i.test(file)),
 ];
 const references = new Map();
 const referencePattern = /(?:\/?assets\/[^\s"'`<>]+?\.(?:json|html|jpeg|webp|css|gif|jpg|ogg|png|svg|md|js))(?:[?#][^\s"'`<>]*)?/gi;
 for (const file of sourceFiles) {
   const source = await fs.readFile(file, "utf8");
   const relativeSourcePath = path.relative(root, file).replaceAll("\\", "/");
+  if (path.extname(file).toLowerCase() === ".css") {
+    for (const match of source.matchAll(/url\(\s*(["']?)([^"')]+)\1\s*\)/gi)) {
+      const rawReference = String(match[2] || "").trim();
+      if (!rawReference || /^(?:data:|https?:|blob:|#|var\()/i.test(rawReference)) continue;
+      const cleanReference = decodeURIComponent(rawReference.replace(/[?#].*$/, ""));
+      const resolved = cleanReference.startsWith("/assets/")
+        ? path.join(root, cleanReference.slice(1))
+        : path.resolve(path.dirname(file), cleanReference);
+      checked.cssUrls += 1;
+      if (!(await exists(resolved))) {
+        issues.push({
+          kind: "css-relative-url-missing",
+          file: relativeSourcePath,
+          reference: rawReference,
+          resolved: path.relative(root, resolved).replaceAll("\\", "/")
+        });
+      }
+    }
+  }
+  for (const legacy of forbiddenLegacyPathPatterns) {
+    legacy.pattern.lastIndex = 0;
+    if (legacy.pattern.test(source)) {
+      issues.push({ kind: "forbidden-legacy-asset-path", file: relativeSourcePath, detail: legacy.detail });
+    }
+  }
   if (externalWindowFiles.has(relativeSourcePath) && /(?:\.\.\/)+assets\//.test(source)) {
     issues.push({
       kind: "external-window-relative-asset-path",
@@ -176,37 +241,37 @@ for (const contract of dynamicAssetContracts) {
   }
 }
 
-const spells = JSON.parse(await fs.readFile(path.join(assetsRoot, "data", "spells.detailed.json"), "utf8"));
+const spells = JSON.parse(await fs.readFile(path.join(assetsRoot, "library", "catalogs", "spells.detailed.json"), "utf8"));
 for (const spell of spells.records || []) {
   checked.spells += 1;
   for (const candidate of [spell.icon, spell.animation?.localPath]) {
     if (!candidate) continue;
     const relative = normalizeReference(candidate)
-      .replace(/^\/library\/spells\//, "assets/data/spells/")
-      .replace(/^library\/spells\//, "assets/data/spells/");
+      .replace(/^\/library\/spells\//, "assets/library/spells/")
+      .replace(/^library\/spells\//, "assets/library/spells/");
     if (!(await exists(path.join(root, relative)))) {
       issues.push({ kind: "spell-media-missing", spell: spell.id, reference: relative });
     }
   }
 }
 
-const spritePaths = JSON.parse(await fs.readFile(path.join(assetsRoot, "data", "library-sprite-paths.json"), "utf8"));
+const spritePaths = JSON.parse(await fs.readFile(path.join(assetsRoot, "library", "catalogs", "library-sprite-paths.json"), "utf8"));
 for (const kind of ["creatures", "npcs"]) {
   for (const [slug, extension] of Object.entries(spritePaths[kind] || {})) {
     checked.librarySprites += 1;
-    const relative = `assets/data/${kind}/${slug}.${extension}`;
+    const relative = `assets/library/${kind}/sprites/${slug}.${extension}`;
     if (!(await exists(path.join(root, relative)))) {
       issues.push({ kind: "library-sprite-missing", entityKind: kind, slug, reference: relative });
     }
   }
 }
 
-const canonical = JSON.parse(await fs.readFile(path.join(assetsRoot, "data", "site-library-canonical.json"), "utf8"));
+const canonical = JSON.parse(await fs.readFile(path.join(assetsRoot, "library", "catalogs", "site-library-canonical.json"), "utf8"));
 const localBookImage = (source) => {
   const remoteFilename = decodeURIComponent(String(source || "").split("/").at(-1) || "book.gif").replace(/^arquivo:/i, "").replace(/[?#].*$/, "");
   const extension = remoteFilename.match(/(\.[a-z0-9]+)$/i)?.[1]?.toLowerCase() || ".gif";
   const filename = remoteFilename.slice(0, -extension.length).toLocaleLowerCase("en-US").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-  return `assets/data/books-documents/images/${filename || "book"}${extension}`;
+  return `assets/library/books/documents/images/${filename || "book"}${extension}`;
 };
 for (const book of canonical.records?.books || []) {
   const sources = [book.image, ...(book.appearances || []).map((appearance) => appearance.source || appearance.image)].filter(Boolean);
@@ -225,7 +290,7 @@ for (const item of canonical.records?.items || []) {
         const filename = String(image?.src || image?.url || image || "").split("/").filter(Boolean).at(-1);
         if (!filename) continue;
         checked.proficiencyIcons += 1;
-        const relative = `assets/data/item-proficiency-icons/${filename}`;
+        const relative = `assets/library/items/proficiency-icons/${filename}`;
         if (!(await exists(path.join(root, relative)))) {
           issues.push({ kind: "proficiency-icon-missing", item: item.slug, reference: relative });
         }

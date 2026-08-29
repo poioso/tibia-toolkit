@@ -61,56 +61,56 @@ const COUNTDOWN_BORDER_COLOR_OPTIONS = [
 ];
 
 const TOOLBAR_STATE_ASSETS = {
-  visible: "assets/ui/tools/tibia-eye/toolbar/visivel.png",
-  hidden: "assets/ui/tools/tibia-eye/toolbar/oculto.png",
-  locked: "assets/ui/tools/tibia-eye/toolbar/trancado.png",
-  unlocked: "assets/ui/tools/tibia-eye/toolbar/destrancado.png"
+  visible: "assets/tools/tibia-mirror/toolbar/visivel.png",
+  hidden: "assets/tools/tibia-mirror/toolbar/oculto.png",
+  locked: "assets/tools/tibia-mirror/toolbar/trancado.png",
+  unlocked: "assets/tools/tibia-mirror/toolbar/destrancado.png"
 };
-const MAGNIFIED_CROP_ASSET = "assets/ui/tools/tibia-eye/toolbar/Loupe.gif";
+const MAGNIFIED_CROP_ASSET = "assets/tools/tibia-mirror/toolbar/Loupe.gif";
 
 const PROFILE_PANEL_ASSETS = {
-  create: "assets/ui/tools/tibia-eye/profiles/novo-perfil.png",
-  import: "assets/ui/tools/tibia-eye/profiles/importar-perfil.png",
-  export: "assets/ui/tools/tibia-eye/profiles/exportar-perfil.png",
-  noVocation: "assets/ui/tools/tibia-eye/profiles/no-vocation.png",
-  firstProfileState: "assets/ui/tools/tibia-eye/states/crie-um-perfil.gif"
+  create: "assets/tools/tibia-mirror/profiles/novo-perfil.png",
+  import: "assets/tools/tibia-mirror/profiles/importar-perfil.png",
+  export: "assets/tools/tibia-mirror/profiles/exportar-perfil.png",
+  noVocation: "assets/tools/tibia-mirror/profiles/no-vocation.png",
+  firstProfileState: "assets/tools/tibia-mirror/states/crie-um-perfil.gif"
 };
 const PROFILE_CREATE_SENTINEL = "__create__";
 const TUTORIAL_PROFILE_DEMO_PATH = "__tibia_mirror_tutorial_profile__";
 const AUTHENTICATOR_CREATE_SENTINEL = "__authenticator_create__";
 const AUTHENTICATOR_PANEL_ASSETS = {
-  toolbar: "assets/ui/tools/tibia-eye/authenticator/qr-code-white-icon.webp",
-  create: "assets/ui/tools/tibia-eye/authenticator/addqrcode.png",
-  hotp: "assets/ui/tools/tibia-eye/authenticator/contagem.png",
-  totp: "assets/ui/tools/tibia-eye/authenticator/horario.png"
+  toolbar: "assets/tools/authenticator/qr-code-white-icon.webp",
+  create: "assets/tools/authenticator/addqrcode.png",
+  hotp: "assets/tools/authenticator/contagem.png",
+  totp: "assets/tools/authenticator/horario.png"
 };
 
 const COUNTDOWN_ASSETS = {
-  bar: "assets/ui/tools/tibia-eye/cooldown/barra.gif",
-  barStill: "assets/ui/tools/tibia-eye/cooldown/barra-still.png",
-  flash: "assets/ui/tools/tibia-eye/cooldown/flash.gif",
-  flashStill: "assets/ui/tools/tibia-eye/cooldown/flash-still.png",
-  playtest: "assets/ui/tools/tibia-eye/cooldown/playtest.gif",
-  playtestStill: "assets/ui/tools/tibia-eye/cooldown/playtest-still.png"
+  bar: "assets/tools/tibia-mirror/cooldown/barra.gif",
+  barStill: "assets/tools/tibia-mirror/cooldown/barra-still.png",
+  flash: "assets/tools/tibia-mirror/cooldown/flash.gif",
+  flashStill: "assets/tools/tibia-mirror/cooldown/flash-still.png",
+  playtest: "assets/tools/tibia-mirror/cooldown/playtest.gif",
+  playtestStill: "assets/tools/tibia-mirror/cooldown/playtest-still.png"
 };
 
 const SQM_FINDER_ASSETS = {
-  sqm: "assets/ui/tools/tibia-eye/sqm/sqmfinder.gif",
-  cursorGlow: "assets/ui/tools/tibia-eye/sqm/cursorglow.gif"
+  sqm: "assets/tools/sqm-finder/sqmfinder.gif",
+  cursorGlow: "assets/tools/sqm-finder/cursorglow.gif"
 };
 
 const TIBIA_COINS_PANEL_ASSETS = {
-  coin: "assets/ui/economy/Tibia_Coin_Icon.gif",
-  loading: "assets/ui/tools/tibia-eye/tibia-coins/loading.gif",
-  brandLogo: "assets/ui/tools/tibia-eye/tibia-coins/daniel-hatano-logo.webp",
-  resellerLogo: "assets/ui/tools/tibia-eye/tibia-coins/cipsoft-authorized-reseller.png",
+  coin: "assets/economy/Tibia_Coin_Icon.gif",
+  loading: "assets/monetization/tibia-coins/loading.gif",
+  brandLogo: "assets/monetization/tibia-coins/daniel-hatano-logo.webp",
+  resellerLogo: "assets/monetization/tibia-coins/cipsoft-authorized-reseller.png",
   tiers: [
-    { max: 250, icon: "assets/ui/tools/tibia-eye/tibia-coins/Tibia_Coins250.png" },
-    { max: 750, icon: "assets/ui/tools/tibia-eye/tibia-coins/Tibia_Coins750.png" },
-    { max: 1500, icon: "assets/ui/tools/tibia-eye/tibia-coins/Tibia_Coins1500.png" },
-    { max: 3000, icon: "assets/ui/tools/tibia-eye/tibia-coins/Tibia_Coins3000.png" },
-    { max: 4500, icon: "assets/ui/tools/tibia-eye/tibia-coins/Tibia_Coins4500.png" },
-    { max: Infinity, icon: "assets/ui/tools/tibia-eye/tibia-coins/Tibia_Coins15000.png" }
+    { max: 250, icon: "assets/monetization/tibia-coins/Tibia_Coins250.png" },
+    { max: 750, icon: "assets/monetization/tibia-coins/Tibia_Coins750.png" },
+    { max: 1500, icon: "assets/monetization/tibia-coins/Tibia_Coins1500.png" },
+    { max: 3000, icon: "assets/monetization/tibia-coins/Tibia_Coins3000.png" },
+    { max: 4500, icon: "assets/monetization/tibia-coins/Tibia_Coins4500.png" },
+    { max: Infinity, icon: "assets/monetization/tibia-coins/Tibia_Coins15000.png" }
   ]
 };
 const TIBIA_COINS_QUANTITY_MIN = 25;
@@ -139,16 +139,16 @@ const TIBIA_COINS_PACKAGE_BASE_PER_250 = new Map([
 const TIBIA_COINS_BASE_UNIT_PRICE = 0.2547;
 const TIBIA_COINS_APP_DISCOUNT_RATE = 0.01;
 const COFFEE_PANEL_ASSETS = {
-  toolbar: "assets/ui/tools/tibia-eye/buy-me-a-coffee/coffee-toolbar.gif",
-  hero: "assets/ui/tools/tibia-eye/buy-me-a-coffee/coffee-hero.gif",
-  thankYou: "assets/ui/tools/tibia-eye/buy-me-a-coffee/thank-you.gif",
-  pix: "assets/ui/tools/tibia-eye/buy-me-a-coffee/pix.png",
-  mercadoPago: "assets/ui/tools/tibia-eye/buy-me-a-coffee/mercado-pago.png",
-  pixQrFallback: "assets/ui/tools/tibia-eye/buy-me-a-coffee/pix-qr.png",
-  qr: "assets/ui/tools/tibia-eye/authenticator/qr-code-white-icon.webp",
-  discord: "assets/ui/tools/tibia-eye/buy-me-a-coffee/discord.svg",
-  tick: "assets/ui/Tick.png",
-  coin: "assets/ui/economy/Tibia_Coin_Icon.gif"
+  toolbar: "assets/monetization/support/coffee-toolbar.gif",
+  hero: "assets/monetization/support/coffee-hero.gif",
+  thankYou: "assets/monetization/support/thank-you.gif",
+  pix: "assets/monetization/support/pix.png",
+  mercadoPago: "assets/monetization/support/mercado-pago.png",
+  pixQrFallback: "assets/monetization/support/pix-qr.png",
+  qr: "assets/tools/authenticator/qr-code-white-icon.webp",
+  discord: "assets/monetization/support/discord.svg",
+  tick: "assets/common/actions/Tick.png",
+  coin: "assets/economy/Tibia_Coin_Icon.gif"
 };
 const LIVEPIX_URL = "https://livepix.gg/poioso/";
 const LIVEPIX_SUBSCRIBE_URL = "https://livepix.gg/poioso/dedicado";
@@ -156,16 +156,16 @@ const LIVEPIX_WIDGET_URL = "https://widget.livepix.gg/embed/a3597793-a561-41fb-9
 const COFFEE_DISCORD_URL = "https://discord.gg/2AFRsc2jmp";
 const SETTINGS_PANEL_DISCORD_URL = "https://discord.gg/2AFRsc2jmp";
 const SETTINGS_PANEL_YOUTUBE_URL = "https://www.youtube.com/@poioso?sub_confirmation=1";
-const SETTINGS_PANEL_WEBSITE_URL = "https://tibiatoolkit.com/?utm_source=tibia_toolkit_app&utm_medium=desktop&utm_campaign=settings";
+const SETTINGS_PANEL_WEBSITE_URL = "https://tibiarealm.com/?utm_source=tibia_toolkit_app&utm_medium=desktop&utm_campaign=settings";
 const SETTINGS_PANEL_ASSETS = {
-  login: "assets/ui/account/login.png",
-  logout: "assets/ui/account/logout.png",
-  myAccount: "assets/ui/account/my-account.png",
-  discord: "assets/ui/tools/tibia-eye/settings/discord-button.png",
-  youtube: "assets/ui/tools/tibia-eye/settings/youtube-button.png",
-  authenticator: "assets/ui/tools/tibia-eye/settings/authenticator-button.png",
-  tutorial: "assets/ui/tools/tibia-eye/settings/tutorial-button.png",
-  website: "assets/ui/tools/tibia-eye/settings/website-button.png"
+  login: "assets/settings/account/login.png",
+  logout: "assets/settings/account/logout.png",
+  myAccount: "assets/settings/account/my-account.png",
+  discord: "assets/settings/social/discord-button.png",
+  youtube: "assets/settings/social/youtube-button.png",
+  authenticator: "assets/settings/integrations/authenticator-button.png",
+  tutorial: "assets/settings/tutorial/tutorial-button.png",
+  website: "assets/settings/social/website-button.png"
 };
 const COFFEE_DONATION_OPTIONS = [
   { value: "9,90", image: "9-90.png", url: "https://mpago.li/1yc9P3b" },
@@ -179,12 +179,12 @@ const COFFEE_DONATION_OPTIONS = [
 const DEFAULT_COFFEE_WORLD = "Honbra";
 const SUPPORTER_PANEL_TIER_ORDER = ["diamond", "gold", "silver", "bronze", "iron"];
 const SUPPORTER_PANEL_TIER_META = {
-  diamond: { labelKey: "screenVision.supporters.tier.diamond", medalPath: "assets/ui/supporters/medalha-diamante.png" },
-  gold: { labelKey: "screenVision.supporters.tier.gold", medalPath: "assets/ui/supporters/medalha-ouro.png" },
-  silver: { labelKey: "screenVision.supporters.tier.silver", medalPath: "assets/ui/supporters/medalha-prata.png" },
-  bronze: { labelKey: "screenVision.supporters.tier.bronze", medalPath: "assets/ui/supporters/medalha-bronze.png" },
-  iron: { labelKey: "screenVision.supporters.tier.iron", medalPath: "assets/ui/supporters/medalha-ferro.png" },
-  default: { labelKey: "screenVision.supporters.tier.default", medalPath: "assets/ui/supporters/medalha-ferro.png" }
+  diamond: { labelKey: "screenVision.supporters.tier.diamond", medalPath: "assets/monetization/supporters/medalha-diamante.png" },
+  gold: { labelKey: "screenVision.supporters.tier.gold", medalPath: "assets/monetization/supporters/medalha-ouro.png" },
+  silver: { labelKey: "screenVision.supporters.tier.silver", medalPath: "assets/monetization/supporters/medalha-prata.png" },
+  bronze: { labelKey: "screenVision.supporters.tier.bronze", medalPath: "assets/monetization/supporters/medalha-bronze.png" },
+  iron: { labelKey: "screenVision.supporters.tier.iron", medalPath: "assets/monetization/supporters/medalha-ferro.png" },
+  default: { labelKey: "screenVision.supporters.tier.default", medalPath: "assets/monetization/supporters/medalha-ferro.png" }
 };
 const SUPPORTER_SHOWCASE_DEFAULTS = {
   normalMs: 6000,
@@ -252,40 +252,40 @@ const SQM_SHAPE_SEQUENCE = ["Circle", "Arrow", "Square"];
 
 const VOCATION_OUTFITS = {
   druid: {
-    male: "assets/ui/vocations/druid-male.png",
-    female: "assets/ui/vocations/druid-female.png"
+    male: "assets/vocations/druid-male.png",
+    female: "assets/vocations/druid-female.png"
   },
   elderdruid: {
-    male: "assets/ui/vocations/druid-male.png",
-    female: "assets/ui/vocations/druid-female.png"
+    male: "assets/vocations/druid-male.png",
+    female: "assets/vocations/druid-female.png"
   },
   monk: {
-    male: "assets/ui/vocations/monk-male.png",
-    female: "assets/ui/vocations/monk-female.png"
+    male: "assets/vocations/monk-male.png",
+    female: "assets/vocations/monk-female.png"
   },
   knight: {
-    male: "assets/ui/vocations/knight-male.png",
-    female: "assets/ui/vocations/knight-female.png"
+    male: "assets/vocations/knight-male.png",
+    female: "assets/vocations/knight-female.png"
   },
   eliteknight: {
-    male: "assets/ui/vocations/knight-male.png",
-    female: "assets/ui/vocations/knight-female.png"
+    male: "assets/vocations/knight-male.png",
+    female: "assets/vocations/knight-female.png"
   },
   sorcerer: {
-    male: "assets/ui/vocations/sorcerer-male.png",
-    female: "assets/ui/vocations/sorcerer-female.png"
+    male: "assets/vocations/sorcerer-male.png",
+    female: "assets/vocations/sorcerer-female.png"
   },
   mastersorcerer: {
-    male: "assets/ui/vocations/sorcerer-male.png",
-    female: "assets/ui/vocations/sorcerer-female.png"
+    male: "assets/vocations/sorcerer-male.png",
+    female: "assets/vocations/sorcerer-female.png"
   },
   paladin: {
-    male: "assets/ui/vocations/paladin-male.png",
-    female: "assets/ui/vocations/paladin-female.png"
+    male: "assets/vocations/paladin-male.png",
+    female: "assets/vocations/paladin-female.png"
   },
   royalpaladin: {
-    male: "assets/ui/vocations/paladin-male.png",
-    female: "assets/ui/vocations/paladin-female.png"
+    male: "assets/vocations/paladin-male.png",
+    female: "assets/vocations/paladin-female.png"
   }
 };
 
@@ -293,27 +293,27 @@ const ALERT_DOCKED_SOUND_OPTIONS = [
   {
     value: "utura-gran",
     label: "utura gran",
-    file: new URL("../../assets/screen-vision/reference/sounds/utura gran.ogg", import.meta.url).href
+    file: new URL("../../assets/tools/tibia-mirror/reference/sounds/utura gran.ogg", import.meta.url).href
   },
   {
     value: "exura-gran-ico",
     label: "exura gran ico",
-    file: new URL("../../assets/screen-vision/reference/sounds/exura gran ico.ogg", import.meta.url).href
+    file: new URL("../../assets/tools/tibia-mirror/reference/sounds/exura gran ico.ogg", import.meta.url).href
   },
   {
     value: "utito-tempo",
     label: "utito tempo",
-    file: new URL("../../assets/screen-vision/reference/sounds/utito tempo.ogg", import.meta.url).href
+    file: new URL("../../assets/tools/tibia-mirror/reference/sounds/utito tempo.ogg", import.meta.url).href
   }
 ];
 
-const DOCKED_ALERT_MAGIC_CREATE_ASSET = "assets/ui/tools/tibia-eye/tibia-coins/loading.gif";
+const DOCKED_ALERT_MAGIC_CREATE_ASSET = "assets/monetization/tibia-coins/loading.gif";
 const DOCKED_ALERT_MAGIC_VOCATION_OPTIONS = [
-  { key: "knight", label: "Knight", asset: "assets/ui/vocations/knight-male.png" },
-  { key: "paladin", label: "Paladin", asset: "assets/ui/vocations/paladin-male.png" },
-  { key: "druid", label: "Druid", asset: "assets/ui/vocations/druid-male.png" },
-  { key: "sorcerer", label: "Sorcerer", asset: "assets/ui/vocations/sorcerer-male.png" },
-  { key: "monk", label: "Monk", asset: "assets/ui/vocations/monk-male.png" }
+  { key: "knight", label: "Knight", asset: "assets/vocations/knight-male.png" },
+  { key: "paladin", label: "Paladin", asset: "assets/vocations/paladin-male.png" },
+  { key: "druid", label: "Druid", asset: "assets/vocations/druid-male.png" },
+  { key: "sorcerer", label: "Sorcerer", asset: "assets/vocations/sorcerer-male.png" },
+  { key: "monk", label: "Monk", asset: "assets/vocations/monk-male.png" }
 ];
 const DOCKED_ALERT_MAGIC_CATEGORY_ORDER = ["cura", "suporte", "ataque", "stance"];
 const DOCKED_ALERT_MAGIC_CATEGORY_LABELS = {
@@ -711,7 +711,7 @@ function bindEvents() {
         flat: true
       };
       if (state.obsMirrorStatus.errorKind === "websocket") {
-        dialogOptions.mediaPath = "assets/ui/tutorial/websocketobs.gif";
+        dialogOptions.mediaPath = "assets/tutorial/websocketobs.gif";
         dialogOptions.mediaWidth = 320;
       }
       await window.screenVisionApi.dialogs.confirm(dialogOptions).catch(() => null);
@@ -1556,7 +1556,7 @@ function bindExternalEvents() {
     ) {
       resetDockedAlertTransientUiState();
     }
-    if (!state.dockedPanel.open || state.dockedPanel.panelKey !== "buy-me-a-coffee-panel") {
+    if (!state.dockedPanel.open || state.dockedPanel.panelKey !== "support-panel") {
       resetCoffeePanelState();
     }
     if (state.dockedPanel.open && state.dockedPanel.panelKey === "authenticator-panel") {
@@ -1631,7 +1631,7 @@ function getDockedPanelCopy(panelKey) {
     };
   }
 
-  if (panelKey === "buy-me-a-coffee-panel") {
+  if (panelKey === "support-panel") {
     return {
       title: t("screenVision.coffee.title"),
       description: "",
@@ -1719,7 +1719,7 @@ function isDockedTibiaCoinsPanelOpen() {
 }
 
 function isDockedCoffeePanelOpen() {
-  return state.dockedPanel.open && state.dockedPanel.panelKey === "buy-me-a-coffee-panel";
+  return state.dockedPanel.open && state.dockedPanel.panelKey === "support-panel";
 }
 
 async function loadDockedVisualState(options = {}) {
@@ -2264,7 +2264,7 @@ function renderDockedPanelShell(panelState, copy) {
     return renderDockedSupportersPanel(panelState, copy);
   }
 
-  if (panelState.panelKey === "buy-me-a-coffee-panel") {
+  if (panelState.panelKey === "support-panel") {
     return renderDockedCoffeePanel(panelState, copy);
   }
 
@@ -2666,7 +2666,8 @@ function normalizeCoffeeQrImageUrl(value, fallbackUrl) {
   try {
     const parsedUrl = new URL(rawUrl);
     const hostname = parsedUrl.hostname.toLowerCase();
-    const isTrustedToolkitHost = hostname === "tibiatoolkit.com" || hostname.endsWith(".tibiatoolkit.com");
+    const isTrustedToolkitHost = hostname === "tibiarealm.com" || hostname.endsWith(".tibiarealm.com")
+      || hostname === "tibiatoolkit.com" || hostname.endsWith(".tibiatoolkit.com");
 
     if ((parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") && isTrustedToolkitHost) {
       return parsedUrl.href;
@@ -3539,7 +3540,7 @@ async function handleDockedSupportersPanelClick(event) {
     if (!shouldShowCoffeeButton()) {
       return;
     }
-    await window.screenVisionApi.tools.open("buy-me-a-coffee-panel").catch(() => null);
+    await window.screenVisionApi.tools.open("support-panel").catch(() => null);
   }
 }
 
@@ -3620,7 +3621,7 @@ async function handleDockedSettingsPanelClick(event) {
       confirmLabel: t("screenVision.settings.resetTutorialConfirm"),
       cancelLabel: t("common.cancel"),
       tone: "success",
-      mediaPath: "assets/ui/tutorial/tutorial.gif",
+      mediaPath: "assets/tutorial/tutorial.gif",
       autoHeight: true,
       flat: true
     }).catch(() => null);
@@ -3989,8 +3990,8 @@ function renderDockedTibiaCoinsPanel(panelState, copy) {
 
           <button type="button" class="docked-tibia-coins-confirm desktop-window-image-button${canConfirm ? "" : " disabled"}" data-docked-action="confirm-tibia-coins" data-tooltip="${escapeHtml(canConfirm ? t("screenVision.tibiaCoins.buyNow") : t("screenVision.tibiaCoins.invalidCharacter"))}" aria-label="${escapeHtml(t("screenVision.tibiaCoins.buyAria"))}"${canConfirm ? "" : " disabled"}>
             <span class="desktop-window-icon-stack" aria-hidden="true">
-              <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/Tick.png" alt="">
-              <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/Tick.png" alt="">
+              <img class="desktop-window-icon desktop-window-icon-idle" src="assets/common/actions/Tick.png" alt="">
+              <img class="desktop-window-icon desktop-window-icon-active" src="assets/common/actions/Tick.png" alt="">
             </span>
           </button>
         </article>
@@ -4045,7 +4046,7 @@ function renderDockedCoffeeSupportOptions() {
   const mercadoPagoConfig = coffeeConfig.mercadoPago || createDefaultCoffeeConfig().mercadoPago;
   const visibleDonationOptions = getVisibleCoffeeDonationOptions(coffeeConfig);
   const characterName = String(tibiaCoinsConfig.characterName || "Poioso").trim() || "Poioso";
-  const characterButton = `<button type="button" class="docked-coffee-character-copy imbuement-copy-button" data-docked-action="copy-coffee-character" data-coffee-character="${escapeHtml(characterName)}" data-tooltip="${escapeHtml(t("screenVision.coffee.copyCharacterName"))}" aria-label="${escapeHtml(t("screenVision.coffee.copyCharacterName"))}"><strong>${escapeHtml(characterName)}</strong><span class="copy-sprite-stack" aria-hidden="true"><img class="copy-sprite-icon copy-sprite-icon-off" src="assets/ui/copy/copiar-off.png" alt=""><img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/ui/copy/copiar-hover.png" alt=""><img class="copy-sprite-icon copy-sprite-icon-on" src="assets/ui/copy/copiar-on.png" alt=""></span></button>`;
+  const characterButton = `<button type="button" class="docked-coffee-character-copy imbuement-copy-button" data-docked-action="copy-coffee-character" data-coffee-character="${escapeHtml(characterName)}" data-tooltip="${escapeHtml(t("screenVision.coffee.copyCharacterName"))}" aria-label="${escapeHtml(t("screenVision.coffee.copyCharacterName"))}"><strong>${escapeHtml(characterName)}</strong><span class="copy-sprite-stack" aria-hidden="true"><img class="copy-sprite-icon copy-sprite-icon-off" src="assets/navigation/copy/copiar-off.png" alt=""><img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/navigation/copy/copiar-hover.png" alt=""><img class="copy-sprite-icon copy-sprite-icon-on" src="assets/navigation/copy/copiar-on.png" alt=""></span></button>`;
   const supportMethodsMarkup = getCoffeeSupportMethodsMarkup(coffeeConfig);
   const pixSummaryMarkup = pixConfig.enabled
     ? `<p class="docked-coffee-intro-pix"><img src="${escapeHtml(COFFEE_PANEL_ASSETS.pix)}" alt=""> <strong>PIX</strong></p>`
@@ -4154,7 +4155,7 @@ function getCoffeeSupportMethodsMarkup(config = state.coffeeConfig) {
 }
 
 function renderCoffeeDonationButton(option) {
-  const image = `assets/ui/tools/tibia-eye/buy-me-a-coffee/${option.image}`;
+  const image = `assets/monetization/support/${option.image}`;
   const label = t("screenVision.coffee.donateValue", { value: option.value });
 
   return `
@@ -4545,7 +4546,7 @@ async function handleDockedCoffeePanelClick(event) {
 
   if (action === "close-panel") {
     resetCoffeePanelState();
-    await window.screenVisionApi.tools.open("buy-me-a-coffee-panel").catch(() => null);
+    await window.screenVisionApi.tools.open("support-panel").catch(() => null);
     return;
   }
 
@@ -4667,11 +4668,11 @@ async function handleDockedTibiaCoinsPanelInput(event, options = {}) {
 function renderDockedPanelCloseButton(side) {
   const useForward = side === "left";
   const idle = useForward
-    ? "assets/ui/desktop-history/avancar-off.png"
-    : "assets/ui/desktop-history/voltar-off.png";
+    ? "assets/navigation/desktop-history/avancar-off.png"
+    : "assets/navigation/desktop-history/voltar-off.png";
   const active = useForward
-    ? "assets/ui/desktop-history/avancar-on.png"
-    : "assets/ui/desktop-history/voltar-on.png";
+    ? "assets/navigation/desktop-history/avancar-on.png"
+    : "assets/navigation/desktop-history/voltar-on.png";
 
   return `
     <button
@@ -4831,9 +4832,9 @@ function renderDockedAuthenticatorCard(entry) {
               aria-label="${escapeHtml(t("screenVision.authenticator.copy"))}"
             >
               <span class="copy-sprite-stack" aria-hidden="true">
-                <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/ui/copy/copiar-off.png" alt="">
-                <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/ui/copy/copiar-hover.png" alt="">
-                <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/ui/copy/copiar-on.png" alt="">
+                <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/navigation/copy/copiar-off.png" alt="">
+                <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/navigation/copy/copiar-hover.png" alt="">
+                <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/navigation/copy/copiar-on.png" alt="">
               </span>
             </button>
           </div>
@@ -4897,7 +4898,7 @@ function renderDockedAuthenticatorInlineActions(options = {}) {
         data-tooltip="${escapeHtml(t("common.cancel"))}"
         aria-label="${escapeHtml(t("common.cancel"))}"
       >
-        <img src="assets/ui/Cross.png" alt="">
+        <img src="assets/common/actions/Cross.png" alt="">
       </button>
       <button
         type="button"
@@ -4909,7 +4910,7 @@ function renderDockedAuthenticatorInlineActions(options = {}) {
         aria-label="${escapeHtml(t("common.confirm"))}"
         aria-disabled="${confirmState.disabled ? "true" : "false"}"
       >
-        <img src="assets/ui/Tick.png" alt="">
+        <img src="assets/common/actions/Tick.png" alt="">
       </button>
     </div>
   `;
@@ -5546,7 +5547,7 @@ function renderDockedProfileCard(profile) {
 function renderDockedProfileEditExtension(profile) {
   const draftName = escapeHtml(state.profileDraft.profileName || profile.name || "");
   const draftCharacterName = escapeHtml(state.profileDraft.characterName || profile.characterName || "");
-  const saveImage = "assets/ui/Tick.png";
+  const saveImage = "assets/common/actions/Tick.png";
 
   return `
     <div class="docked-profile-extension">
@@ -5573,7 +5574,7 @@ function renderDockedProfileCreateCard(options = {}) {
   const idSuffix = options.idSuffix ? `-${escapeHtml(String(options.idSuffix))}` : "";
   const profileName = escapeHtml(state.profileDraft.profileName || "");
   const characterName = escapeHtml(state.profileDraft.characterName || "");
-  const saveImage = "assets/ui/Tick.png";
+  const saveImage = "assets/common/actions/Tick.png";
   const submitting = Boolean(state.profileCreateSubmitting);
   const emptyStateFields = emptyStateMode
     ? `
@@ -5790,7 +5791,7 @@ async function handleDockedProfilesPanelClick(event) {
       confirmLabel: t("screenVision.profiles.duplicateButton"),
       cancelLabel: t("common.cancel"),
       tone: "warning",
-      mediaPath: "assets/ui/tools/tibia-eye/states/atencao.gif"
+      mediaPath: "assets/tools/tibia-mirror/states/atencao.gif"
     });
 
     if (!confirmed.confirmed) {
@@ -6293,7 +6294,7 @@ function renderDockedAlertPanel(panelState, copy) {
         data-tooltip="${escapeHtml(magicMode ? t("screenVision.alerts.closeSpellPanel") : t("screenVision.alerts.openSpellPanel"))}"
         aria-label="${escapeHtml(magicMode ? t("screenVision.alerts.closeSpellPanel") : t("screenVision.alerts.openSpellPanel"))}"
       >
-        <img src="${escapeHtml("assets/data/hakai/icons/images-static-items-lion-spellbook.gif")}" alt="">
+        <img src="${escapeHtml("assets/library/creatures/gear-icons/images-static-items-lion-spellbook.gif")}" alt="">
       </button>
       <button
         type="button"
@@ -6303,7 +6304,7 @@ function renderDockedAlertPanel(panelState, copy) {
         data-tooltip="${escapeHtml(potionMode ? t("screenVision.alerts.closePotionPanel") : t("screenVision.alerts.openPotionPanel"))}"
         aria-label="${escapeHtml(potionMode ? t("screenVision.alerts.closePotionPanel") : t("screenVision.alerts.openPotionPanel"))}"
       >
-        <img src="${escapeHtml("assets/data/items/sprites/1975.png")}" alt="">
+        <img src="${escapeHtml("assets/library/items/catalog/sprites/1975.png")}" alt="">
       </button>
       <button
         type="button"
@@ -6313,7 +6314,7 @@ function renderDockedAlertPanel(panelState, copy) {
         data-tooltip="${escapeHtml(foodMode ? t("screenVision.alerts.closeFoodPanel") : t("screenVision.alerts.openFoodPanel"))}"
         aria-label="${escapeHtml(foodMode ? t("screenVision.alerts.closeFoodPanel") : t("screenVision.alerts.openFoodPanel"))}"
       >
-        <img src="${escapeHtml("assets/data/items/sprites/3053.png")}" alt="">
+        <img src="${escapeHtml("assets/library/items/catalog/sprites/3053.png")}" alt="">
       </button>
     `;
 
@@ -6335,7 +6336,7 @@ function renderDockedAlertPanel(panelState, copy) {
               data-tooltip="${escapeHtml(listening ? t("screenVision.alerts.disableAllSounds") : t("screenVision.alerts.enableAllSounds"))}"
               aria-label="${escapeHtml(listening ? t("screenVision.alerts.disableAllSounds") : t("screenVision.alerts.enableAllSounds"))}"
             >
-              <img src="${escapeHtml("assets/ui/tools/tibia-eye/toolbar/avisos.gif")}" alt="">
+              <img src="${escapeHtml("assets/tools/tibia-mirror/toolbar/avisos.gif")}" alt="">
             </button>
             <button
               type="button"
@@ -6717,7 +6718,7 @@ async function handleDockedPanelClick(event) {
       confirmLabel: t("common.confirm"),
       cancelLabel: t("common.cancel"),
       tone: "warning",
-      mediaPath: "assets/ui/tools/tibia-eye/states/atencao.gif"
+      mediaPath: "assets/tools/tibia-mirror/states/atencao.gif"
     });
     if (!confirmed.confirmed) {
       return;
@@ -7928,7 +7929,7 @@ function openFreeMirrorSupportPanel() {
     return;
   }
 
-  void window.screenVisionApi.tools.open("buy-me-a-coffee-panel").catch(() => null);
+  void window.screenVisionApi.tools.open("support-panel").catch(() => null);
 }
 
 function normalizeMirrorRegionCounts(rawCounts, fallbackItems = []) {
@@ -9981,7 +9982,7 @@ function renderToolbar() {
     els.settingsButton.setAttribute("aria-label", profilesLabel);
     setLiveTooltip(els.settingsButton, profilesLabel);
     if (!els.settingsButton.querySelector("img")) {
-      els.settingsButton.innerHTML = `<img src="${escapeHtml("assets/ui/tools/tibia-eye/toolbar/perfis.gif")}" alt="">`;
+      els.settingsButton.innerHTML = `<img src="${escapeHtml("assets/tools/tibia-mirror/toolbar/perfis.gif")}" alt="">`;
     }
   }
 
@@ -10004,7 +10005,7 @@ function renderToolbar() {
     );
 
     if (!els.openAlertasButton.querySelector("img")) {
-      els.openAlertasButton.innerHTML = `<img src="${escapeHtml("assets/ui/tools/tibia-eye/toolbar/avisos.gif")}" alt="">`;
+      els.openAlertasButton.innerHTML = `<img src="${escapeHtml("assets/tools/tibia-mirror/toolbar/avisos.gif")}" alt="">`;
     }
   }
 
@@ -10141,7 +10142,7 @@ function renderEmptyState() {
   if (els.emptyStateWaiting) {
     const waitingImage = shouldShowCreateProfileState
       ? PROFILE_PANEL_ASSETS.firstProfileState
-      : "assets/ui/tools/tibia-eye/states/abra-o-tibia.gif";
+      : "assets/tools/tibia-mirror/states/abra-o-tibia.gif";
     if (els.emptyStateWaiting.getAttribute("src") !== waitingImage) {
       els.emptyStateWaiting.src = waitingImage;
     }

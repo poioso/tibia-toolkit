@@ -16,7 +16,6 @@ export function startAppUpdater({
   onError = () => {},
   onAvailable = () => {},
   onProgress = () => {},
-  onInstallRequested = () => {},
   onDownloaded = () => {}
 } = {}) {
   if (!appIsPackaged) {
@@ -125,17 +124,16 @@ export function startAppUpdater({
       if (!downloadFinished) {
         return false;
       }
-      installRequested = true;
       try {
-        onInstallRequested();
+        installRequested = true;
         onStatus("Iniciando instalador da atualizacao.");
         autoUpdater.quitAndInstall();
+        return true;
       } catch (error) {
         installRequested = false;
         onError(error);
         return false;
       }
-      return true;
     },
     dispose() {
       clearInterval(checkInterval);

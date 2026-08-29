@@ -19,7 +19,21 @@ const requiredBaseAssets = new Set([
   "assets/ui/tutorial/update.gif",
   "assets/screen-vision/reference/sounds/spells/utura gran.ogg",
   "assets/screen-vision/reference/sounds/spells/exura gran ico.ogg",
-  "assets/screen-vision/reference/sounds/spells/utito tempo.ogg"
+  "assets/screen-vision/reference/sounds/spells/utito tempo.ogg",
+  "assets/common/actions/Tick.png",
+  "assets/common/actions/Cross.png",
+  "assets/navigation/desktop-controls/desktop-close-active.png",
+  "assets/navigation/desktop-controls/desktop-close-idle.png",
+  "assets/navigation/desktop-controls/desktop-minimize-active.png",
+  "assets/navigation/desktop-controls/desktop-minimize-idle.png",
+  "assets/navigation/desktop-controls/desktop-settings-icon.png",
+  "assets/tutorial/update.gif",
+  "assets/tutorial/websocketobs.gif",
+  "assets/tools/tibia-mirror/reference/sounds/spells/utura gran.ogg",
+  "assets/tools/tibia-mirror/reference/sounds/spells/exura gran ico.ogg",
+  "assets/tools/tibia-mirror/reference/sounds/spells/utito tempo.ogg",
+  "assets/tools/tibia-mirror/states/atencao.gif",
+  "assets/tools/tibia-mirror/states/cuidado.gif"
 ]);
 const jsExtensions = new Set([".js", ".mjs", ".cjs"]);
 
