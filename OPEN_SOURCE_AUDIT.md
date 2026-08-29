@@ -19,7 +19,7 @@
 - Updated Electron from 31.7.7 to 43.1.1 and electron-builder from 24.13.3 to 26.15.3. The preparation build and full `npm audit` complete with zero reported vulnerabilities.
 - Kept the published .NET native helper in the installer while excluding its C# source and intermediate output from the packaged application.
 - Made local source runs use a normal installed .NET SDK or `DOTNET_HOST_PATH`, rather than a private `third_party` SDK path.
-- Added a post-signing manifest sync so `latest.yml` matches the signed installer hash and size.
+- Added manifest synchronization so `latest.yml` matches the final installer hash and size.
 - Removed a deployment-specific reverse-tunnel example and production-host references from the public game-data-hub deployment examples; the remaining template uses a dedicated service account and an untracked, permission-restricted environment file for optional secrets.
 
 ## Sensitive functionality reviewed
@@ -39,4 +39,4 @@ The original private repository contains operational and credential-adjacent too
 3. Add the first verified release and its artifact URLs after it exists; do not invent a download link before then.
 4. Retain the generated SPDX SBOM with the release and repeat the NuGet/transitive-license review when dependencies change.
 5. Run Gitleaks and the complete CI workflow from the public GitHub repository, then validate a clean-clone build there.
-6. Publish an unsigned public release and obtain SignPath Foundation acceptance before claiming a signed release.
+6. Publish only after recording the unsigned Authenticode state and verifying the public checksums and updater manifest.

@@ -9,4 +9,7 @@ The project release contains several executable files. The target list below kee
 | `resources/app/desktop/screen-vision-native/publish/win-x64/ScreenVision.NativeHost.exe` | Project .NET helper | Sign and verify |
 | `elevate.exe` | Electron packaging dependency | Do not sign under project identity; review provenance on upgrades |
 
-The SignPath artifact configuration must match the package structure and deep-sign the three project-owned targets above. Configure exclusions for third-party files only after reviewing the resulting artifact. Do not copy a configuration slug or signing policy from another project.
+These three project-owned targets must have their Authenticode state recorded in
+every release. Under the current unsigned policy they are expected to report
+`NotSigned`; third-party executables must still be identified separately and
+must not be presented as project-owned.

@@ -5,6 +5,7 @@ Tibia Toolkit 0.7.6
 - Preservados os espelhos nativos e as funções internas do Tibia Mirror;
 - Corrigido o cancelamento do redimensionamento quando o aplicativo perde o foco;
 - Unificado o seletor externo de mundos para cliques e digitação.
+- O instalador não possui assinatura Authenticode; o Windows pode exibir um aviso do SmartScreen. Confira o SHA-256 publicado antes de executar.
 
 Tibia Toolkit 0.7.2
 

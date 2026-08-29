@@ -10,13 +10,16 @@ Do not disclose a critical vulnerability in a public issue. Use the repository's
 
 ## Release verification
 
-When signed releases become available, verify both the SHA-256 listed in `SHA256SUMS.txt` and the Authenticode signature. Report a binary that claims to be official but fails either check.
+Verify the SHA-256 listed in `SHA256SUMS.txt` and download only from the official
+release page. Current releases are unsigned; report any binary that claims to
+have an official signature while Authenticode reports otherwise.
 
 ## Project security controls
 
 - GitHub Actions runs only with minimum permissions.
-- Pull requests do not receive signing or deployment secrets.
-- Signed releases require a verified GitHub-hosted build and manual SignPath approval.
+- Pull requests do not receive deployment secrets.
+- Unsigned releases require an immutable source tag, verified beta hashes,
+  checksums and explicit SmartScreen disclosure.
 - Large content packs are data-only and are verified before installation.
 
 Repository administrators must enable two-factor authentication, secret scanning, push protection, Dependabot alerts, code scanning, and protected branches before public release.

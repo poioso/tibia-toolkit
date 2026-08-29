@@ -1,0 +1,19 @@
+{
+  "version": "0.7.6",
+  "authenticode": "NotSigned",
+  "installer": {
+    "file": "Tibia Toolkit Setup 0.7.6.exe",
+    "bytes": 156087707,
+    "sha256": "ef03f49153559ca44f5042903c28e089c8d4ca2ea0d18796a02cc83de72a3af9"
+  },
+  "blockmap": {
+    "file": "Tibia Toolkit Setup 0.7.6.exe.blockmap",
+    "bytes": 162923,
+    "sha256": "6f2a0896110c2fa7293c731c7539626c2e7c2e45def565db24af25831b765e8d"
+  },
+  "latestYml": {
+    "file": "latest.yml",
+    "bytes": 14083,
+    "sha256": "fc1c64d02da11282591ee874e4a4fbcfba7a9189386d1ec5dee012abb808480c"
+  }
+}

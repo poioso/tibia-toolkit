@@ -7,6 +7,10 @@ import { fileURLToPath } from "node:url";
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sourceRoot = process.env.TIBIA_TOOLKIT_SOURCE_ROOT
   || "C:\\Users\\monte\\Desktop\\Backup Desenvolvimento do App Tibia Toolkit\\Tibiatoolkit App Producao";
+const sourceMode = String(process.env.TIBIA_TOOLKIT_SOURCE_MODE || "migration").trim().toLowerCase();
+if (!["migration", "organized"].includes(sourceMode)) {
+  throw new Error(`TIBIA_TOOLKIT_SOURCE_MODE invalido: ${sourceMode}`);
+}
 const siteRoot = process.env.TIBIA_TOOLKIT_SITE_ROOT || "C:\\Users\\monte\\Documents\\Tibiatoolkit Site Produção";
 const botRoot = process.env.TIBIA_TOOLKIT_BOT_ROOT || "C:\\Users\\monte\\Documents\\Tibia Toolkit Bot Produção";
 const reportPath = path.join(appRoot, ".local", "audits", "documentation-coverage.json");
@@ -59,7 +63,9 @@ const destinationFiles = [
 const sourceMarkdown = sourceFiles.filter(isMarkdown);
 const destinationMarkdown = destinationFiles.filter(isMarkdown);
 const privateChecks = [];
-const privateSource = path.join(sourceRoot, ".secrets-temp", "ACESSOS_PRIVADOS_SITE_HOSPEDAINFO.md");
+const privateSource = sourceMode === "organized"
+  ? path.join(sourceRoot, "ACESSOS_PRIVADOS_SITE_HOSPEDAINFO.md")
+  : path.join(sourceRoot, ".secrets-temp", "ACESSOS_PRIVADOS_SITE_HOSPEDAINFO.md");
 for (const name of privateNames) {
   const source = name === "ACESSOS_PRIVADOS_SITE_HOSPEDAINFO.md" ? privateSource : path.join(sourceRoot, name);
   const destinations = [appRoot, siteRoot, botRoot].map((root) => path.join(root, name));
@@ -80,7 +86,7 @@ const migrationCutoff = sourceProtection?.DestinationCreationTime
   : Date.parse("2026-08-26T16:31:01.673Z");
 const appRuntimeRoots = ["app.js", "index.html", "styles.css", "desktop", "lib", "assets", "tests", "tools", "README.md", "RELEASE_NOTES.md", "package.json", "package-lock.json", "pnpm-lock.yaml"];
 const sourceNewerOrMissing = [];
-for (const root of appRuntimeRoots) {
+for (const root of sourceMode === "migration" ? appRuntimeRoots : []) {
   const absolute = path.join(sourceRoot, root);
   const candidates = await fs.stat(absolute).then((stat) => stat.isFile() ? [absolute] : walk(absolute)).catch(() => []);
   for (const file of await candidates) {
@@ -121,7 +127,9 @@ function mapBotServicePath(relativePath) {
 }
 const botServiceCoverage = [];
 const legacyMatches = [];
-const botServiceFiles = await walk(botServiceSourceRoot).catch(() => []);
+const botServiceFiles = sourceMode === "migration"
+  ? await walk(botServiceSourceRoot).catch(() => [])
+  : [];
 for (const file of botServiceFiles) {
   const serviceRelative = relative(botServiceSourceRoot, file);
   const destinationRelative = mapBotServicePath(serviceRelative);
@@ -147,7 +155,7 @@ for (const file of botServiceFiles) {
 
 const postMigrationSourceFiles = [];
 const unmappedPostMigrationFiles = [];
-for (const file of sourceFiles) {
+for (const file of sourceMode === "migration" ? sourceFiles : []) {
   const stat = await fs.stat(file);
   if (stat.mtimeMs <= migrationCutoff) continue;
   const sourceRelative = relative(sourceRoot, file);
@@ -176,6 +184,7 @@ for (const file of destinationMarkdown) {
 const report = {
   generatedAt: new Date().toISOString(),
   sourceRoot,
+  sourceMode,
   destinations: { appRoot, siteRoot, botRoot },
   sourceProjectMarkdownCount: sourceMarkdown.length,
   destinationMarkdownCount: destinationMarkdown.length,
