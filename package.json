@@ -23,7 +23,7 @@
   },
   "devDependencies": {
     "cheerio": "^1.1.2",
-    "electron": "^31.0.2",
+    "electron": "^44.0.0",
     "electron-builder": "^24.13.3",
     "google-translate-api-x": "^10.7.3",
     "png-to-ico": "^3.0.2",
