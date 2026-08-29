@@ -6,6 +6,7 @@ import { getContentPackChunkGroup } from "../lib/content-pack/chunk-groups.js";
 
 const MANIFEST_FILE = "content-manifest.json";
 const PENDING_UPDATE_FILE = "pending-update.json";
+const RECOVERY_STATE_FILE = "recovery-state.json";
 const REMOTE_REQUEST_TIMEOUT_MS = 30_000;
 const LEGACY_MANIFEST_TIMEOUT_MS = 5_000;
 const DOWNLOAD_ATTEMPTS_PER_SOURCE = 3;
@@ -158,6 +159,62 @@ async function readJson(filePath) {
   } catch {
     return null;
   }
+}
+
+function describeError(error, depth = 0) {
+  if (!error || depth > 5) return null;
+  return {
+    name: String(error.name || "Error"),
+    message: String(error.message || error),
+    code: error.code ? String(error.code) : null,
+    phase: error.phase ? String(error.phase) : null,
+    syscall: error.syscall ? String(error.syscall) : null,
+    path: error.path ? String(error.path) : null,
+    cause: describeError(error.cause, depth + 1)
+  };
+}
+
+async function writeJsonAtomic(filePath, value) {
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(tempPath, JSON.stringify(value, null, 2), "utf8");
+  await fs.rename(tempPath, filePath);
+}
+
+async function quarantinePendingUpdate({ packRoot, pending, error, onDiagnostic }) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const quarantineRoot = path.join(packRoot, "quarantine", `pending-${stamp}-${process.pid}`);
+  const pendingFile = path.join(packRoot, PENDING_UPDATE_FILE);
+  const pendingRoot = path.join(packRoot, "pending");
+  const recoveryStatePath = path.join(packRoot, RECOVERY_STATE_FILE);
+  const manifest = pending?.manifest || {};
+  const recoveryState = {
+    quarantinedAt: new Date().toISOString(),
+    version: String(manifest.version || ""),
+    sha256: String(manifest.sha256 || "").toLowerCase(),
+    error: describeError(error)
+  };
+
+  await fs.mkdir(quarantineRoot, { recursive: true });
+  const manifestExists = await fs.stat(pendingFile).then((entry) => entry.isFile()).catch(() => false);
+  if (manifestExists) {
+    await fs.rename(pendingFile, path.join(quarantineRoot, PENDING_UPDATE_FILE));
+  }
+
+  const pendingExists = await fs.stat(pendingRoot).then((entry) => entry.isDirectory()).catch(() => false);
+  if (pendingExists) {
+    await fs.rename(pendingRoot, path.join(quarantineRoot, "pending"));
+  }
+
+  await writeJsonAtomic(path.join(quarantineRoot, "recovery.json"), recoveryState);
+  await writeJsonAtomic(recoveryStatePath, recoveryState);
+  onDiagnostic?.({
+    phase: "pending-recovery",
+    code: "CONTENT_PENDING_QUARANTINED",
+    archiveUrl: String(manifest.archiveUrl || ""),
+    error
+  });
+  return { quarantineRoot, recoveryState };
 }
 
 async function fetchManifestCandidates(urls, onDiagnostic, options = {}) {
@@ -522,17 +579,47 @@ export async function ensureContentPack({
   );
   const pending = await readJson(path.join(packRoot, PENDING_UPDATE_FILE));
   if (installed?.version && installed?.sha256 && hasInstalledAssets && pending?.manifest) {
-    const applied = await applyPendingChunkUpdate({
-      packRoot,
-      currentRoot,
-      installedManifest: installed,
-      pending,
-      onStatus,
-      onProgress
-    });
-    if (applied) {
-      const updated = await readJson(installedManifestPath);
-      return { assetsRoot: installedAssetsRoot, source: "pending-update", version: String(updated?.version || installed.version) };
+    try {
+      const applied = await applyPendingChunkUpdate({
+        packRoot,
+        currentRoot,
+        installedManifest: installed,
+        pending,
+        onStatus,
+        onProgress
+      });
+      if (applied) {
+        await fs.rm(path.join(packRoot, RECOVERY_STATE_FILE), { force: true });
+        const updated = await readJson(installedManifestPath);
+        return { assetsRoot: installedAssetsRoot, source: "pending-update", version: String(updated?.version || installed.version) };
+      }
+    } catch (error) {
+      onDiagnostic?.({
+        phase: error?.phase || "pending-activate",
+        code: error?.code || "CONTENT_PENDING_FAILED",
+        archiveUrl: String(pending?.manifest?.archiveUrl || ""),
+        error
+      });
+      if (!isLegacyInstalledPack) {
+        let recovery = null;
+        try {
+          recovery = await quarantinePendingUpdate({ packRoot, pending, error, onDiagnostic });
+        } catch (quarantineError) {
+          onDiagnostic?.({
+            phase: "pending-recovery",
+            code: "CONTENT_PENDING_QUARANTINE_FAILED",
+            archiveUrl: String(pending?.manifest?.archiveUrl || ""),
+            error: quarantineError
+          });
+        }
+        return {
+          assetsRoot: installedAssetsRoot,
+          source: "cache-recovered",
+          version: String(installed.version),
+          recovery
+        };
+      }
+      throw error;
     }
   }
   // A previously verified modern pack is enough to open immediately. Remote
@@ -671,12 +758,20 @@ export async function prepareContentPackChunkUpdate({ manifestUrls = [], userDat
   ));
   if (!target) return { prepared: false, reason: "up-to-date", chunks: [] };
 
+  const packRoot = path.join(userDataPath, "content-pack");
+  const recoveryState = await readJson(path.join(packRoot, RECOVERY_STATE_FILE));
+  if (
+    recoveryState?.version === target.version
+    && recoveryState?.sha256 === target.sha256
+  ) {
+    return { prepared: false, reason: "quarantined", chunks: [] };
+  }
+
   const chunks = changedChunks(installedManifest, target);
   if (!chunks || chunks.length === 0) {
     return { prepared: false, reason: "legacy-or-full-update", chunks: [] };
   }
 
-  const packRoot = path.join(userDataPath, "content-pack");
   const pendingRoot = path.join(packRoot, "pending");
   await fs.rm(pendingRoot, { recursive: true, force: true });
   await fs.mkdir(pendingRoot, { recursive: true });

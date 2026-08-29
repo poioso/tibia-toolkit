@@ -1,7 +1,5 @@
 import electronUpdater from "electron-updater";
 
-const { autoUpdater } = electronUpdater;
-
 function normalizeUpdateUrls(values = []) {
   return values
     .flatMap((value) => Array.isArray(value) ? value : [value])
@@ -12,6 +10,7 @@ function normalizeUpdateUrls(values = []) {
 export function startAppUpdater({
   appIsPackaged,
   urls,
+  updater: updaterOverride = null,
   onStatus = () => {},
   onError = () => {},
   onAvailable = () => {},
@@ -28,15 +27,27 @@ export function startAppUpdater({
     return null;
   }
 
-  autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
-  autoUpdater.allowPrerelease = false;
+  const updater = updaterOverride || electronUpdater.autoUpdater;
+  updater.autoDownload = false;
+  updater.autoInstallOnAppQuit = true;
+  updater.allowPrerelease = false;
   let activeSourceIndex = -1;
   let sourceSwitchInFlight = false;
   let downloadFinished = false;
   let downloadInFlight = false;
   let installRequested = false;
   let updateInfo = null;
+  let resolveInitialCheck;
+  let initialCheckSettled = false;
+  const initialCheck = new Promise((resolve) => {
+    resolveInitialCheck = resolve;
+  });
+
+  const settleInitialCheck = (result) => {
+    if (initialCheckSettled) return;
+    initialCheckSettled = true;
+    resolveInitialCheck(result);
+  };
 
   const tryNextSource = async (previousError = null) => {
     if (sourceSwitchInFlight || downloadFinished || downloadInFlight) {
@@ -48,14 +59,16 @@ export function startAppUpdater({
 
     try {
       if (activeSourceIndex >= updateUrls.length) {
-        onError(previousError || new Error("Nenhum servidor de atualizacao respondeu."));
+        const error = previousError || new Error("Nenhum servidor de atualizacao respondeu.");
+        settleInitialCheck({ available: false, error });
+        onError(error);
         return;
       }
 
       const url = updateUrls[activeSourceIndex];
-      autoUpdater.setFeedURL({ provider: "generic", url });
+      updater.setFeedURL({ provider: "generic", url });
       onStatus(`Verificando atualizacoes em ${url}.`);
-      await autoUpdater.checkForUpdates();
+      await updater.checkForUpdates();
       onStatus(`Atualizador conectado em ${url}.`);
     } catch (error) {
       sourceSwitchInFlight = false;
@@ -66,27 +79,32 @@ export function startAppUpdater({
     sourceSwitchInFlight = false;
   };
 
-  autoUpdater.on("update-available", (info) => {
+  updater.on("update-available", (info) => {
     updateInfo = info;
+    settleInitialCheck({ available: true, info });
     onStatus(`Nova versao ${info.version} encontrada.`);
     onAvailable(info);
   });
-  autoUpdater.on("download-progress", (progress) => {
+  updater.on("update-not-available", (info) => {
+    settleInitialCheck({ available: false, info });
+  });
+  updater.on("download-progress", (progress) => {
     onStatus(`Baixando atualizacao: ${Math.round(progress.percent || 0)}%.`);
     onProgress(progress);
   });
-  autoUpdater.on("update-downloaded", (info) => {
+  updater.on("update-downloaded", (info) => {
     downloadFinished = true;
     downloadInFlight = false;
     onStatus(`Atualizacao ${info.version} pronta. Ela sera instalada ao fechar o aplicativo.`);
     onDownloaded(info);
   });
-  autoUpdater.on("error", (error) => {
+  updater.on("error", (error) => {
     downloadInFlight = false;
     if (!downloadFinished && activeSourceIndex + 1 < updateUrls.length) {
       void tryNextSource(error);
       return;
     }
+    settleInitialCheck({ available: false, error });
     onError(error);
   });
 
@@ -101,6 +119,7 @@ export function startAppUpdater({
   }, 30 * 60 * 1000);
 
   return {
+    initialCheck,
     getInfo() {
       return updateInfo;
     },
@@ -111,7 +130,7 @@ export function startAppUpdater({
       downloadInFlight = true;
       onStatus("Baixando atualizacao em segundo plano.");
       try {
-        await autoUpdater.downloadUpdate();
+        await updater.downloadUpdate();
       } catch (error) {
         downloadInFlight = false;
         throw error;
@@ -127,7 +146,7 @@ export function startAppUpdater({
       try {
         installRequested = true;
         onStatus("Iniciando instalador da atualizacao.");
-        autoUpdater.quitAndInstall();
+        updater.quitAndInstall();
         return true;
       } catch (error) {
         installRequested = false;

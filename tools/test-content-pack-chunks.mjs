@@ -190,13 +190,35 @@ try {
   await fs.mkdir(path.join(packRoot, "pending"), { recursive: true });
   await fs.writeFile(path.join(packRoot, "pending", `${sha256(invalidBytes)}.zip`), invalidBytes);
   await fs.writeFile(path.join(packRoot, "pending-update.json"), JSON.stringify({ manifest: invalidManifest }), "utf8");
-  await assert.rejects(ensureContentPack({
+  const recovered = await ensureContentPack({
     appIsPackaged: true,
     sourceAssetsRoot: path.join(root, "source-assets"),
     userDataPath,
     manifestUrls: []
-  }), /extrair os recursos/i);
+  });
+  assert.equal(recovered.source, "cache-recovered");
+  assert.equal(recovered.version, oldManifest.version);
   assert.equal(await fs.readFile(path.join(currentRoot, "assets", "library", "catalogs", "item-details.json"), "utf8"), "new-data");
+  await assert.rejects(fs.stat(path.join(packRoot, "pending-update.json")));
+  const quarantineEntries = await fs.readdir(path.join(packRoot, "quarantine"), { withFileTypes: true });
+  assert.equal(quarantineEntries.filter((entry) => entry.isDirectory()).length, 1);
+  const quarantineRoot = path.join(packRoot, "quarantine", quarantineEntries[0].name);
+  assert.deepEqual(
+    JSON.parse(await fs.readFile(path.join(quarantineRoot, "pending-update.json"), "utf8")),
+    { manifest: invalidManifest }
+  );
+
+  remoteManifest = invalidManifest;
+  const skippedQuarantine = await prepareContentPackChunkUpdate({
+    manifestUrls: ["https://content.test/latest.json"],
+    userDataPath,
+    installedManifest: oldManifest
+  });
+  assert.deepEqual(skippedQuarantine, {
+    prepared: false,
+    reason: "quarantined",
+    chunks: []
+  });
 
   console.log(JSON.stringify({ passed: true, prepared, applied }, null, 2));
 } finally {

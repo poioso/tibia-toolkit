@@ -1,3 +1,11 @@
+Tibia Toolkit 0.7.7
+
+- Corrigido o bloqueio de inicialização causado por falha ao aplicar um Content Pack pendente;
+- O aplicativo preserva o último Content Pack válido e coloca a pendência com erro em quarentena, permitindo a abertura e a atualização direta do 0.7.5;
+- Corrigida a espera da verificação inicial do atualizador, permitindo que usuários recebam o 0.7.7 sem passar pelo 0.7.6;
+- Diagnósticos de extração agora registram a causa, o código, o caminho e a operação quando disponíveis;
+- Nenhuma alteração foi feita nos espelhos nativos ou nas funções internas do Tibia Mirror.
+
 Tibia Toolkit 0.7.6
 
 - Adicionado um botão externo para redimensionar proporcionalmente toda a interface do aplicativo;

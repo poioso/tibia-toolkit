@@ -9921,7 +9921,7 @@ async function bootstrapRuntimeContentWithRetry(runtimeConfig) {
       return;
     } catch (error) {
       await writeDebugLog(
-        `content-pack-attempt-failed phase=${error?.phase || "unknown"} code=${error?.code || "unknown"} error=${error?.stack || error?.message || String(error)}`
+        `content-pack-attempt-failed phase=${error?.phase || "unknown"} code=${error?.code || "unknown"} error=${formatErrorChain(error)}`
       );
       const choice = await dialog.showMessageBox(splashWindow || undefined, {
         type: "error",
@@ -9939,6 +9939,18 @@ async function bootstrapRuntimeContentWithRetry(runtimeConfig) {
       }
     }
   }
+}
+
+function formatErrorChain(error, depth = 0) {
+  if (!error || depth > 5) return "";
+  const details = [
+    error.stack || error.message || String(error),
+    error.code ? `code=${error.code}` : "",
+    error.syscall ? `syscall=${error.syscall}` : "",
+    error.path ? `path=${error.path}` : ""
+  ].filter(Boolean).join(" ");
+  const cause = formatErrorChain(error.cause, depth + 1);
+  return cause ? `${details}\ncaused-by: ${cause}` : details;
 }
 
 function getContentPackFailureDetail(error) {
