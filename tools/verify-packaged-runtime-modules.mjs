@@ -9,11 +9,10 @@ const packageRoot = path.resolve(
 );
 
 const requiredModules = [
-  "services/game-data-hub/server.mjs",
-  "services/game-data-hub/api-security.mjs",
-  "assets/ui/Tick.png",
-  "assets/ui/Cross.png",
-  "assets/ui/tutorial/update.gif",
+  // Game Data Hub stays on the server; only Electron-owned runtime files belong here.
+  "assets/common/actions/Tick.png",
+  "assets/common/actions/Cross.png",
+  "assets/tutorial/update.gif",
   "desktop/screen-vision-native/publish/win-x64/ScreenVision.NativeHost.exe"
 ];
 
