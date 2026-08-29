@@ -1,5 +1,5 @@
-const ITEM_SPRITE_ROOT = "assets/data/items/sprites";
-const POTION_SOUND_ROOT = "assets/screen-vision/reference/sounds/potions";
+const ITEM_SPRITE_ROOT = "assets/library/items/catalog/sprites";
+const POTION_SOUND_ROOT = "assets/tools/tibia-mirror/reference/sounds/potions";
 
 export const SCREEN_VISION_POTION_PRESETS = [
   {

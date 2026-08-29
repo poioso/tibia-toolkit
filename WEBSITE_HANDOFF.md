@@ -1,22 +1,22 @@
 # Website handoff
 
-The official GitHub repository is now public. Release artifact fields remain deliberately blank until the first verified release is published.
+The official GitHub repository and verified public releases are available.
 
 ## Current signing status
 
-The project is being prepared for application to the SignPath Foundation open-source code-signing program. No public signing approval or signed release exists yet.
-
-Do not state that the app is signed until `Get-AuthenticodeSignature` reports a valid release signature.
+The project does not currently have an approved Authenticode signing service.
+Installers are distributed unsigned with public SHA-256 checksums. Do not state
+that the app is signed while `Get-AuthenticodeSignature` reports `NotSigned`.
 
 ## Publication links
 
 ```text
 Repository: https://github.com/poioso/tibia-toolkit
 Source code: https://github.com/poioso/tibia-toolkit
-Latest release: Add after the first verified release is published.
+Latest release: https://github.com/poioso/tibia-toolkit/releases/latest
 All releases: https://github.com/poioso/tibia-toolkit/releases
-Installer: <signed release asset URL>
-SHA256SUMS: <signed release checksum URL>
+Installer: https://github.com/poioso/tibia-toolkit/releases/latest/download/Tibia-Toolkit-Setup.exe
+SHA256SUMS: https://github.com/poioso/tibia-toolkit/releases/latest/download/SHA256SUMS.txt
 License: https://github.com/poioso/tibia-toolkit/blob/main/LICENSE
 Privacy: https://github.com/poioso/tibia-toolkit/blob/main/docs/PRIVACY.md
 Code signing policy: https://github.com/poioso/tibia-toolkit/blob/main/docs/CODE_SIGNING_POLICY.md
@@ -34,11 +34,10 @@ Trademark policy: https://github.com/poioso/tibia-toolkit/blob/main/TRADEMARKS.m
 
 > Tibia Toolkit is an unofficial community tool, with no cheats or hacks. Its source code is available under GPL-3.0-only. Large assets are downloaded separately as non-executable data and verified before use. Tibia is a registered trademark of CipSoft GmbH; this project is not affiliated with or endorsed by CipSoft. Tibia-related media is used only under the applicable official Fankit and CipSoft Video and Screenshot Policy terms.
 
-**Code signing policy**
+**Unsigned installer notice**
 
-> Free code signing provided by SignPath.io, certificate by SignPath Foundation.
-
-Publish this statement on the download and release pages only with the surrounding status text from the README: approval is still pending and releases are not yet signed.
+> O instalador atual não possui assinatura Authenticode. O Windows pode exibir
+> um aviso do SmartScreen; confirme o SHA-256 publicado antes de executar.
 
 ## Placement checklist
 

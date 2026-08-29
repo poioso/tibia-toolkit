@@ -65,6 +65,7 @@ import {
   OVERLAY_TOOLS_STORAGE_KEY,
   normalizeOverlayToolsState
 } from "./lib/overlay/overlay-tools-state.js";
+import { resolveWorldSlug } from "./lib/data/world-catalog.js";
 import {
   createDefaultOverlayTimerDraft,
   createOverlayTimerEntryFromDraft,
@@ -105,57 +106,57 @@ const DEFAULT_IMBUEMENT_TIER = "powerful";
 let ingredientMetadataPromise = null;
 let ingredientMetadataPromiseNames = new Set();
 let ingredientMetadataPromiseWorldSlug = "";
-const GOLD_ICON_PATH = "assets/ui/economy/Crystal_Coin.gif";
-const TIBIA_COINS_CURRENCY_ICON_PATH = "assets/data/items/sprites/5113.png";
-const GOLD_TOKEN_CURRENCY_ICON_PATH = "assets/data/items/sprites/4239.png";
-const TIBIA_COIN_CTA_ICON_PATH = "assets/ui/economy/Tibia_Coin_Icon.gif";
-const CRYSTAL_COIN_STATIC_ICON_PATH = "assets/ui/economy/crystal-coin.webp";
-const MARKET_ICON_PATH = "assets/ui/economy/The_Market_(Object).gif";
-const SHRINE_ICON_PATH = "assets/ui/tools/Imbuing_Shrine.gif";
+const GOLD_ICON_PATH = "assets/economy/Crystal_Coin.gif";
+const TIBIA_COINS_CURRENCY_ICON_PATH = "assets/library/items/catalog/sprites/5113.png";
+const GOLD_TOKEN_CURRENCY_ICON_PATH = "assets/library/items/catalog/sprites/4239.png";
+const TIBIA_COIN_CTA_ICON_PATH = "assets/economy/Tibia_Coin_Icon.gif";
+const CRYSTAL_COIN_STATIC_ICON_PATH = "assets/economy/crystal-coin.webp";
+const MARKET_ICON_PATH = "assets/economy/The_Market_(Object).gif";
+const SHRINE_ICON_PATH = "assets/tools/imbuements/Imbuing_Shrine.gif";
 const DESKTOP_SETTINGS_DISCORD_URL = "https://discord.gg/2AFRsc2jmp";
 const DESKTOP_SETTINGS_YOUTUBE_URL = "https://www.youtube.com/@poioso?sub_confirmation=1";
 const DESKTOP_SETTINGS_INSTAGRAM_URL = "https://www.instagram.com/poioso_joga/";
 const DESKTOP_SETTINGS_TWITCH_URL = "https://www.twitch.tv/poios0";
-const DESKTOP_SETTINGS_WEBSITE_URL = "https://tibiatoolkit.com/?utm_source=tibia_toolkit_app&utm_medium=desktop&utm_campaign=settings";
+const DESKTOP_SETTINGS_WEBSITE_URL = "https://tibiarealm.com/?utm_source=tibia_toolkit_app&utm_medium=desktop&utm_campaign=settings";
 const DESKTOP_SETTINGS_ASSETS = {
-  discord: "assets/ui/tools/tibia-eye/settings/discord-button.png",
-  youtube: "assets/ui/tools/tibia-eye/settings/youtube-button.png",
-  instagram: "assets/ui/tools/tibia-eye/settings/instagram-button.png",
-  twitch: "assets/ui/tools/tibia-eye/settings/twitch-button.png",
-  authenticator: "assets/ui/tools/tibia-eye/settings/authenticator-button.png",
-  tutorial: "assets/ui/tools/tibia-eye/settings/tutorial-button.png",
-  website: "assets/ui/tools/tibia-eye/settings/website-button.png"
+  discord: "assets/settings/social/discord-button.png",
+  youtube: "assets/settings/social/youtube-button.png",
+  instagram: "assets/settings/social/instagram-button.png",
+  twitch: "assets/settings/social/twitch-button.png",
+  authenticator: "assets/settings/integrations/authenticator-button.png",
+  tutorial: "assets/settings/tutorial/tutorial-button.png",
+  website: "assets/settings/social/website-button.png"
 };
-const BATTLEYE_GREEN_ICON_PATH = "assets/ui/world-status/icon_battleyeinitial.gif";
-const BATTLEYE_YELLOW_ICON_PATH = "assets/ui/world-status/icon_battleye.gif";
-const NPC_WES_FALLBACK_ICON_PATH = "assets/ui/npcs/Wes_The_Blacksmith.gif";
-const NPC_HIRELING_FALLBACK_ICON_PATH = "assets/ui/npcs/Hireling_(Trader).gif";
-const CREATURE_GEAR_RECOMMENDATIONS_DIR = "assets/data/hakai/creature-gear-recommendations";
+const BATTLEYE_GREEN_ICON_PATH = "assets/world-status/icon_battleyeinitial.gif";
+const BATTLEYE_YELLOW_ICON_PATH = "assets/world-status/icon_battleye.gif";
+const NPC_WES_FALLBACK_ICON_PATH = "assets/library/npcs/icons/Wes_The_Blacksmith.gif";
+const NPC_HIRELING_FALLBACK_ICON_PATH = "assets/library/npcs/icons/Hireling_(Trader).gif";
+const CREATURE_GEAR_RECOMMENDATIONS_DIR = "assets/library/creatures/gear-recommendations";
 const CREATURE_GEAR_VOCATIONS = [
-  { key: "knight", label: "Knight", icon: "assets/ui/vocations/knight-male.png" },
-  { key: "sorcerer", label: "Sorcerer", icon: "assets/ui/vocations/sorcerer-male.png" },
-  { key: "druid", label: "Druid", icon: "assets/ui/vocations/druid-female.png" },
-  { key: "paladin", label: "Paladin", icon: "assets/ui/vocations/paladin-male.png" },
-  { key: "monk", label: "Monk", icon: "assets/ui/vocations/monk-male.png" }
+  { key: "knight", label: "Knight", icon: "assets/vocations/knight-male.png" },
+  { key: "sorcerer", label: "Sorcerer", icon: "assets/vocations/sorcerer-male.png" },
+  { key: "druid", label: "Druid", icon: "assets/vocations/druid-female.png" },
+  { key: "paladin", label: "Paladin", icon: "assets/vocations/paladin-male.png" },
+  { key: "monk", label: "Monk", icon: "assets/vocations/monk-male.png" }
 ];
 const CREATURE_GEAR_WEAPON_STYLES = ["1H", "2H"];
 const libraryRenderMetricAt = new Map();
 const bossTrackerInFlightRequests = new Map();
 const CREATURE_GEAR_WEAPON_STYLE_ICONS = {
-  "1H": "assets/ui/skill-weapons/one-hand.png",
-  "2H": "assets/ui/skill-weapons/two-hands.png"
+  "1H": "assets/tools/skill-calculator/weapons/one-hand.png",
+  "2H": "assets/tools/skill-calculator/weapons/two-hands.png"
 };
 const BOSS_CHART_ZOOM_LEVELS = [3, 5, 8, 12, 18, 26];
 const BOSS_STAT_ICONS = {
-  spawnToday: "assets/ui/boss-stats/spawn-today.png",
-  expectedIn: "assets/ui/boss-stats/expected-in.png",
-  lastSeenWorld: "assets/ui/boss-stats/last-seen-world.png",
-  killedWorld: "assets/ui/boss-stats/killed-world.png",
-  playersKilledWorld: "assets/ui/boss-stats/players-killed-world.png",
-  killedTotal: "assets/ui/boss-stats/killed-total.png",
-  playersKilledTotal: "assets/ui/boss-stats/players-killed-total.png",
-  lastSeenTibia: "assets/ui/boss-stats/last-seen-tibia.png",
-  firstAppearance: "assets/ui/boss-stats/first-appearance.png"
+  spawnToday: "assets/bestiary/boss-stats/spawn-today.png",
+  expectedIn: "assets/bestiary/boss-stats/expected-in.png",
+  lastSeenWorld: "assets/bestiary/boss-stats/last-seen-world.png",
+  killedWorld: "assets/bestiary/boss-stats/killed-world.png",
+  playersKilledWorld: "assets/bestiary/boss-stats/players-killed-world.png",
+  killedTotal: "assets/bestiary/boss-stats/killed-total.png",
+  playersKilledTotal: "assets/bestiary/boss-stats/players-killed-total.png",
+  lastSeenTibia: "assets/bestiary/boss-stats/last-seen-tibia.png",
+  firstAppearance: "assets/bestiary/boss-stats/first-appearance.png"
 };
 const CREATURE_GEAR_SLOT_ORDER = [
   "amulet",
@@ -173,40 +174,40 @@ const CREATURE_GEAR_SLOT_ORDER = [
 ];
 const VOCATION_OUTFITS = {
   druid: {
-    male: "assets/ui/vocations/druid-male.png",
-    female: "assets/ui/vocations/druid-female.png"
+    male: "assets/vocations/druid-male.png",
+    female: "assets/vocations/druid-female.png"
   },
   elderdruid: {
-    male: "assets/ui/vocations/druid-male.png",
-    female: "assets/ui/vocations/druid-female.png"
+    male: "assets/vocations/druid-male.png",
+    female: "assets/vocations/druid-female.png"
   },
   monk: {
-    male: "assets/ui/vocations/monk-male.png",
-    female: "assets/ui/vocations/monk-female.png"
+    male: "assets/vocations/monk-male.png",
+    female: "assets/vocations/monk-female.png"
   },
   knight: {
-    male: "assets/ui/vocations/knight-male.png",
-    female: "assets/ui/vocations/knight-female.png"
+    male: "assets/vocations/knight-male.png",
+    female: "assets/vocations/knight-female.png"
   },
   eliteknight: {
-    male: "assets/ui/vocations/knight-male.png",
-    female: "assets/ui/vocations/knight-female.png"
+    male: "assets/vocations/knight-male.png",
+    female: "assets/vocations/knight-female.png"
   },
   sorcerer: {
-    male: "assets/ui/vocations/sorcerer-male.png",
-    female: "assets/ui/vocations/sorcerer-female.png"
+    male: "assets/vocations/sorcerer-male.png",
+    female: "assets/vocations/sorcerer-female.png"
   },
   mastersorcerer: {
-    male: "assets/ui/vocations/sorcerer-male.png",
-    female: "assets/ui/vocations/sorcerer-female.png"
+    male: "assets/vocations/sorcerer-male.png",
+    female: "assets/vocations/sorcerer-female.png"
   },
   paladin: {
-    male: "assets/ui/vocations/paladin-male.png",
-    female: "assets/ui/vocations/paladin-female.png"
+    male: "assets/vocations/paladin-male.png",
+    female: "assets/vocations/paladin-female.png"
   },
   royalpaladin: {
-    male: "assets/ui/vocations/paladin-male.png",
-    female: "assets/ui/vocations/paladin-female.png"
+    male: "assets/vocations/paladin-male.png",
+    female: "assets/vocations/paladin-female.png"
   }
 };
 const SUPPORTER_DOCKED_PANEL_KEY = "supporters-panel";
@@ -214,37 +215,37 @@ const SUPPORTER_TIER_ORDER = ["diamond", "gold", "silver", "bronze", "iron"];
 const SUPPORTER_TIER_META = {
   diamond: {
     labelKey: "screenVision.supporters.tier.diamond",
-    medalPath: "assets/ui/supporters/medalha-diamante.png",
+    medalPath: "assets/monetization/supporters/medalha-diamante.png",
     accent: "#57d6ff",
     shadow: "rgba(87, 214, 255, 0.28)"
   },
   gold: {
     labelKey: "screenVision.supporters.tier.gold",
-    medalPath: "assets/ui/supporters/medalha-ouro.png",
+    medalPath: "assets/monetization/supporters/medalha-ouro.png",
     accent: "#f0c14b",
     shadow: "rgba(240, 193, 75, 0.24)"
   },
   silver: {
     labelKey: "screenVision.supporters.tier.silver",
-    medalPath: "assets/ui/supporters/medalha-prata.png",
+    medalPath: "assets/monetization/supporters/medalha-prata.png",
     accent: "#cfd8e6",
     shadow: "rgba(207, 216, 230, 0.22)"
   },
   bronze: {
     labelKey: "screenVision.supporters.tier.bronze",
-    medalPath: "assets/ui/supporters/medalha-bronze.png",
+    medalPath: "assets/monetization/supporters/medalha-bronze.png",
     accent: "#c98046",
     shadow: "rgba(201, 128, 70, 0.24)"
   },
   iron: {
     labelKey: "screenVision.supporters.tier.iron",
-    medalPath: "assets/ui/supporters/medalha-ferro.png",
+    medalPath: "assets/monetization/supporters/medalha-ferro.png",
     accent: "#8c97a8",
     shadow: "rgba(140, 151, 168, 0.2)"
   },
   default: {
     labelKey: "screenVision.supporters.tier.default",
-    medalPath: "assets/ui/supporters/medalha-ferro.png",
+    medalPath: "assets/monetization/supporters/medalha-ferro.png",
     accent: "#7f90a9",
     shadow: "rgba(127, 144, 169, 0.16)"
   }
@@ -314,53 +315,53 @@ const SUPPORTER_MOCK_SEEDS = [
   }
 ];
 const CREATURE_STAT_ICONS = {
-  HP: "assets/ui/bestiary/Hearthp.png",
-  XP: "assets/ui/bestiary/Xpbestiary.png",
-  Velocidade: "assets/ui/combat-status/Haste_Icon.gif",
-  Armadura: "assets/ui/bestiary/Armor_Icon.gif",
-  "Mitigação": "assets/ui/combat-status/12px-Mitigation_Icon_Wheel.gif",
-  Charms: "assets/ui/combat-status/Charm.gif"
+  HP: "assets/bestiary/stats/Hearthp.png",
+  XP: "assets/bestiary/stats/Xpbestiary.png",
+  Velocidade: "assets/bestiary/combat-status/Haste_Icon.gif",
+  Armadura: "assets/bestiary/stats/Armor_Icon.gif",
+  "Mitigação": "assets/bestiary/combat-status/12px-Mitigation_Icon_Wheel.gif",
+  Charms: "assets/bestiary/combat-status/Charm.gif"
 };
 const CREATURE_ABILITY_GROUP_ICONS = {
-  velocidade: "assets/ui/combat-status/Haste_Icon.gif",
-  speed: "assets/ui/combat-status/Haste_Icon.gif",
-  haste: "assets/ui/combat-status/Haste_Icon.gif",
-  invoca: "assets/ui/combat-status/Summon_icon.png",
-  summon: "assets/ui/combat-status/Summon_icon.png",
-  summons: "assets/ui/combat-status/Summon_icon.png",
-  paralyze: "assets/ui/combat-status/Slowed_Icon.gif",
-  debuff: "assets/ui/combat-status/Weakened_Icon.png",
-  invisibilidade: "assets/ui/combat-status/Invisible_Icon.gif",
-  invisibility: "assets/ui/combat-status/Invisible_Icon.gif",
-  drunk: "assets/ui/combat-status/Weakened_Icon.png",
-  drowning: "assets/ui/combat-status/Life_Drain_Icone.gif",
-  "anti-trap": "assets/ui/Cross.png"
+  velocidade: "assets/bestiary/combat-status/Haste_Icon.gif",
+  speed: "assets/bestiary/combat-status/Haste_Icon.gif",
+  haste: "assets/bestiary/combat-status/Haste_Icon.gif",
+  invoca: "assets/bestiary/combat-status/Summon_icon.png",
+  summon: "assets/bestiary/combat-status/Summon_icon.png",
+  summons: "assets/bestiary/combat-status/Summon_icon.png",
+  paralyze: "assets/bestiary/combat-status/Slowed_Icon.gif",
+  debuff: "assets/bestiary/combat-status/Weakened_Icon.png",
+  invisibilidade: "assets/bestiary/combat-status/Invisible_Icon.gif",
+  invisibility: "assets/bestiary/combat-status/Invisible_Icon.gif",
+  drunk: "assets/bestiary/combat-status/Weakened_Icon.png",
+  drowning: "assets/bestiary/combat-status/Life_Drain_Icone.gif",
+  "anti-trap": "assets/common/actions/Cross.png"
 };
 const CREATURE_DIFFICULTY_ICONS = {
-  harmless: "assets/ui/bestiary/Bestiario_Inofensivo.gif",
-  inofensivo: "assets/ui/bestiary/Bestiario_Inofensivo.gif",
-  trivial: "assets/ui/bestiary/Bestiario_Trivial.gif",
-  easy: "assets/ui/bestiary/Bestiario_Facil.gif",
-  facil: "assets/ui/bestiary/Bestiario_Facil.gif",
-  medium: "assets/ui/bestiary/Bestiario_Medio_(3).gif",
-  medio: "assets/ui/bestiary/Bestiario_Medio_(3).gif",
-  hard: "assets/ui/bestiary/Bestiario_Dificil.gif",
-  dificil: "assets/ui/bestiary/Bestiario_Dificil.gif"
+  harmless: "assets/bestiary/difficulty/Bestiario_Inofensivo.gif",
+  inofensivo: "assets/bestiary/difficulty/Bestiario_Inofensivo.gif",
+  trivial: "assets/bestiary/difficulty/Bestiario_Trivial.gif",
+  easy: "assets/bestiary/difficulty/Bestiario_Facil.gif",
+  facil: "assets/bestiary/difficulty/Bestiario_Facil.gif",
+  medium: "assets/bestiary/difficulty/Bestiario_Medio_(3).gif",
+  medio: "assets/bestiary/difficulty/Bestiario_Medio_(3).gif",
+  hard: "assets/bestiary/difficulty/Bestiario_Dificil.gif",
+  dificil: "assets/bestiary/difficulty/Bestiario_Dificil.gif"
 };
 const CREATURE_OCCURRENCE_ICONS = {
-  common: "assets/ui/bestiary/comum.png",
-  comum: "assets/ui/bestiary/comum.png",
-  uncommon: "assets/ui/bestiary/Incomum.png",
-  incomum: "assets/ui/bestiary/Incomum.png",
-  rare: "assets/ui/bestiary/Raro.png",
-  raro: "assets/ui/bestiary/Raro.png",
-  "very rare": "assets/ui/bestiary/muito_raro.png",
-  "muito raro": "assets/ui/bestiary/muito_raro.png"
+  common: "assets/bestiary/rarity/comum.png",
+  comum: "assets/bestiary/rarity/comum.png",
+  uncommon: "assets/bestiary/rarity/Incomum.png",
+  incomum: "assets/bestiary/rarity/Incomum.png",
+  rare: "assets/bestiary/rarity/Raro.png",
+  raro: "assets/bestiary/rarity/Raro.png",
+  "very rare": "assets/bestiary/rarity/muito_raro.png",
+  "muito raro": "assets/bestiary/rarity/muito_raro.png"
 };
 const BOSSTIARY_ICONS = {
-  archfoe: "assets/ui/bestiary/Bosstiary_Archfoe.png",
-  bane: "assets/ui/bestiary/Bosstiary_Bane.png",
-  nemesis: "assets/ui/bestiary/Bosstiary_Nemesis.png"
+  archfoe: "assets/bestiary/bosstiary/Bosstiary_Archfoe.png",
+  bane: "assets/bestiary/bosstiary/Bosstiary_Bane.png",
+  nemesis: "assets/bestiary/bosstiary/Bosstiary_Nemesis.png"
 };
 const BOSSTIARY_TOOLTIPS = {
   archfoe: ["1 estrela: 5 mortes - 10 pontos", "2 estrelas: 20 mortes - 30 pontos", "3 estrelas: 60 mortes - 60 pontos"],
@@ -368,34 +369,34 @@ const BOSSTIARY_TOOLTIPS = {
   nemesis: ["1 estrela: 1 morte - 10 pontos", "2 estrelas: 3 mortes - 30 pontos", "3 estrelas: 5 mortes - 60 pontos"]
 };
 const ELEMENT_ICONS = {
-  Fisico: "assets/ui/combat-status/Fisico.png",
-  "Físico": "assets/ui/combat-status/Fisico.png",
-  Physical: "assets/ui/combat-status/Fisico.png",
-  physical: "assets/ui/combat-status/Fisico.png",
-  Terra: "assets/ui/combat-status/Poisoned_Icon.gif",
-  Earth: "assets/ui/combat-status/Poisoned_Icon.gif",
-  earth: "assets/ui/combat-status/Poisoned_Icon.gif",
-  Poison: "assets/ui/combat-status/Poisoned_Icon.gif",
-  Fogo: "assets/ui/combat-status/Burning_Icon.gif",
-  Fire: "assets/ui/combat-status/Burning_Icon.gif",
-  fire: "assets/ui/combat-status/Burning_Icon.gif",
-  Morte: "assets/ui/combat-status/Cursed_Icon.gif",
-  Death: "assets/ui/combat-status/Cursed_Icon.gif",
-  death: "assets/ui/combat-status/Cursed_Icon.gif",
-  Energia: "assets/ui/combat-status/Electrified_Icon.gif",
-  Energy: "assets/ui/combat-status/Electrified_Icon.gif",
-  energy: "assets/ui/combat-status/Electrified_Icon.gif",
-  Sagrado: "assets/ui/combat-status/Dazzled_Icon.gif",
-  Holy: "assets/ui/combat-status/Dazzled_Icon.gif",
-  holy: "assets/ui/combat-status/Dazzled_Icon.gif",
-  Gelo: "assets/ui/combat-status/Freezing_Icon.gif",
-  Ice: "assets/ui/combat-status/Freezing_Icon.gif",
-  ice: "assets/ui/combat-status/Freezing_Icon.gif",
-  Cura: "assets/ui/combat-status/Heal_Icon.png",
-  Healing: "assets/ui/combat-status/Heal_Icon.png",
-  healing: "assets/ui/combat-status/Heal_Icon.png",
-  "Life Drain": "assets/ui/combat-status/Life_Drain_Icone.gif",
-  "Mana Drain": "assets/ui/combat-status/Life_Drain_Icone.gif"
+  Fisico: "assets/bestiary/combat-status/Fisico.png",
+  "Físico": "assets/bestiary/combat-status/Fisico.png",
+  Physical: "assets/bestiary/combat-status/Fisico.png",
+  physical: "assets/bestiary/combat-status/Fisico.png",
+  Terra: "assets/bestiary/combat-status/Poisoned_Icon.gif",
+  Earth: "assets/bestiary/combat-status/Poisoned_Icon.gif",
+  earth: "assets/bestiary/combat-status/Poisoned_Icon.gif",
+  Poison: "assets/bestiary/combat-status/Poisoned_Icon.gif",
+  Fogo: "assets/bestiary/combat-status/Burning_Icon.gif",
+  Fire: "assets/bestiary/combat-status/Burning_Icon.gif",
+  fire: "assets/bestiary/combat-status/Burning_Icon.gif",
+  Morte: "assets/bestiary/combat-status/Cursed_Icon.gif",
+  Death: "assets/bestiary/combat-status/Cursed_Icon.gif",
+  death: "assets/bestiary/combat-status/Cursed_Icon.gif",
+  Energia: "assets/bestiary/combat-status/Electrified_Icon.gif",
+  Energy: "assets/bestiary/combat-status/Electrified_Icon.gif",
+  energy: "assets/bestiary/combat-status/Electrified_Icon.gif",
+  Sagrado: "assets/bestiary/combat-status/Dazzled_Icon.gif",
+  Holy: "assets/bestiary/combat-status/Dazzled_Icon.gif",
+  holy: "assets/bestiary/combat-status/Dazzled_Icon.gif",
+  Gelo: "assets/bestiary/combat-status/Freezing_Icon.gif",
+  Ice: "assets/bestiary/combat-status/Freezing_Icon.gif",
+  ice: "assets/bestiary/combat-status/Freezing_Icon.gif",
+  Cura: "assets/bestiary/combat-status/Heal_Icon.png",
+  Healing: "assets/bestiary/combat-status/Heal_Icon.png",
+  healing: "assets/bestiary/combat-status/Heal_Icon.png",
+  "Life Drain": "assets/bestiary/combat-status/Life_Drain_Icone.gif",
+  "Mana Drain": "assets/bestiary/combat-status/Life_Drain_Icone.gif"
 };
 const ELEMENT_DISPLAY_NAMES = {
   Fisico: "Físico",
@@ -495,11 +496,11 @@ const IMBUEMENT_EFFECT_META = {
 };
 
 const SKILL_TYPES = {
-  sword: { label: "Sword/Axe/Club", family: "melee", base: 50, weapon: "sword", icon: "assets/ui/tools/skill-melee.gif", unitsPerCharge: 7.2 },
-  distance: { label: "Distance", family: "distance", base: 30, weapon: "bow", icon: "assets/ui/tools/skill-distance.gif", unitsPerCharge: 4.32 },
-  magic: { label: "Magic Level", family: "magic", base: 1600, weapon: "rod", icon: "assets/ui/tools/skill-magic.gif", unitsPerCharge: 600 },
-  shielding: { label: "Shielding", family: "shielding", base: 50, weapon: "shield", icon: "assets/ui/tools/skill-shielding.gif", unitsPerCharge: 14.4 },
-  fist: { label: "Fist", family: "fist", base: 50, weapon: "wraps", icon: "assets/ui/tools/skill-fist.gif", unitsPerCharge: 7.2 }
+  sword: { label: "Sword/Axe/Club", family: "melee", base: 50, weapon: "sword", icon: "assets/tools/skill-calculator/skill-melee.gif", unitsPerCharge: 7.2 },
+  distance: { label: "Distance", family: "distance", base: 30, weapon: "bow", icon: "assets/tools/skill-calculator/skill-distance.gif", unitsPerCharge: 4.32 },
+  magic: { label: "Magic Level", family: "magic", base: 1600, weapon: "rod", icon: "assets/tools/skill-calculator/skill-magic.gif", unitsPerCharge: 600 },
+  shielding: { label: "Shielding", family: "shielding", base: 50, weapon: "shield", icon: "assets/tools/skill-calculator/skill-shielding.gif", unitsPerCharge: 14.4 },
+  fist: { label: "Fist", family: "fist", base: 50, weapon: "wraps", icon: "assets/tools/skill-calculator/skill-fist.gif", unitsPerCharge: 7.2 }
 };
 
 const SKILL_VOCATION_FACTORS = {
@@ -517,38 +518,38 @@ const SKILL_WEAPON_TIERS = [
 ];
 
 const SKILL_WEAPON_IMAGE_FALLBACKS = {
-  sword: "assets/ui/skill-weapons/lasting-sword.gif",
-  bow: "assets/ui/skill-weapons/lasting-bow.gif",
-  rod: "assets/ui/skill-weapons/lasting-rod.gif",
-  shield: "assets/ui/skill-weapons/lasting-shield.gif",
-  wraps: "assets/ui/skill-weapons/lasting-wraps.gif"
+  sword: "assets/tools/skill-calculator/weapons/lasting-sword.gif",
+  bow: "assets/tools/skill-calculator/weapons/lasting-bow.gif",
+  rod: "assets/tools/skill-calculator/weapons/lasting-rod.gif",
+  shield: "assets/tools/skill-calculator/weapons/lasting-shield.gif",
+  wraps: "assets/tools/skill-calculator/weapons/lasting-wraps.gif"
 };
 
 const SKILL_WEAPON_IMAGES = {
   lasting: {
-    sword: "assets/ui/skill-weapons/lasting-sword.gif",
-    bow: "assets/ui/skill-weapons/lasting-bow.gif",
-    rod: "assets/ui/skill-weapons/lasting-rod.gif",
-    shield: "assets/ui/skill-weapons/lasting-shield.gif",
-    wraps: "assets/ui/skill-weapons/lasting-wraps.gif"
+    sword: "assets/tools/skill-calculator/weapons/lasting-sword.gif",
+    bow: "assets/tools/skill-calculator/weapons/lasting-bow.gif",
+    rod: "assets/tools/skill-calculator/weapons/lasting-rod.gif",
+    shield: "assets/tools/skill-calculator/weapons/lasting-shield.gif",
+    wraps: "assets/tools/skill-calculator/weapons/lasting-wraps.gif"
   },
   durable: {
-    sword: "assets/ui/skill-weapons/durable-sword.gif",
-    bow: "assets/ui/skill-weapons/durable-bow.gif",
-    rod: "assets/ui/skill-weapons/durable-rod.gif",
-    shield: "assets/ui/skill-weapons/durable-shield.gif",
-    wraps: "assets/ui/skill-weapons/durable-wraps.gif"
+    sword: "assets/tools/skill-calculator/weapons/durable-sword.gif",
+    bow: "assets/tools/skill-calculator/weapons/durable-bow.gif",
+    rod: "assets/tools/skill-calculator/weapons/durable-rod.gif",
+    shield: "assets/tools/skill-calculator/weapons/durable-shield.gif",
+    wraps: "assets/tools/skill-calculator/weapons/durable-wraps.gif"
   },
   exercise: {
-    sword: "assets/ui/skill-weapons/exercise-sword.gif",
-    bow: "assets/ui/skill-weapons/exercise-bow.gif",
-    rod: "assets/ui/skill-weapons/exercise-rod.gif",
-    shield: "assets/ui/skill-weapons/exercise-shield.gif",
-    wraps: "assets/ui/skill-weapons/exercise-wraps.gif"
+    sword: "assets/tools/skill-calculator/weapons/exercise-sword.gif",
+    bow: "assets/tools/skill-calculator/weapons/exercise-bow.gif",
+    rod: "assets/tools/skill-calculator/weapons/exercise-rod.gif",
+    shield: "assets/tools/skill-calculator/weapons/exercise-shield.gif",
+    wraps: "assets/tools/skill-calculator/weapons/exercise-wraps.gif"
   }
 };
 
-const TIBIA_MAP_DATA_BASE_URL = "assets/tibia-map-data/";
+const TIBIA_MAP_DATA_BASE_URL = "assets/maps/";
 const TIBIA_MAP_GROUND_FLOOR = 7;
 const TIBIA_MAP_MIN_FLOOR = 0;
 const TIBIA_MAP_MAX_FLOOR = 15;
@@ -561,9 +562,9 @@ const TIBIA_MAP_PIXEL_BOUNDS = {
   height: (128 + 1 - 121) * 256
 };
 const LOCALE_SWITCHER_OPTIONS = [
-  { code: "pt-BR", flagSrc: "assets/ui/flags/pt-BR.svg", flagAlt: "Português (Brasil)", labelKey: "locale.current.pt-BR" },
-  { code: "en", flagSrc: "assets/ui/flags/en.svg", flagAlt: "English", labelKey: "locale.current.en" },
-  { code: "de", flagSrc: "assets/ui/flags/de.svg", flagAlt: "Deutsch", labelKey: "locale.current.de" }
+  { code: "pt-BR", flagSrc: "assets/flags/pt-BR.svg", flagAlt: "Português (Brasil)", labelKey: "locale.current.pt-BR" },
+  { code: "en", flagSrc: "assets/flags/en.svg", flagAlt: "English", labelKey: "locale.current.en" },
+  { code: "de", flagSrc: "assets/flags/de.svg", flagAlt: "Deutsch", labelKey: "locale.current.de" }
 ];
 const inlineTibiaMapPayloads = new Map();
 let inlineTibiaMapSequence = 0;
@@ -629,7 +630,7 @@ const state = {
   itemCurrencyMode: "gold",
   imbuementCurrencyMode: "gold",
   currentItem: null,
-  currentWorldSlug: "antica",
+  currentWorldSlug: "",
   currentImbuementKey: DEFAULT_IMBUEMENT_KEY,
   currentImbuementTier: DEFAULT_IMBUEMENT_TIER,
   currencyRates: {
@@ -1286,7 +1287,7 @@ async function boot() {
     updateInitialSplashProgress(4);
     const bootstrap = await runInitialSplashTask(4, 30, () => fetchBootstrap());
     markBootStage("bootstrap-data-ready");
-    state.worlds = bootstrap.worlds || [];
+    state.worlds = Array.isArray(bootstrap.worlds) ? bootstrap.worlds : [];
     registerProtectedPhrases(state.worlds);
     state.quickPicks = bootstrap.quickPicks || [];
     state.supportersDataUrls = normalizeSupportersDataUrls(
@@ -1304,11 +1305,10 @@ async function boot() {
     await runInitialSplashTask(36, 40, () => loadLootAnalyzerDrafts());
     await runInitialSplashTask(40, 44, () => loadOverlayToolsState());
     const storedWorldSlug = await runInitialSplashTask(44, 48, () => loadLastWorldSlug());
-    const anticaWorld = state.worlds.find((world) => world.slug === "antica");
-    state.currentWorldSlug =
-      storedWorldSlug && state.worlds.some((world) => world.slug === storedWorldSlug)
-        ? storedWorldSlug
-        : anticaWorld?.slug || bootstrap.defaultWorld || state.currentWorldSlug;
+    state.currentWorldSlug = resolveWorldSlug(
+      storedWorldSlug || bootstrap.defaultWorld,
+      state.worlds,
+    );
 
     runInitialSplashTask(48, 56, () => {
       hydrateWorldInputs();
@@ -1318,7 +1318,9 @@ async function boot() {
     updateInitialSplashProgress(74);
     await runInitialSplashTask(74, 82, () => renderCurrencyIcons());
     markBootStage("currency-icons-ready");
-    els.connectionStatus.textContent = bootstrap.initialItem?.selectedWorld?.name || bootstrap.defaultWorld || "-";
+    els.connectionStatus.textContent = bootstrap.initialItem?.selectedWorld?.name
+      || getSelectedWorld()?.name
+      || t("worlds.catalogUnavailable");
 
     if (bootstrap.initialItem) {
       state.currentItem = bootstrap.initialItem;
@@ -1355,7 +1357,12 @@ async function boot() {
       )
     ));
     markBootStage(supportersReadyBeforeOpening ? "supporters-ready" : "supporters-deferred");
-    await runInitialSplashTask(97, 98, () => saveLastWorldSlug(state.currentWorldSlug));
+    if (state.currentWorldSlug) {
+      await runInitialSplashTask(97, 98, () => saveLastWorldSlug(state.currentWorldSlug));
+    } else {
+      updateInitialSplashProgress(98);
+      setFeedback(t("worlds.catalogUnavailable"), true);
+    }
     runInitialSplashTask(98, 99, () => {
       // Startup stays local-first. Live data is requested by the surface that
       // actually needs it (item, Stash Market, tools or Mini World Changes).
@@ -1414,13 +1421,13 @@ function renderDesktopUpdateUi() {
         ? t("updater.downloadedTitle")
         : "";
 
-  els.desktopToolbarBrand?.classList.toggle("has-update", showUpdate);
   if (els.desktopUpdateButton) {
     els.desktopUpdateButton.hidden = !showUpdate;
     els.desktopUpdateButton.disabled = phase !== "available" || state.appUpdateRequestPending;
     els.desktopUpdateButton.dataset.tooltip = tooltip;
     els.desktopUpdateButton.setAttribute("aria-label", tooltip || "Tibia Toolkit");
   }
+  renderDesktopToolbarBrandUpdateState();
 }
 
 async function initializeLibraryContentUi() {
@@ -1447,10 +1454,23 @@ function renderLibraryContentUpdateUi() {
         ? t("libraryContent.activating")
         : "";
   if (els.desktopLibraryContentUpdateButton) {
-    els.desktopLibraryContentUpdateButton.hidden = !ready;
     els.desktopLibraryContentUpdateButton.disabled = state.libraryContentActivationPending;
     els.desktopLibraryContentUpdateButton.dataset.tooltip = tooltip;
     els.desktopLibraryContentUpdateButton.setAttribute("aria-label", tooltip || "Tibia Toolkit");
+  }
+  renderDesktopToolbarBrandUpdateState();
+}
+
+function renderDesktopToolbarBrandUpdateState() {
+  const appUpdatePhase = String(state.appUpdate?.phase || "idle");
+  const showAppUpdate = ["available", "prompting", "downloading", "downloaded"].includes(appUpdatePhase);
+  const libraryPhase = String(state.libraryContent?.phase || "idle");
+  const libraryPendingChanges = Math.max(0, Number(state.libraryContent?.pendingChanges) || 0);
+  const showLibraryUpdate = !showAppUpdate && libraryPhase === "ready" && libraryPendingChanges > 0;
+
+  els.desktopToolbarBrand?.classList.toggle("has-update", showAppUpdate || showLibraryUpdate);
+  if (els.desktopLibraryContentUpdateButton) {
+    els.desktopLibraryContentUpdateButton.hidden = !showLibraryUpdate;
   }
 }
 
@@ -1852,8 +1872,8 @@ function exposeTutorialApi() {
         const fallback = createFindPartyTutorialFallback();
         state.findPartyPlayers = fallback.players;
         state.findPartyGuilds = fallback.guilds;
-        state.findPartyWorldName = getSelectedWorld()?.name || "Antica";
-        state.findPartyLoadedWorldSlug = getSelectedWorld()?.slug || "antica";
+        state.findPartyWorldName = getSelectedWorld()?.name || "";
+        state.findPartyLoadedWorldSlug = getSelectedWorld()?.slug || "";
       }
 
       if (typeof options.vocation === "string") {
@@ -2249,7 +2269,7 @@ function exposeTutorialApi() {
           id: "tutorial-example",
           name: "Bank Robbery",
           representative: {
-            localPath: "assets/ui/navigation/world-board.gif",
+            localPath: "assets/navigation/menus/world-board.gif",
             label: "Bank Robbery"
           }
         };
@@ -2731,6 +2751,38 @@ function bindEvents() {
 
   window.addEventListener("message", (event) => {
     if (event.source !== els.wheelOfDestinyFrame?.contentWindow) {
+      return;
+    }
+
+    if (
+      event.data?.type === "tibia-toolkit-wheel-preserve-scroll"
+      || event.data?.type === "tibia-toolkit-wheel-anchor-scroll"
+    ) {
+      const isWheelAnchorScroll = event.data?.type === "tibia-toolkit-wheel-anchor-scroll";
+      const top = Math.max(0, Number(event.data.top) || 0);
+      const left = Math.max(0, Number(event.data.left) || 0);
+      const restoreWheelScroll = (behavior = "auto") => {
+        if (!els.mainContent) return;
+        const clampedTop = Math.min(top, Math.max(0, els.mainContent.scrollHeight - els.mainContent.clientHeight));
+        const clampedLeft = Math.min(left, Math.max(0, els.mainContent.scrollWidth - els.mainContent.clientWidth));
+        if (typeof els.mainContent.scrollTo === "function") {
+          els.mainContent.scrollTo({ top: clampedTop, left: clampedLeft, behavior });
+        } else {
+          els.mainContent.scrollTop = clampedTop;
+          els.mainContent.scrollLeft = clampedLeft;
+        }
+      };
+
+      if (isWheelAnchorScroll) {
+        restoreWheelScroll("smooth");
+        window.setTimeout(() => restoreWheelScroll("auto"), 450);
+        return;
+      }
+
+      restoreWheelScroll();
+      window.requestAnimationFrame(restoreWheelScroll);
+      window.setTimeout(restoreWheelScroll, 0);
+      window.setTimeout(restoreWheelScroll, 80);
       return;
     }
 
@@ -3406,6 +3458,10 @@ function bindEvents() {
   });
 
   els.globalWorldInput?.addEventListener("input", () => {
+    if (document.body.classList.contains("desktop-mode") && window.desktopApi?.globalWorldPicker?.open) {
+      void openDesktopGlobalWorldPickerForQuery();
+      return;
+    }
     void updateWorldSuggestions("global");
   });
 
@@ -3458,6 +3514,9 @@ function bindEvents() {
   els.globalWorldInput?.addEventListener("keydown", async (event) => {
     await handleWorldInputKeydown("global", event);
   });
+  els.globalWorldInput?.addEventListener("blur", () => {
+    window.setTimeout(() => restoreWorldInput("global"), 120);
+  });
 
   els.worldDropdownButton?.addEventListener("click", () => {
     if (state.itemWorldSuggestionsOpen) {
@@ -3470,6 +3529,9 @@ function bindEvents() {
 
   els.worldInput.addEventListener("keydown", async (event) => {
     await handleWorldInputKeydown("item", event);
+  });
+  els.worldInput.addEventListener("blur", () => {
+    window.setTimeout(() => restoreWorldInput("item"), 120);
   });
 
   els.toolWorldInput.addEventListener("input", () => {
@@ -3488,6 +3550,9 @@ function bindEvents() {
   els.toolWorldInput.addEventListener("keydown", async (event) => {
     await handleWorldInputKeydown("tool", event);
   });
+  els.toolWorldInput.addEventListener("blur", () => {
+    window.setTimeout(() => restoreWorldInput("tool"), 120);
+  });
 
   els.lootWorldInput?.addEventListener("input", () => {
     void updateWorldSuggestions("loot");
@@ -3504,6 +3569,9 @@ function bindEvents() {
 
   els.lootWorldInput?.addEventListener("keydown", async (event) => {
     await handleWorldInputKeydown("loot", event);
+  });
+  els.lootWorldInput?.addEventListener("blur", () => {
+    window.setTimeout(() => restoreWorldInput("loot"), 120);
   });
 
   els.lootInput?.addEventListener("input", () => {
@@ -3945,7 +4013,7 @@ function bindEvents() {
     });
 
     els.desktopCoffeeButton?.addEventListener("click", () => {
-      void requestDesktopDockedPanel("buy-me-a-coffee-panel");
+      void requestDesktopDockedPanel("support-panel");
     });
 
     els.desktopSupportersButton?.addEventListener("click", () => {
@@ -3957,7 +4025,7 @@ function bindEvents() {
     });
 
     window.desktopApi?.supportersShowcase?.onOpenCoffeePanel?.(() => {
-      void requestDesktopDockedPanel("buy-me-a-coffee-panel");
+      void requestDesktopDockedPanel("support-panel");
     });
 
     els.apiDocsButton?.addEventListener("click", () => {
@@ -4129,8 +4197,8 @@ function getDesktopDockedPanelElements() {
         <header class="desktop-docked-tool-header desktop-docked-tool-header-right">
           <button type="button" class="desktop-docked-arrow-close desktop-docked-panel-close desktop-history-button desktop-window-image-button" id="desktop-docked-panel-close" aria-label="${escapeHtml(t("common.back"))}" data-tooltip="${escapeHtml(t("common.back"))}">
             <span class="desktop-window-icon-stack" aria-hidden="true">
-              <img class="desktop-window-icon desktop-window-icon-idle" src="assets/ui/desktop-history/voltar-off.png" alt="">
-              <img class="desktop-window-icon desktop-window-icon-active" src="assets/ui/desktop-history/voltar-on.png" alt="">
+              <img class="desktop-window-icon desktop-window-icon-idle" src="assets/navigation/desktop-history/voltar-off.png" alt="">
+              <img class="desktop-window-icon desktop-window-icon-active" src="assets/navigation/desktop-history/voltar-on.png" alt="">
             </span>
           </button>
           <div class="desktop-docked-tool-heading">
@@ -4307,7 +4375,7 @@ async function handleDesktopAccountAction(action) {
     return;
   }
   if (action === "remove-ads") {
-    await requestDesktopDockedPanel("buy-me-a-coffee-panel");
+    await requestDesktopDockedPanel("support-panel");
     return;
   }
   if (action === "proof-discord") {
@@ -4340,17 +4408,17 @@ function getDesktopReportPageLabel() {
 
 const DESKTOP_REPORT_KIND_COPY = {
   suggestion: {
-    icon: "assets/ui/feedback/suggestion.png",
+    icon: "assets/feedback/suggestion.png",
     titleKey: "account.report.suggestionTitle",
     detailKey: "account.report.suggestionDetails"
   },
   bug: {
-    icon: "assets/ui/feedback/bug-nostalgia.gif",
+    icon: "assets/feedback/bug-nostalgia.gif",
     titleKey: "account.report.bugTitle",
     detailKey: "account.report.bugDetails"
   },
   correction: {
-    icon: "assets/ui/feedback/correction.png",
+    icon: "assets/feedback/correction.png",
     titleKey: "account.report.correctionTitle",
     detailKey: "account.report.correctionDetails"
   }
@@ -4417,7 +4485,7 @@ function renderDesktopReportSelectedElements(form) {
   const container = form?.querySelector?.("[data-account-report-selected]");
   if (!container) return;
   container.innerHTML = state.desktopReportSelectedElements.map((element) => `
-    <div><strong>${escapeHtml(element.id ? `#${element.id}` : element.label)}</strong><span>${escapeHtml(element.selector)}</span><button type="button" data-account-report-remove="${escapeHtml(element.selector)}" aria-label="${escapeHtml(t("account.report.removeElement"))}" data-tooltip="${escapeHtml(t("account.report.removeElement"))}"><img src="assets/ui/Cross.png" alt=""></button></div>
+    <div><strong>${escapeHtml(element.id ? `#${element.id}` : element.label)}</strong><span>${escapeHtml(element.selector)}</span><button type="button" data-account-report-remove="${escapeHtml(element.selector)}" aria-label="${escapeHtml(t("account.report.removeElement"))}" data-tooltip="${escapeHtml(t("account.report.removeElement"))}"><img src="assets/common/actions/Cross.png" alt=""></button></div>
   `).join("");
   container.hidden = state.desktopReportSelectedElements.length === 0;
 }
@@ -5103,7 +5171,7 @@ function syncSupportersShowcase(supporters = state.supporters) {
           name: String(supporter?.name || "").trim(),
           tier,
           medalPath: tierMeta.medalPath,
-          backgroundPath: `assets/ui/supporters/fundo-${({ diamond: "diamante", gold: "ouro", silver: "prata", bronze: "bronze", iron: "ferro" }[tier] || "prata")}.gif`
+          backgroundPath: `assets/monetization/supporters/fundo-${({ diamond: "diamante", gold: "ouro", silver: "prata", bronze: "bronze", iron: "ferro" }[tier] || "prata")}.gif`
         };
       })
       .filter((supporter) => supporter.name && supporter.medalPath)
@@ -5367,8 +5435,8 @@ function syncDesktopAppOwnedDockedPanelHeader(host, panelKey, side) {
   const iconIdle = closeButton.querySelector(".desktop-window-icon-idle");
   const iconActive = closeButton.querySelector(".desktop-window-icon-active");
   const iconPrefix = normalizedSide === "left" ? "avancar" : "voltar";
-  if (iconIdle) iconIdle.src = `assets/ui/desktop-history/${iconPrefix}-off.png`;
-  if (iconActive) iconActive.src = `assets/ui/desktop-history/${iconPrefix}-on.png`;
+  if (iconIdle) iconIdle.src = `assets/navigation/desktop-history/${iconPrefix}-off.png`;
+  if (iconActive) iconActive.src = `assets/navigation/desktop-history/${iconPrefix}-on.png`;
 }
 
 function renderActiveDockedToolPanel() {
@@ -5439,7 +5507,7 @@ function renderActiveDockedToolPanel() {
 
 function bindDesktopAccountAvatarFallback(root) {
   const avatar = root?.querySelector("[data-account-avatar]");
-  if (!avatar || avatar.getAttribute("src") === "assets/ui/tools/tibia-eye/profiles/no-vocation.png") return;
+  if (!avatar || avatar.getAttribute("src") === "assets/tools/tibia-mirror/profiles/no-vocation.png") return;
   const fitAvatarToVisiblePixels = () => {
     try {
       const sourceWidth = avatar.naturalWidth;
@@ -5477,7 +5545,7 @@ function bindDesktopAccountAvatarFallback(root) {
   avatar.addEventListener("load", fitAvatarToVisiblePixels, { once: true });
   if (avatar.complete) fitAvatarToVisiblePixels();
   avatar.addEventListener("error", () => {
-    avatar.src = "assets/ui/tools/tibia-eye/profiles/no-vocation.png";
+    avatar.src = "assets/tools/tibia-mirror/profiles/no-vocation.png";
   }, { once: true });
 }
 
@@ -5533,12 +5601,12 @@ function renderDesktopSettingsPanelMarkup() {
   const screenshotButtonBusy = screenshotDiscoverySearching || state.desktopScreenshotActionBusy;
   const screenshotNeedsSelection = Boolean((state.desktopScreenshotNeedsSelection || state.desktopScreenshotNeedsTibia) && !screenshot.enabled);
   const screenshotSelectIcon = screenshot.enabled
-    ? "assets/ui/tutorial/polaroid.gif"
-    : "assets/ui/tutorial/polaroid-inactive.png";
+    ? "assets/tutorial/polaroid.gif"
+    : "assets/tutorial/polaroid-inactive.png";
   const newScreenshotCount = Math.max(0, Number(state.desktopScreenshotNewCount) || 0);
   const screenshotFolderIcon = newScreenshotCount > 0
-    ? "assets/ui/tutorial/folder.gif"
-    : "assets/ui/tutorial/folder-inactive.png";
+    ? "assets/tutorial/folder.gif"
+    : "assets/tutorial/folder-inactive.png";
   const screenshotFolderCount = newScreenshotCount > 0
     ? `<em class="desktop-screenshot-folder-count" aria-hidden="true">${newScreenshotCount}</em>`
     : "";
@@ -5549,7 +5617,7 @@ function renderDesktopSettingsPanelMarkup() {
       <section class="desktop-settings-option desktop-settings-group">
         <strong class="desktop-settings-option-label">Conta</strong>
         <div class="desktop-settings-paired-buttons">
-          ${imageButton(state.desktopAccountConnected ? "assets/ui/account/my-account.png" : "assets/ui/account/login.png", state.desktopAccountConnected ? "open-account" : "toggle-account", state.desktopAccountConnected ? t("account.open") : t("toolbar.login"), "desktop-settings-account-button")}
+          ${imageButton(state.desktopAccountConnected ? "assets/settings/account/my-account.png" : "assets/settings/account/login.png", state.desktopAccountConnected ? "open-account" : "toggle-account", state.desktopAccountConnected ? t("account.open") : t("toolbar.login"), "desktop-settings-account-button")}
           ${imageButton(DESKTOP_SETTINGS_ASSETS.authenticator, "open-authenticator", t("screenVision.settings.authenticatorTooltip"))}
         </div>
       </section>
@@ -5557,7 +5625,7 @@ function renderDesktopSettingsPanelMarkup() {
         <div class="desktop-screenshot-summary">
           <strong class="desktop-settings-option-label">Screenshots</strong>
           <button type="button" class="docked-alert-icon-button desktop-screenshot-edit" data-settings-action="toggle-screenshot-settings" data-tooltip="Configurar screenshots" aria-label="Configurar screenshots"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17,3 C17.55,2.45 18.45,2.45 19,3 L21,5 C21.55,5.55 21.55,6.45 21,7 L7,21 L3,21 L3,17 Z M15,5 L19,9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-           <div class="desktop-screenshot-summary-actions"><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-tutorial" data-settings-action="start-screenshot-tutorial" data-tooltip="Tutorial de screenshots" aria-label="Tutorial de screenshots"><img src="assets/ui/tutorial/balao-interrogacao.gif" alt=""></button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-folder-icon${newScreenshotCount > 0 ? " has-new-screenshots" : ""}" data-settings-action="open-screenshot-directory" data-tooltip="Abrir pasta de screenshots" aria-label="Abrir pasta de screenshots${newScreenshotCount > 0 ? ` (${newScreenshotCount} novas)` : ""}"><img src="${screenshotFolderIcon}" alt="">${screenshotFolderCount}</button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-select-icon${screenshotButtonBusy ? " screenshot-action-busy" : ""}" data-settings-action="open-screenshot-assistant" data-tutorial-focus="screenshot-select-area" data-tooltip="${escapeHtml(screenshotButtonTooltip)}" data-tooltip-tone="${screenshotButtonTone}" aria-label="${escapeHtml(screenshotButtonTooltip)}"${screenshotButtonBusy ? " disabled aria-busy=\"true\"" : ""}><img src="${screenshotSelectIcon}" alt=""></button></div>
+           <div class="desktop-screenshot-summary-actions"><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-tutorial" data-settings-action="start-screenshot-tutorial" data-tooltip="Tutorial de screenshots" aria-label="Tutorial de screenshots"><img src="assets/tutorial/balao-interrogacao.gif" alt=""></button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-folder-icon${newScreenshotCount > 0 ? " has-new-screenshots" : ""}" data-settings-action="open-screenshot-directory" data-tooltip="Abrir pasta de screenshots" aria-label="Abrir pasta de screenshots${newScreenshotCount > 0 ? ` (${newScreenshotCount} novas)` : ""}"><img src="${screenshotFolderIcon}" alt="">${screenshotFolderCount}</button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-select-icon${screenshotButtonBusy ? " screenshot-action-busy" : ""}" data-settings-action="open-screenshot-assistant" data-tutorial-focus="screenshot-select-area" data-tooltip="${escapeHtml(screenshotButtonTooltip)}" data-tooltip-tone="${screenshotButtonTone}" aria-label="${escapeHtml(screenshotButtonTooltip)}"${screenshotButtonBusy ? " disabled aria-busy=\"true\"" : ""}><img src="${screenshotSelectIcon}" alt=""></button></div>
         </div>
         <div class="desktop-screenshot-config docked-alert-extension" ${state.desktopScreenshotExpanded ? "" : "hidden"}>
           <div class="docked-alert-extension-divider" aria-hidden="true"></div>
@@ -5572,7 +5640,7 @@ function renderDesktopSettingsPanelMarkup() {
           <div class="desktop-screenshot-directory-row" data-tutorial-focus="screenshot-directory"><strong>Escolher diretório</strong><button type="button" class="desktop-screenshot-directory-value" data-settings-action="choose-screenshot-directory" data-tooltip="Escolha a pasta onde suas screenshots serão salvas. Isso é opcional.">${escapeHtml(directory)}</button></div>
           <div class="desktop-screenshot-directory-row" data-tutorial-focus="tibia-screenshot-directory"><strong>Pasta do Tibia</strong><button type="button" class="desktop-screenshot-directory-value" data-settings-action="choose-tibia-screenshot-directory" data-tooltip="Escolha a pasta onde o Tibia salva suas screenshots oficiais.">${escapeHtml(tibiaScreenshotDirectory)}</button></div>
           <div class="desktop-screenshot-upscale-row"><strong>Escala</strong><label class="desktop-opacity-control desktop-screenshot-upscale-control" for="desktop-screenshot-upscale-input" data-tooltip="Selecione a resolução da imagem gerada pela screenshot."><input id="desktop-screenshot-upscale-input" type="range" min="1" max="20" step="1" value="${upscaleFactor}" style="--slider-progress: ${upscaleProgress}%"><strong>${upscaleFactor}x</strong></label></div>
-          <div class="desktop-screenshot-extra-actions" aria-label="Ações de screenshots"><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-tutorial" data-settings-action="start-screenshot-tutorial" data-tooltip="Tutorial de screenshots" aria-label="Tutorial de screenshots"><img src="assets/ui/tutorial/balao-interrogacao.gif" alt=""></button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-folder-icon${newScreenshotCount > 0 ? " has-new-screenshots" : ""}" data-settings-action="open-screenshot-directory" data-tooltip="Abrir pasta de screenshots" aria-label="Abrir pasta de screenshots${newScreenshotCount > 0 ? ` (${newScreenshotCount} novas)` : ""}"><img src="${screenshotFolderIcon}" alt="">${screenshotFolderCount}</button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-delete-icon${deleteOriginal ? " active" : ""}" data-settings-action="toggle-delete-original" data-tooltip="Apagar imagem original" aria-label="Apagar imagem original" aria-pressed="${deleteOriginal ? "true" : "false"}"><img src="assets/ui/tutorial/Dustbin.gif" alt=""></button></div>
+          <div class="desktop-screenshot-extra-actions" aria-label="Ações de screenshots"><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-tutorial" data-settings-action="start-screenshot-tutorial" data-tooltip="Tutorial de screenshots" aria-label="Tutorial de screenshots"><img src="assets/tutorial/balao-interrogacao.gif" alt=""></button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-folder-icon${newScreenshotCount > 0 ? " has-new-screenshots" : ""}" data-settings-action="open-screenshot-directory" data-tooltip="Abrir pasta de screenshots" aria-label="Abrir pasta de screenshots${newScreenshotCount > 0 ? ` (${newScreenshotCount} novas)` : ""}"><img src="${screenshotFolderIcon}" alt="">${screenshotFolderCount}</button><button type="button" class="docked-alert-magic-vocation-button desktop-screenshot-delete-icon${deleteOriginal ? " active" : ""}" data-settings-action="toggle-delete-original" data-tooltip="Apagar imagem original" aria-label="Apagar imagem original" aria-pressed="${deleteOriginal ? "true" : "false"}"><img src="assets/tutorial/Dustbin.gif" alt=""></button></div>
           ${state.desktopScreenshotStatus ? `<p class="desktop-screenshot-status">${escapeHtml(state.desktopScreenshotStatus)}</p>` : ""}
         </div>
       </section>
@@ -5763,23 +5831,23 @@ window.desktopApi?.globalWorldPicker?.onClosed?.(() => {
 
 function renderDesktopAccountPanelMarkup() {
   if (!state.desktopAccountConnected) {
-    return `<section class="desktop-account-panel"><p>${escapeHtml(t("account.signInCopy"))}</p><button type="button" class="desktop-account-image-action" data-account-action="connect" aria-label="${escapeHtml(t("toolbar.login"))}" data-tooltip="${escapeHtml(t("toolbar.login"))}"><img src="assets/ui/account/login.png" alt="${escapeHtml(t("toolbar.login"))}"></button></section>`;
+    return `<section class="desktop-account-panel"><p>${escapeHtml(t("account.signInCopy"))}</p><button type="button" class="desktop-account-image-action" data-account-action="connect" aria-label="${escapeHtml(t("toolbar.login"))}" data-tooltip="${escapeHtml(t("toolbar.login"))}"><img src="assets/settings/account/login.png" alt="${escapeHtml(t("toolbar.login"))}"></button></section>`;
   }
   const profile = state.desktopAccountProfile || {};
   const summary = state.desktopAccountSummary || {};
   const displayName = String(profile.displayName || profile.name || "Tibia Toolkit").trim();
   const email = String(profile.email || "").trim();
   const avatarUrl = String(profile.avatarUrl || "").trim();
-  const avatarImageUrl = avatarUrl || "assets/ui/tools/tibia-eye/profiles/no-vocation.png";
+  const avatarImageUrl = avatarUrl || "assets/tools/tibia-mirror/profiles/no-vocation.png";
   const adsBenefit = (Array.isArray(state.desktopAccountBenefits) ? state.desktopAccountBenefits : []).find((benefit) => benefit?.key === "ads.remove") || null;
   const adsBenefitMarkup = adsBenefit
     ? `<dd>${escapeHtml(formatDesktopAdsBenefit(adsBenefit))}</dd>`
-    : `<dd><button type="button" class="desktop-account-action desktop-remove-ads-action" data-account-action="remove-ads" data-tooltip="${escapeHtml(t("account.removeAds"))}"><img src="assets/ui/tools/tibia-eye/buy-me-a-coffee/coffee-toolbar.gif" alt=""><strong>${escapeHtml(t("account.removeAds"))}</strong></button></dd>`;
+    : `<dd><button type="button" class="desktop-account-action desktop-remove-ads-action" data-account-action="remove-ads" data-tooltip="${escapeHtml(t("account.removeAds"))}"><img src="assets/monetization/support/coffee-toolbar.gif" alt=""><strong>${escapeHtml(t("account.removeAds"))}</strong></button></dd>`;
   return `<section class="desktop-account-panel">
     <header class="desktop-account-identity">
       <div class="desktop-account-avatar-frame"><img src="${escapeHtml(avatarImageUrl)}" alt="${escapeHtml(t("account.characterAvatar"))}" data-account-avatar></div>
       <div><strong>${escapeHtml(displayName)}</strong>${email ? `<span>${escapeHtml(email)}</span>` : ""}</div>
-      <button type="button" class="desktop-account-edit-character" data-account-action="edit-character" data-tooltip="${escapeHtml(t("account.editCharacter"))}" aria-label="${escapeHtml(t("account.editCharacter"))}"><img src="assets/tibia-client/organized/objects/items/painting-equipment/artist-s-palette--item-3133.png" alt=""></button>
+      <button type="button" class="desktop-account-edit-character" data-account-action="edit-character" data-tooltip="${escapeHtml(t("account.editCharacter"))}" aria-label="${escapeHtml(t("account.editCharacter"))}"><img src="assets/settings/account/artist-palette.png" alt=""></button>
     </header>
     <dl><div><dt>${escapeHtml(t("account.openReports"))}</dt><dd>${Number(summary.openReports) || 0}</dd></div><div><dt>${escapeHtml(t("account.unreadMessages"))}</dt><dd>${Number(summary.unreadMessages) || 0}</dd></div><div class="desktop-account-benefit"><dt>${escapeHtml(t("account.adsRemoved"))}</dt>${adsBenefitMarkup}</div></dl>
     <div class="desktop-account-actions">
@@ -5788,12 +5856,12 @@ function renderDesktopAccountPanelMarkup() {
       <section class="desktop-account-proof-actions" aria-labelledby="desktop-account-proof-title">
         <h2 id="desktop-account-proof-title">${escapeHtml(t("account.proof"))}</h2>
         <div>
-          <button type="button" class="desktop-account-action" data-account-action="proof" data-tooltip="${escapeHtml(t("account.proofSite"))}"><img src="assets/ui/economy/Tibia_Coin_Icon.gif" alt=""><strong>${escapeHtml(t("account.proofSite"))}</strong></button>
-          <button type="button" class="desktop-account-action" data-account-action="proof-discord" data-tooltip="${escapeHtml(t("account.proofDiscord"))}"><img src="assets/ui/tools/tibia-eye/buy-me-a-coffee/discord.svg" alt=""><strong>${escapeHtml(t("account.proofDiscord"))}</strong></button>
+          <button type="button" class="desktop-account-action" data-account-action="proof" data-tooltip="${escapeHtml(t("account.proofSite"))}"><img src="assets/economy/Tibia_Coin_Icon.gif" alt=""><strong>${escapeHtml(t("account.proofSite"))}</strong></button>
+          <button type="button" class="desktop-account-action" data-account-action="proof-discord" data-tooltip="${escapeHtml(t("account.proofDiscord"))}"><img src="assets/monetization/support/discord.svg" alt=""><strong>${escapeHtml(t("account.proofDiscord"))}</strong></button>
         </div>
       </section>
       <button type="button" class="desktop-account-action" data-account-action="settings" data-tooltip="${escapeHtml(t("account.moreSettings"))}"><strong>${escapeHtml(t("account.moreSettings"))}</strong></button>
-      <button type="button" class="desktop-account-image-action desktop-account-logout-image-action" data-account-action="logout" data-tooltip="${escapeHtml(t("toolbar.logout"))}" aria-label="${escapeHtml(t("toolbar.logout"))}"><img src="assets/ui/account/logout.png" alt="${escapeHtml(t("toolbar.logout"))}"></button>
+      <button type="button" class="desktop-account-image-action desktop-account-logout-image-action" data-account-action="logout" data-tooltip="${escapeHtml(t("toolbar.logout"))}" aria-label="${escapeHtml(t("toolbar.logout"))}"><img src="assets/settings/account/logout.png" alt="${escapeHtml(t("toolbar.logout"))}"></button>
     </div>
   </section>`;
 }
@@ -5811,18 +5879,18 @@ function formatDesktopAdsBenefit(benefit) {
 
 function renderDesktopReportPanelMarkup() {
   if (!state.desktopAccountConnected) {
-    return `<section class="desktop-account-panel"><p>${escapeHtml(t("account.report.signInCopy"))}</p><button type="button" class="desktop-account-image-action" data-account-action="connect-report" aria-label="${escapeHtml(t("toolbar.login"))}" data-tooltip="${escapeHtml(t("toolbar.login"))}"><img src="assets/ui/account/login.png" alt="${escapeHtml(t("toolbar.login"))}"></button></section>`;
+    return `<section class="desktop-account-panel"><p>${escapeHtml(t("account.report.signInCopy"))}</p><button type="button" class="desktop-account-image-action" data-account-action="connect-report" aria-label="${escapeHtml(t("toolbar.login"))}" data-tooltip="${escapeHtml(t("toolbar.login"))}"><img src="assets/settings/account/login.png" alt="${escapeHtml(t("toolbar.login"))}"></button></section>`;
   }
   const kind = normalizeDesktopReportKind(state.desktopReportKind);
   const kindCopy = DESKTOP_REPORT_KIND_COPY[kind];
   return `<form class="desktop-report-panel" data-account-report-form>
     <fieldset><legend>${escapeHtml(t("account.report.whatFound"))}</legend><div class="desktop-report-kind-options">${Object.entries(DESKTOP_REPORT_KIND_COPY).map(([entryKind, entry]) => `<button type="button" data-account-report-kind="${escapeHtml(entryKind)}" class="${entryKind === kind ? "is-selected" : ""}" aria-pressed="${entryKind === kind}" aria-label="${escapeHtml(t(`account.report.${entryKind}`))}" data-tooltip="${escapeHtml(t(`account.report.${entryKind}`))}"><img src="${escapeHtml(entry.icon)}" alt=""></button>`).join("")}</div></fieldset>
     <input type="hidden" name="kind" value="${escapeHtml(kind)}">
-    <div class="desktop-report-selected-elements" data-account-report-selected ${state.desktopReportSelectedElements.length ? "" : "hidden"}>${state.desktopReportSelectedElements.map((element) => `<div><strong>${escapeHtml(element.id ? `#${element.id}` : element.label)}</strong><span>${escapeHtml(element.selector)}</span><button type="button" data-account-report-remove="${escapeHtml(element.selector)}" aria-label="${escapeHtml(t("account.report.removeElement"))}" data-tooltip="${escapeHtml(t("account.report.removeElement"))}"><img src="assets/ui/Cross.png" alt=""></button></div>`).join("")}</div>
+    <div class="desktop-report-selected-elements" data-account-report-selected ${state.desktopReportSelectedElements.length ? "" : "hidden"}>${state.desktopReportSelectedElements.map((element) => `<div><strong>${escapeHtml(element.id ? `#${element.id}` : element.label)}</strong><span>${escapeHtml(element.selector)}</span><button type="button" data-account-report-remove="${escapeHtml(element.selector)}" aria-label="${escapeHtml(t("account.report.removeElement"))}" data-tooltip="${escapeHtml(t("account.report.removeElement"))}"><img src="assets/common/actions/Cross.png" alt=""></button></div>`).join("")}</div>
     <label><span data-account-report-title-label>${escapeHtml(t(kindCopy.titleKey))}</span><input name="title" placeholder="${escapeHtml(t(kindCopy.titleKey))}" minlength="4" maxlength="160" required></label>
     <label><span>${escapeHtml(t("account.report.details"))}</span><textarea name="body" placeholder="${escapeHtml(t(kindCopy.detailKey))}" minlength="10" maxlength="10000" required></textarea></label>
     <p class="desktop-account-status" data-account-report-status aria-live="polite"></p>
-    <footer class="desktop-report-actions"><button type="submit" class="entity-link-chip desktop-report-submit" data-tooltip="${escapeHtml(t("account.report.submit"))}">${escapeHtml(t("account.report.submit"))}</button><button type="button" class="desktop-report-select-action" data-account-report-select aria-label="${escapeHtml(t("account.report.selectElement"))}" data-tooltip="${escapeHtml(t("account.report.selectElement"))}"><img src="assets/ui/feedback/select-element.png" alt=""></button></footer>
+    <footer class="desktop-report-actions"><button type="submit" class="entity-link-chip desktop-report-submit" data-tooltip="${escapeHtml(t("account.report.submit"))}">${escapeHtml(t("account.report.submit"))}</button><button type="button" class="desktop-report-select-action" data-account-report-select aria-label="${escapeHtml(t("account.report.selectElement"))}" data-tooltip="${escapeHtml(t("account.report.selectElement"))}"><img src="assets/feedback/select-element.png" alt=""></button></footer>
   </form>`;
 }
 
@@ -5859,7 +5927,7 @@ async function connectDesktopAccount(options = {}) {
       message: adsRemoved ? t("account.loginCompletedAdsRemoved") : t("account.loginCompleted"),
       confirmLabel: t("dialog.confirm"),
       tone: "success",
-      mediaPath: "assets/ui/tutorial/obs.gif",
+      mediaPath: "assets/tutorial/obs.gif",
       mediaWidth: 208,
       hideCancel: true,
       autoHeight: true,
@@ -6922,15 +6990,15 @@ async function loadSpellsCatalog() {
     showGlobalLoading("Carregando magias...");
     try {
     const bundle = window.desktopApi?.assets?.readJson
-      ? await window.desktopApi.assets.readJson("assets/data/spells.detailed.json")
-      : await fetch("assets/data/spells.detailed.json").then(async (response) => {
+      ? await window.desktopApi.assets.readJson("assets/library/catalogs/spells.detailed.json")
+      : await fetch("assets/library/catalogs/spells.detailed.json").then(async (response) => {
           if (!response.ok) throw new Error("Não foi possível carregar as magias.");
           return response.json();
         });
     state.spells.records = Array.isArray(bundle.records) ? bundle.records : [];
     const catalogBundle = window.desktopApi?.assets?.readJson
-      ? await window.desktopApi.assets.readJson("assets/data/spells.catalog.json")
-      : await fetch("assets/data/spells.catalog.json").then((response) => response.json());
+      ? await window.desktopApi.assets.readJson("assets/library/catalogs/spells.catalog.json")
+      : await fetch("assets/library/catalogs/spells.catalog.json").then((response) => response.json());
     const catalogById = new Map((catalogBundle.spells || []).map((spell) => [spell.id, spell]));
     const locale = state.localeController?.getLocale?.() || "pt-BR";
     const phraseMap = await loadPhraseTranslationMap(locale).catch(() => ({}));
@@ -7032,7 +7100,7 @@ function renderSpellsCatalog() {
   }
   bindSkillDynamicTooltips(els.itemSpellsView);
   els.spellsStatus.textContent = `${records.length} ${spellUi().spells}`;
-  els.spellsGrid.innerHTML = records.map((spell) => `<button type="button" class="book-card spell-card" data-spell-id="${escapeHtml(spell.id)}"><img src="${escapeHtml(spell.icon ? String(spell.icon).replace(/^\/library\/spells\//, "assets/data/spells/") : "assets/ui/tools/skill-magic.gif")}" alt=""><strong data-i18n-preserve>${escapeHtml(spell.name)}</strong><span data-i18n-preserve>${escapeHtml(spell.spellWords || "")}</span></button>`).join("");
+  els.spellsGrid.innerHTML = records.map((spell) => `<button type="button" class="book-card spell-card" data-spell-id="${escapeHtml(spell.id)}"><img src="${escapeHtml(spell.icon ? String(spell.icon).replace(/^\/library\/spells\//, "assets/library/spells/") : "assets/tools/skill-calculator/skill-magic.gif")}" alt=""><strong data-i18n-preserve>${escapeHtml(spell.name)}</strong><span data-i18n-preserve>${escapeHtml(spell.spellWords || "")}</span></button>`).join("");
   els.spellsGrid.querySelectorAll("[data-spell-id]").forEach((button) => button.addEventListener("click", () => openSpellDetail(button.dataset.spellId || "")));
 }
 
@@ -7044,8 +7112,8 @@ function openSpellDetail(id) {
   const facts = [[ui.level,spell.level],[ui.mana,spell.mana],[ui.words,spell.spellWords],[ui.vocation,spell.vocations],[ui.category,spell.category],[ui.damageType,spell.damageType],[ui.premium,spell.premium],[ui.soul,spell.soul],[ui.cooldown,spell.cooldownOwn],[ui.groupCooldown,spell.cooldownGroup],[ui.specialCooldown,spell.cooldownSpecial],[ui.effect,spell.effect],[ui.notes,spell.notes],[ui.history,spell.history],[ui.basePower,spell.basePower],[ui.scaleWith,spell.scaleWith],[ui.range,spell.range],[ui.target,spell.aimAtTarget],[ui.implemented,spell.implemented],[ui.updated,spell.updated],[ui.wheelType,spell.wheelSpellType]];
   Object.entries(spell.rawFields || {}).forEach(([key,value]) => { if (value && !consumedRaw.has(key)) facts.push([key, value]); });
   const displayedFacts = facts.filter(([,value]) => value);
-  const spellIcon = spell.icon ? String(spell.icon).replace(/^\/library\/spells\//, "assets/data/spells/") : "assets/ui/tools/skill-magic.gif";
-  els.spellsDetail.innerHTML = `<div class="books-detail-header"><div class="books-detail-hero"><img src="${escapeHtml(spellIcon)}" alt=""><h3>${escapeHtml(spell.name)}</h3></div></div><dl class="library-fact-list">${displayedFacts.map(([label,value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${renderLibraryFactualText(value)}</dd></div>`).join("")}</dl>${spell.animation?.localPath ? `<figure><img class="book-detail-image" src="assets/data/spells/demonstrations/${escapeHtml(String(spell.animation.localPath).split("/").pop())}" alt="${escapeHtml(`${ui.demonstration}: ${spell.name}`)}"><figcaption>${escapeHtml(ui.demonstration)}</figcaption></figure>` : ""}`;
+  const spellIcon = spell.icon ? String(spell.icon).replace(/^\/library\/spells\//, "assets/library/spells/") : "assets/tools/skill-calculator/skill-magic.gif";
+  els.spellsDetail.innerHTML = `<div class="books-detail-header"><div class="books-detail-hero"><img src="${escapeHtml(spellIcon)}" alt=""><h3>${escapeHtml(spell.name)}</h3></div></div><dl class="library-fact-list">${displayedFacts.map(([label,value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${renderLibraryFactualText(value)}</dd></div>`).join("")}</dl>${spell.animation?.localPath ? `<figure><img class="book-detail-image" src="assets/library/spells/demonstrations/${escapeHtml(String(spell.animation.localPath).split("/").pop())}" alt="${escapeHtml(`${ui.demonstration}: ${spell.name}`)}"><figcaption>${escapeHtml(ui.demonstration)}</figcaption></figure>` : ""}`;
   els.spellsDetail.classList.remove("hidden");
   window.requestAnimationFrame(() => els.spellsDetail?.scrollIntoView({ behavior: "smooth", block: "start" }));
 }
@@ -7287,7 +7355,7 @@ async function ensureCreatureWeaknessIndexLoaded() {
   }
 
   state.creatureWeaknessIndexLoading = true;
-  state.creatureWeaknessIndexPromise = fetch("assets/data/creature-status-overrides.json")
+  state.creatureWeaknessIndexPromise = fetch("assets/library/catalogs/creature-status-overrides.json")
     .then((response) => {
       if (!response.ok) {
         throw new Error(t("npcs.failedWeaknesses"));
@@ -7407,7 +7475,7 @@ function renderMonsterCategories() {
 
   els.monsterCategoryGrid.innerHTML = normalizeUiText(`
     <button type="button" class="monster-category-card${allActiveClass}" data-monster-category="" data-tooltip="${escapeHtml(`${formatCompactNumber(allCount)} criaturas`)}">
-      <img class="monster-category-icon all" src="assets/ui/bestiary/creature-category-all.png" alt="${escapeHtml(t("common.all.masculine"))}">
+      <img class="monster-category-icon all" src="assets/bestiary/navigation/creature-category-all.png" alt="${escapeHtml(t("common.all.masculine"))}">
       <strong>${escapeHtml(t("common.all.masculine"))}</strong>
     </button>
     ${categories.map((category) => {
@@ -8569,7 +8637,7 @@ function renderCreatureBestiaryWarning(detail = {}) {
 
   return `
     <div class="creature-warning">
-      <strong><img src="assets/ui/combat-status/15px-Warning_Icon_Yellow.png" alt=""> ${escapeHtml(t("creature.warningTitle"))}</strong>
+      <strong><img src="assets/bestiary/combat-status/15px-Warning_Icon_Yellow.png" alt=""> ${escapeHtml(t("creature.warningTitle"))}</strong>
       <p>${escapeHtml(t("creature.warningText"))}</p>
     </div>
   `;
@@ -8577,8 +8645,8 @@ function renderCreatureBestiaryWarning(detail = {}) {
 
 function renderCreatureTraits(detail = {}) {
   const immunities = [
-    detail.paralyzeImmune ? { label: t("creature.paralysis"), value: detail.paralyzeImmune, icon: "assets/ui/combat-status/Slowed_Icon.gif" } : null,
-    detail.senseInvisible ? { label: t("creature.invisible"), value: detail.senseInvisible, icon: "assets/ui/combat-status/9px-Invisible_Icon.gif" } : null
+    detail.paralyzeImmune ? { label: t("creature.paralysis"), value: detail.paralyzeImmune, icon: "assets/bestiary/combat-status/Slowed_Icon.gif" } : null,
+    detail.senseInvisible ? { label: t("creature.invisible"), value: detail.senseInvisible, icon: "assets/bestiary/combat-status/9px-Invisible_Icon.gif" } : null
   ].filter(Boolean).filter((entry) => isTruthyTrait(entry.value));
   const walksThrough = parseCreatureElementList(detail.walksThrough);
   const hasAnyTrait =
@@ -8654,7 +8722,7 @@ function renderBooleanTrait(value) {
   }
 
   const enabled = isTruthyTrait(value);
-  return `<img class="trait-check-icon" src="assets/ui/${enabled ? "Tick.png" : "Cross.png"}" alt="${enabled ? "Sim" : "Nao"}">`;
+  return `<img class="trait-check-icon" src="assets/${enabled ? "Tick.png" : "Cross.png"}" alt="${enabled ? "Sim" : "Nao"}">`;
 }
 
 function parseCreatureElementList(value) {
@@ -10241,7 +10309,7 @@ function renderCreatureGearSlot(slot, slotKey) {
 
   return `
     <button type="button" class="creature-gear-slot${isEmpty ? " empty" : ""}" data-tooltip="${escapeHtml(tooltip)}" aria-label="${escapeHtml(ariaLabel)}"${actionAttrs}>
-      ${!isEmpty && slot?.image ? `<img src="${escapeHtml(slot.image)}" alt="${escapeHtml(name)}" onerror="this.style.visibility='hidden';">` : `<img class="creature-gear-empty-icon" src="assets/ui/Cross.png" alt="">`}
+      ${!isEmpty && slot?.image ? `<img src="${escapeHtml(slot.image)}" alt="${escapeHtml(name)}" onerror="this.style.visibility='hidden';">` : `<img class="creature-gear-empty-icon" src="assets/common/actions/Cross.png" alt="">`}
       <em>${escapeHtml(label)}</em>
     </button>
   `;
@@ -11760,6 +11828,9 @@ async function prewarmTutorialData() {
 
   const startedAt = performance.now();
   const worldSlug = state.currentWorldSlug;
+  if (!worldSlug) {
+    return { complete: false, itemSuggestions: 0, npcs: 0 };
+  }
   state.tutorialPreloadPromise = Promise.allSettled([
     fetchItemSuggestions({ query: "Plate Armor", limit: 8, showAll: false }),
     fetchItemStatic({ itemSlug: "plate-armor", worldSlug }),
@@ -12568,6 +12639,11 @@ function cancelStashMarketLoading() {
 }
 
 async function loadVisibleStashMarketValues(options = {}) {
+  if (!getSelectedWorld()?.slug) {
+    setStashStatus(t("worlds.catalogUnavailable"));
+    return;
+  }
+
   if (state.stashLoadingMarket) {
     return;
   }
@@ -13085,6 +13161,11 @@ function escapeHtml(value) {
 }
 
 async function handleItemSearch(skipInputNormalization = false) {
+  if (!getSelectedWorld()?.slug) {
+    setFeedback(t("worlds.catalogUnavailable"), true);
+    return;
+  }
+
   // Item links can originate from entity details while Books or Spells is the
   // active Library view. The search result belongs to the List view, so make
   // that transition before the first render instead of leaving the previous
@@ -13554,7 +13635,7 @@ function syncSkillCalculatorInputs() {
   }
 
   if (els.skillPreviewIcon) {
-    els.skillPreviewIcon.src = skill.icon || SKILL_WEAPON_IMAGE_FALLBACKS[skill.weapon] || "assets/ui/tools/tool-skill-calculator.webp";
+    els.skillPreviewIcon.src = skill.icon || SKILL_WEAPON_IMAGE_FALLBACKS[skill.weapon] || "assets/tools/skill-calculator/tool-skill-calculator.webp";
     els.skillPreviewIcon.alt = skill.label;
   }
 
@@ -13607,7 +13688,7 @@ function renderSkillCalculatorLegacyUnused() {
       <h4>NPC</h4>
       <div class="skill-route-bullets">
         <div>
-          <img src="assets/ui/economy/Crystal_Coin.gif" alt="">
+          <img src="assets/economy/Crystal_Coin.gif" alt="">
           <span>Gold</span>
           <strong>${formatGoldValue(result.npcGoldTotal)}</strong>
         </div>
@@ -13628,7 +13709,7 @@ function renderSkillCalculatorLegacyUnused() {
           <strong>${renderCurrencyValue(result.storeTcTotal, "TC")}</strong>
         </div>
         <div>
-          <img src="assets/ui/economy/Crystal_Coin.gif" alt="">
+          <img src="assets/economy/Crystal_Coin.gif" alt="">
           <span>${escapeHtml(t("skill.goldEquivalent"))}</span>
           <strong>${result.storeGoldEquivalent === null ? escapeHtml(t("skill.noWorldTc")) : formatGoldValue(result.storeGoldEquivalent)}</strong>
         </div>
@@ -13706,7 +13787,7 @@ function renderSkillCalculatorCompact() {
           <h4>NPC</h4>
           <div class="skill-route-bullets">
             <div>
-              <img src="assets/ui/economy/Crystal_Coin.gif" alt="">
+              <img src="assets/economy/Crystal_Coin.gif" alt="">
               <span>Gold</span>
               <strong>${formatGoldValue(result.npcGoldTotal)}</strong>
             </div>
@@ -13728,7 +13809,7 @@ function renderSkillCalculatorCompact() {
               <strong>${renderCurrencyValue(result.storeTcTotal, "TC")}</strong>
             </div>
             <div>
-              <img src="assets/ui/economy/Crystal_Coin.gif" alt="">
+              <img src="assets/economy/Crystal_Coin.gif" alt="">
               <span>${escapeHtml(t("skill.goldEquivalent"))}</span>
               <strong>${result.storeGoldEquivalent === null ? escapeHtml(t("skill.noWorldTc")) : formatGoldValue(result.storeGoldEquivalent)}</strong>
             </div>
@@ -13875,7 +13956,7 @@ function calculateSkillWeaponBreakdown(chargesNeeded, skill) {
 }
 
 function getSkillWeaponImage(tierKey, weaponKey) {
-  return SKILL_WEAPON_IMAGES[tierKey]?.[weaponKey] || SKILL_WEAPON_IMAGE_FALLBACKS[weaponKey] || "assets/ui/tools/tool-skill-calculator.webp";
+  return SKILL_WEAPON_IMAGES[tierKey]?.[weaponKey] || SKILL_WEAPON_IMAGE_FALLBACKS[weaponKey] || "assets/tools/skill-calculator/tool-skill-calculator.webp";
 }
 
 function getSkillTibiaCoinGoldPrice() {
@@ -14729,7 +14810,7 @@ function renderFindParty() {
     els.findPartyResults.innerHTML = normalizeUiText(
       visiblePlayers
         .map((player) => {
-          const imageSrc = getVocationOutfitPath(player.vocation, "") || "assets/ui/tools/tibia-eye/profiles/no-vocation.png";
+          const imageSrc = getVocationOutfitPath(player.vocation, "") || "assets/tools/tibia-mirror/profiles/no-vocation.png";
           const levelLabel = Number(player.level || 0).toLocaleString("pt-BR");
           return `
             <div class="find-party-result-card">
@@ -14742,9 +14823,9 @@ function renderFindParty() {
                 <strong class="find-party-result-level">${escapeHtml(levelLabel)}</strong>
                 <button type="button" class="imbuement-copy-button" data-find-party-copy-name="${escapeHtml(player.name)}" data-tooltip="Copiar nome" aria-label="Copiar nome de ${escapeHtml(player.name)}">
                   <span class="copy-sprite-stack" aria-hidden="true">
-                    <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/ui/copy/copiar-off.png" alt="">
-                    <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/ui/copy/copiar-hover.png" alt="">
-                    <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/ui/copy/copiar-on.png" alt="">
+                    <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/navigation/copy/copiar-off.png" alt="">
+                    <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/navigation/copy/copiar-hover.png" alt="">
+                    <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/navigation/copy/copiar-on.png" alt="">
                   </span>
                 </button>
               </div>
@@ -15442,10 +15523,14 @@ async function hydrateLootParsedItems(parsed) {
     return true;
   }
 
+  if (!state.currentWorldSlug) {
+    return true;
+  }
+
   const requestId = ++state.lootItemHydrationRequestId;
   const hydrationStartedAt = performance.now();
   let firstResolvedRecorded = false;
-  const worldSlug = state.currentWorldSlug || "antica";
+  const worldSlug = state.currentWorldSlug;
 
   // O Stash já mantém um índice local completo com sprites e valores NPC.
   // Reutilizá-lo evita uma consulta IPC por item apenas para descobrir a
@@ -16298,13 +16383,13 @@ function renderLootHelp() {
 
   const analyzerName = state.lootMode === "solo" ? "Hunt Analyzer" : "Party Hunt Analyzer";
   const imageSrc = state.lootMode === "solo"
-    ? "assets/ui/analyzer/hunt-analyzer-help.png"
-    : "assets/ui/analyzer/party-loot-help.jpg";
+    ? "assets/tools/analyzer/hunt-analyzer-help.png"
+    : "assets/tools/analyzer/party-loot-help.jpg";
   const optimizationMarkup = state.lootMode === "solo"
     ? `
       <div class="loot-help-optimization">
         <p class="loot-help-warning">
-          <img src="assets/ui/combat-status/15px-Warning_Icon_Yellow.png" alt="">
+          <img src="assets/bestiary/combat-status/15px-Warning_Icon_Yellow.png" alt="">
           <span>
             <strong>Importante:</strong>&nbsp;Para usar os valores de <strong>Market</strong>&nbsp;otimizado, primeiro defina os valores como <strong>NPC</strong>&nbsp;no loot pessoal do personagem.
           </span>
@@ -16413,15 +16498,15 @@ function renderLootPlayers(players) {
         <small>${renderPlayerSubtitle(player)}</small>
       </div>
       <div class="loot-player-stat-grid">
-        ${renderLootPlayerStatTile({ label: "Loot", value: player.loot, icon: "assets/ui/analyzer/analyzer-loot.gif" })}
-        ${renderLootPlayerStatTile({ label: "Supplies", value: player.supplies, icon: "assets/ui/analyzer/analyzer-supplies.gif" })}
-        ${renderLootPlayerStatTile({ label: "Balance", value: player.balance, icon: "assets/ui/analyzer/analyzer-balance.gif", signed: true })}
-        ${renderLootPlayerStatTile({ label: "Damage", value: player.damage, icon: "assets/ui/analyzer/analyzer-damage.gif" })}
-        ${renderLootPlayerStatTile({ label: "Healing", value: player.healing, icon: "assets/ui/analyzer/analyzer-healing.gif" })}
+        ${renderLootPlayerStatTile({ label: "Loot", value: player.loot, icon: "assets/tools/analyzer/analyzer-loot.gif" })}
+        ${renderLootPlayerStatTile({ label: "Supplies", value: player.supplies, icon: "assets/tools/analyzer/analyzer-supplies.gif" })}
+        ${renderLootPlayerStatTile({ label: "Balance", value: player.balance, icon: "assets/tools/analyzer/analyzer-balance.gif", signed: true })}
+        ${renderLootPlayerStatTile({ label: "Damage", value: player.damage, icon: "assets/tools/analyzer/analyzer-damage.gif" })}
+        ${renderLootPlayerStatTile({ label: "Healing", value: player.healing, icon: "assets/tools/analyzer/analyzer-healing.gif" })}
         ${typeof player.xpGain === "number" ? renderLootPlayerStatTile({
           label: "XP",
           value: player.xpGain,
-          icon: player.xpGain < 0 ? "assets/ui/analyzer/analyzer-death.png" : "assets/ui/analyzer/analyzer-xp.gif",
+          icon: player.xpGain < 0 ? "assets/tools/analyzer/analyzer-death.png" : "assets/tools/analyzer/analyzer-xp.gif",
           signed: true
         }) : ""}
       </div>
@@ -16444,7 +16529,7 @@ function renderLootPlayerStatTile({ label, value, icon, signed = false }) {
 
 function getLootPlayerStatIcon({ label, numericValue, fallbackIcon }) {
   if (label === "Balance" && numericValue < 0) {
-    return "assets/ui/analyzer/analyzer-balance-negative.gif";
+    return "assets/tools/analyzer/analyzer-balance-negative.gif";
   }
 
   if (label !== "Loot") {
@@ -16452,15 +16537,15 @@ function getLootPlayerStatIcon({ label, numericValue, fallbackIcon }) {
   }
 
   if (numericValue > 1000000) {
-    return "assets/ui/analyzer/analyzer-loot-incomprehensible-riches.gif";
+    return "assets/tools/analyzer/analyzer-loot-incomprehensible-riches.gif";
   }
 
   if (numericValue > 500000) {
-    return "assets/ui/analyzer/analyzer-loot-chest-of-abundance.gif";
+    return "assets/tools/analyzer/analyzer-loot-chest-of-abundance.gif";
   }
 
   if (numericValue > 100000) {
-    return "assets/ui/analyzer/analyzer-loot-treasure-chest.gif";
+    return "assets/tools/analyzer/analyzer-loot-treasure-chest.gif";
   }
 
   return fallbackIcon;
@@ -16570,9 +16655,9 @@ function renderLootOutput(parsed) {
           <span class="loot-output-command">(${escapeHtml(command)})</span>
         </span>
         <span class="loot-output-copy-icon" aria-hidden="true">
-          <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/ui/copy/copiar-off.png" alt="">
-          <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/ui/copy/copiar-hover.png" alt="">
-          <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/ui/copy/copiar-on.png" alt="">
+          <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/navigation/copy/copiar-off.png" alt="">
+          <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/navigation/copy/copiar-hover.png" alt="">
+          <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/navigation/copy/copiar-on.png" alt="">
         </span>
       </div>`;
     }
@@ -16987,9 +17072,9 @@ function renderLootPartyOutput(parsed) {
           <span class="loot-output-command">(${escapeHtml(command)})</span>
         </span>
         <span class="loot-output-copy-icon" aria-hidden="true">
-          <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/ui/copy/copiar-off.png" alt="">
-          <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/ui/copy/copiar-hover.png" alt="">
-          <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/ui/copy/copiar-on.png" alt="">
+          <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/navigation/copy/copiar-off.png" alt="">
+          <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/navigation/copy/copiar-hover.png" alt="">
+          <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/navigation/copy/copiar-on.png" alt="">
         </span>
       </div>
     `;
@@ -17263,8 +17348,8 @@ function renderToolbarWorldStatus() {
   }
   if (els.desktopYasirImage) {
     els.desktopYasirImage.src = active
-      ? "assets/ui/world-status/yasir-active.gif"
-      : "assets/ui/world-status/yasir-still.gif";
+      ? "assets/world-status/yasir-active.gif"
+      : "assets/world-status/yasir-still.gif";
   }
   bindSkillDynamicTooltips(els.desktopWorldStatus);
 }
@@ -17296,8 +17381,8 @@ function getBoostedSpriteSources(name, entry) {
     getBoostedAnimatedSprite(name),
     String(matchingEntry?.imageSrc || "").trim(),
     String(matchingEntry?.stillImageSrc || "").trim(),
-    slug ? `assets/data/creatures/${slug}.gif` : "",
-    slug ? `assets/data/library-thumbnails/creatures/${slug}.png` : "",
+    slug ? `assets/library/creatures/sprites/${slug}.gif` : "",
+    slug ? `assets/library/thumbnails/creatures/${slug}.png` : "",
     String(entry?.animatedImage || "").trim(),
     String(entry?.image || "").trim()
   ].filter(Boolean))];
@@ -17468,7 +17553,7 @@ function groupMiniWorldChangesCatalog(catalog) {
 function renderMiniWorldChangesMessage(message, kind = "empty") {
   const loading = kind === "loading"
     ? '<span class="global-loading-spinner mini-world-changes-spinner" aria-hidden="true"></span>'
-    : '<img src="assets/ui/navigation/world-board.gif" alt="">';
+    : '<img src="assets/navigation/menus/world-board.gif" alt="">';
   return `
     <div class="mini-world-changes-empty">
       ${loading}
@@ -17625,12 +17710,12 @@ function renderMiniWorldChangeRepresentatives(entry, className) {
     : [entry?.representative].filter(Boolean);
   const values = representatives.length
     ? representatives
-    : [{ localPath: "assets/ui/navigation/world-board.gif", label: entry?.name || "Mini World Change" }];
+    : [{ localPath: "assets/navigation/menus/world-board.gif", label: entry?.name || "Mini World Change" }];
 
   return `
     <span class="${escapeHtml(className)}">
       ${values.map((representative) => `
-        <img src="${escapeHtml(representative.localPath || "assets/ui/navigation/world-board.gif")}" alt="${escapeHtml(representative.label || entry?.name || "")}">
+        <img src="${escapeHtml(representative.localPath || "assets/navigation/menus/world-board.gif")}" alt="${escapeHtml(representative.label || entry?.name || "")}">
       `).join("")}
     </span>
   `;
@@ -18145,6 +18230,10 @@ function getValueTierClass(value) {
 
 async function refreshCurrencyRates(options = {}) {
   const worldSlug = options.worldSlug || state.currentWorldSlug;
+  if (!worldSlug || !getSelectedWorld()) {
+    setFeedback(t("worlds.catalogUnavailable"), true);
+    return null;
+  }
   const requestId = ++state.currencyRatesRequestId;
   const nextRates = await fetchCurrencyRates({
     worldSlug,
@@ -18479,6 +18568,7 @@ function hydrateWorldInputs() {
 function syncWorldInputs() {
   const selectedWorld = getSelectedWorld();
   const worldName = selectedWorld?.name || "";
+  const catalogAvailable = state.worlds.length > 0;
 
   if (els.globalWorldInput) {
     els.globalWorldInput.value = worldName;
@@ -18492,6 +18582,18 @@ function syncWorldInputs() {
   if (els.lootWorldInput) {
     els.lootWorldInput.value = worldName;
   }
+  [els.globalWorldInput, els.worldInput, els.toolWorldInput, els.lootWorldInput]
+    .filter(Boolean)
+    .forEach((input) => { input.disabled = !catalogAvailable; });
+  [els.globalWorldDropdownButton, els.worldDropdownButton, els.toolWorldDropdownButton, els.lootWorldDropdownButton]
+    .filter(Boolean)
+    .forEach((button) => { button.disabled = !catalogAvailable; });
+}
+
+function restoreWorldInput(field) {
+  const { input } = getWorldAutocompleteRefs(field);
+  if (input) input.value = getSelectedWorld()?.name || "";
+  closeWorldSuggestions(field);
 }
 
 function getWorldAutocompleteRefs(field) {
@@ -18648,6 +18750,21 @@ function getDesktopGlobalWorldPickerPayload() {
       pvpLabel: getWorldPvpLabel(world.pvp_type)
     })).filter((world) => world.slug && world.name)
   };
+}
+
+async function openDesktopGlobalWorldPickerForQuery() {
+  const button = els.globalWorldDropdownButton;
+  const picker = window.desktopApi?.globalWorldPicker;
+  if (!button || !picker?.open) return;
+
+  closeWorldSuggestions("global");
+  const payload = getDesktopGlobalWorldPickerPayload();
+  payload.query = String(els.globalWorldInput?.value || "");
+  const updated = await Promise.resolve(picker.update ? picker.update(payload) : null).catch(() => null);
+  const response = updated?.updated
+    ? { opened: true }
+    : await picker.open(payload).catch(() => null);
+  button.classList.toggle("open", Boolean(response?.opened));
 }
 
 async function toggleDesktopGlobalWorldPicker() {
@@ -18858,7 +18975,8 @@ async function handleWorldInputKeydown(field, event) {
   }
 
   if (event.key === "Escape") {
-    closeWorldSuggestions(field);
+    event.preventDefault();
+    restoreWorldInput(field);
   }
 }
 
@@ -19218,7 +19336,7 @@ function renderItemStoreNote(item) {
   els.itemStoreNote.innerHTML = `
     <span class="store-note-line">
       <span>Esse item pode ser comprado na Store por</span>
-      <img src="assets/ui/economy/Tibia_Coin_Icon.gif" alt="Tibia Coin">
+      <img src="assets/economy/Tibia_Coin_Icon.gif" alt="Tibia Coin">
       <strong>${escapeHtml(storeTcText)} ${escapeHtml(tcLabel)}</strong>
     </span>
   `;
@@ -21158,9 +21276,9 @@ function renderImbuementIngredients(rows) {
     copyIcon.className = "copy-sprite-stack";
     copyIcon.setAttribute("aria-hidden", "true");
     copyIcon.innerHTML = `
-      <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/ui/copy/copiar-off.png" alt="">
-      <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/ui/copy/copiar-hover.png" alt="">
-      <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/ui/copy/copiar-on.png" alt="">
+      <img class="copy-sprite-icon copy-sprite-icon-off" src="assets/navigation/copy/copiar-off.png" alt="">
+      <img class="copy-sprite-icon copy-sprite-icon-hover" src="assets/navigation/copy/copiar-hover.png" alt="">
+      <img class="copy-sprite-icon copy-sprite-icon-on" src="assets/navigation/copy/copiar-on.png" alt="">
     `;
     copyButton.append(copyIcon);
     titleRow.append(title, routeIcon, copyButton);
@@ -21926,7 +22044,7 @@ function getNpcTradeImageSrc(npcName) {
   if (!normalizedName) return "";
   const indexed = state.npcIndex.find((entry) => slugifyItemInput(entry?.name || "") === normalizedName);
   if (indexed?.imageSrc || indexed?.stillImageSrc) return indexed.stillImageSrc || indexed.imageSrc;
-  return `assets/data/npcs/${normalizedName}.gif`;
+  return `assets/library/npcs/sprites/${normalizedName}.gif`;
 }
 
 function getNpcFallbackImagePath(npcName) {
@@ -21964,7 +22082,7 @@ function getImbuementIconUrl(imbuementKey) {
     powerful: "3"
   };
   const tierSuffix = tierSuffixMap[state.currentImbuementTier] || "1";
-  return `assets/imbuements/${imbuementKey}-${tierSuffix}.webp`;
+  return `assets/tools/imbuements/${imbuementKey}-${tierSuffix}.webp`;
 }
 
 function renderImbuementPickerState() {
@@ -22198,7 +22316,17 @@ normalizeUiText = function normalizeUiTextDecoded(value) {
 
 async function loadRecentItems() {
   const stored = await localStorageGet(RECENT_ITEMS_KEY);
-  return Array.isArray(stored[RECENT_ITEMS_KEY]) ? stored[RECENT_ITEMS_KEY] : [];
+  const entries = Array.isArray(stored[RECENT_ITEMS_KEY]) ? stored[RECENT_ITEMS_KEY] : [];
+  let changed = false;
+  const normalized = entries.map((entry) => {
+    const imageSrc = String(entry?.imageSrc || "")
+      .replace(/assets\/data\/items\/sprites\//i, "assets/library/items/catalog/sprites/");
+    if (imageSrc === entry?.imageSrc) return entry;
+    changed = true;
+    return { ...entry, imageSrc };
+  });
+  if (changed) await localStorageSet({ [RECENT_ITEMS_KEY]: normalized });
+  return normalized;
 }
 
 async function loadLastWorldSlug() {
@@ -22286,6 +22414,9 @@ function scheduleWarmItemCache() {
 
 async function warmCurrentWorldItemCache() {
   const worldSlug = state.currentWorldSlug;
+  if (!worldSlug || !getSelectedWorld()) {
+    return;
+  }
   const warmSlugs = [
     state.currentItem?.item?.slug || state.selectedItemSuggestion?.slug || null,
     ...state.recentItems.map((entry) => entry.slug)

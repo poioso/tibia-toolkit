@@ -1,4 +1,4 @@
-const PRODUCTION_SITE_URL = "https://tibiatoolkit.com";
+const PRODUCTION_SITE_URL = "https://tibiarealm.com";
 const PRODUCTION_API_URL = "https://auth.tibiatoolkit.com";
 
 function safeOrigin(value, fallback) {

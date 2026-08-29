@@ -34,7 +34,7 @@ test("Alerts tutorial focuses the actual spell-panel control", () => {
 });
 
 test("Tibia Mirror ends with the three-client compatibility notice", () => {
-  assert.match(tourSource, /tibiaMirrorClients: "assets\/ui\/tutorial\/tibia-mirror-clientes\.png"/);
+  assert.match(tourSource, /tibiaMirrorClients: "assets\/tutorial\/tibia-mirror-clientes\.png"/);
   assert.match(tourSource, /gif: TUTORIAL_ASSETS\.tibiaMirrorClients/);
   assert.match(tourSource, /<strong>Tibia, RubinOT e Medivia<\/strong>/);
   assert.match(tourSource, /as magias específicas não foram adaptadas aos dois OT servers/);

@@ -40,8 +40,8 @@ test("startup currency icons use direct local assets without building the item i
     "function createShortcutMarkup",
   );
 
-  assert.match(appSource, /TIBIA_COINS_CURRENCY_ICON_PATH = "assets\/data\/items\/sprites\/5113\.png"/);
-  assert.match(appSource, /GOLD_TOKEN_CURRENCY_ICON_PATH = "assets\/data\/items\/sprites\/4239\.png"/);
+  assert.match(appSource, /TIBIA_COINS_CURRENCY_ICON_PATH = "assets\/library\/items\/catalog\/sprites\/5113\.png"/);
+  assert.match(appSource, /GOLD_TOKEN_CURRENCY_ICON_PATH = "assets\/library\/items\/catalog\/sprites\/4239\.png"/);
   assert.match(currencyIcons, /TIBIA_COINS_CURRENCY_ICON_PATH/);
   assert.match(currencyIcons, /GOLD_TOKEN_CURRENCY_ICON_PATH/);
   assert.doesNotMatch(currencyIcons, /fetchIngredientMetadata\s*\(/);

@@ -20,7 +20,7 @@ test("development defaults to homologation and can explicitly read production", 
   assert.deepEqual(live, {
     mode: "production-readonly",
     readOnly: true,
-    siteBaseUrl: "https://tibiatoolkit.com",
+    siteBaseUrl: "https://tibiarealm.com",
     apiBaseUrl: "https://auth.tibiatoolkit.com"
   });
 });

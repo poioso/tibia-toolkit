@@ -44,17 +44,17 @@ const SOUND_OPTIONS = [
   {
     value: "utura-gran",
     label: "utura gran",
-    file: new URL("../../assets/screen-vision/reference/sounds/utura gran.ogg", import.meta.url).href
+    file: new URL("../../assets/tools/tibia-mirror/reference/sounds/utura gran.ogg", import.meta.url).href
   },
   {
     value: "exura-gran-ico",
     label: "exura gran ico",
-    file: new URL("../../assets/screen-vision/reference/sounds/exura gran ico.ogg", import.meta.url).href
+    file: new URL("../../assets/tools/tibia-mirror/reference/sounds/exura gran ico.ogg", import.meta.url).href
   },
   {
     value: "utito-tempo",
     label: "utito tempo",
-    file: new URL("../../assets/screen-vision/reference/sounds/utito tempo.ogg", import.meta.url).href
+    file: new URL("../../assets/tools/tibia-mirror/reference/sounds/utito tempo.ogg", import.meta.url).href
   }
 ];
 const MAX_TIMERS = 10;

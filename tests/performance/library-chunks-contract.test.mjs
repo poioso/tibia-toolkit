@@ -8,8 +8,8 @@ import { fileURLToPath } from "node:url";
 import { configureDataService, handleDataServiceMessage } from "../../lib/data/data-service.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const canonicalPath = path.join(root, "assets", "data", "site-library-canonical.json");
-const chunksRoot = path.join(root, "assets", "data", "site-library-chunks");
+const canonicalPath = path.join(root, "assets", "library", "catalogs", "site-library-canonical.json");
+const chunksRoot = path.join(root, "assets", "library", "chunks");
 const canonicalContents = await fs.readFile(canonicalPath);
 const canonical = JSON.parse(canonicalContents.toString("utf8"));
 const manifest = JSON.parse(await fs.readFile(path.join(chunksRoot, "manifest.json"), "utf8"));
@@ -47,7 +47,7 @@ test("clean first run lists and opens Library data without reading the monolith"
       return "";
     },
     async readJsonAsset(relativePath) {
-      if (relativePath === "assets/data/site-library-canonical.json") monolithReads += 1;
+      if (relativePath === "assets/library/catalogs/site-library-canonical.json") monolithReads += 1;
       return JSON.parse(await fs.readFile(path.join(root, ...relativePath.split("/")), "utf8"));
     },
     async storageGet(key) {
@@ -99,7 +99,7 @@ test("incompatible active catalogue keeps the existing monolithic fallback", asy
       return "";
     },
     async readJsonAsset(relativePath) {
-      if (relativePath === "assets/data/site-library-canonical.json") monolithReads += 1;
+      if (relativePath === "assets/library/catalogs/site-library-canonical.json") monolithReads += 1;
       return JSON.parse(await fs.readFile(path.join(root, ...relativePath.split("/")), "utf8"));
     },
     async storageGet() { return {}; },

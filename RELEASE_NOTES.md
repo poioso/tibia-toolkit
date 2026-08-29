@@ -1,15 +1,11 @@
-Tibia Toolkit 0.7.5
+Tibia Toolkit 0.7.6
 
-- Corrigido o fluxo de instalação automática: o encerramento do aplicativo não interrompe mais o instalador depois que a atualização é baixada.
-
-Tibia Toolkit 0.7.4
-
-- Versão completa do aplicativo com o runtime, os recursos e o Content Pack atuais, revalidando o instalador e os assets das janelas externas.
-- Corrigido um problema que impedia o Top Apoiadores de carregar a skin personalizada do usuário no aplicativo.
-
-Tibia Toolkit 0.7.3
-
-- Corrigido o fluxo de instalação automática após o download de uma atualização, garantindo que o instalador seja acionado depois do encerramento seguro do aplicativo.
+- Adicionado um botão externo para redimensionar proporcionalmente toda a interface do aplicativo;
+- Janelas externas, anúncios, tutoriais, avisos, modais, seletores e controles acompanham a escala durante a transição;
+- Preservados os espelhos nativos e as funções internas do Tibia Mirror;
+- Corrigido o cancelamento do redimensionamento quando o aplicativo perde o foco;
+- Unificado o seletor externo de mundos para cliques e digitação.
+- O instalador não possui assinatura Authenticode; o Windows pode exibir um aviso do SmartScreen. Confira o SHA-256 publicado antes de executar.
 
 Tibia Toolkit 0.7.2
 

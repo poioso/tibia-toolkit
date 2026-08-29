@@ -2,11 +2,42 @@
   const query = document.querySelector("#query");
   const list = document.querySelector("#list");
   let worlds = [];
+  let selectedSlug = "";
   let activeIndex = 0;
 
+  function getMatches() {
+    const normalizedQuery = query.value.trim().toLowerCase();
+
+    return worlds
+      .map((world) => {
+        const normalizedName = String(world.name || "").toLowerCase();
+        let score = 0;
+
+        if (!normalizedQuery) {
+          score = world.slug === selectedSlug ? 500 : 100;
+        } else if (normalizedName === normalizedQuery) {
+          score = 500;
+        } else if (normalizedName.startsWith(normalizedQuery)) {
+          score = 300;
+        } else if (normalizedName.includes(normalizedQuery)) {
+          score = 120;
+        } else {
+          return null;
+        }
+
+        return { score, world };
+      })
+      .filter(Boolean)
+      .sort((left, right) => {
+        if (right.score !== left.score) return right.score - left.score;
+        return String(left.world.name || "").localeCompare(String(right.world.name || ""));
+      })
+      .slice(0, normalizedQuery ? 14 : worlds.length)
+      .map((entry) => entry.world);
+  }
+
   function render() {
-    const needle = query.value.trim().toLocaleLowerCase();
-    const matches = worlds.filter((world) => !needle || String(world.name || "").toLocaleLowerCase().includes(needle));
+    const matches = getMatches();
     activeIndex = Math.max(0, Math.min(activeIndex, Math.max(0, matches.length - 1)));
     list.replaceChildren();
     if (!matches.length) {
@@ -76,15 +107,10 @@
   });
 
   window.worldPicker.onRender((payload) => {
-    const selectedSlug = String(payload.selectedSlug || "");
+    selectedSlug = String(payload.selectedSlug || "");
     worlds = Array.isArray(payload.worlds) ? payload.worlds.slice() : [];
-    worlds.sort((left, right) => {
-      if (left.slug === selectedSlug) return -1;
-      if (right.slug === selectedSlug) return 1;
-      return String(left.name || "").localeCompare(String(right.name || ""));
-    });
     query.placeholder = String(payload.placeholder || "Digite o mundo");
-    query.value = "";
+    query.value = String(payload.query || "");
     activeIndex = 0;
     render();
     query.focus();

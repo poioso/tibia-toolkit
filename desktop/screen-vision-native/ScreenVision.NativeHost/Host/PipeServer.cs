@@ -145,6 +145,7 @@ internal sealed class PipeServer : IDisposable
                 "getObsWindows" => JsonSerializer.Serialize(new { ok = true, command, data = new { count = WindowProbe.GetObsWindowInfos().Count } }),
                 "getForegroundProcess" => await GetForegroundContextAsync(command).ConfigureAwait(false),
                 "setWindowRoundedCorners" => SetWindowRoundedCorners(root, command),
+                "bringWindowToFrontNoActivate" => BringWindowToFrontNoActivate(root, command),
                 "isAnyControllerFocused" => JsonSerializer.Serialize(new { ok = true, command, data = new { focused = IsAnyControllerFocused(root) } }),
                 "isTibiaBehindControllers" => JsonSerializer.Serialize(new { ok = true, command, data = new { visible = IsTibiaBehindControllers(root) } }),
                 "syncMirrors" => await SyncMirrorsAsync(root, command).ConfigureAwait(false),
@@ -181,14 +182,58 @@ internal sealed class PipeServer : IDisposable
         // Electron serializes 64-bit window handles as strings so JavaScript
         // never rounds them through Number. Accept both wire formats.
         var hwndValue = 0L;
-        var hasHandle = root.TryGetProperty("hwnd", out var hwndElement)
-            && (hwndElement.TryGetInt64(out hwndValue)
-                || (hwndElement.ValueKind == JsonValueKind.String
-                    && long.TryParse(hwndElement.GetString(), out hwndValue)));
+        var hasHandle = false;
+        if (root.TryGetProperty("hwnd", out var hwndElement))
+        {
+            if (hwndElement.ValueKind == JsonValueKind.Number)
+            {
+                hasHandle = hwndElement.TryGetInt64(out hwndValue);
+            }
+            else if (hwndElement.ValueKind == JsonValueKind.String)
+            {
+                hasHandle = long.TryParse(hwndElement.GetString(), out hwndValue);
+            }
+        }
         var hwnd = hasHandle ? new IntPtr(hwndValue) : IntPtr.Zero;
         var applied = WindowStyleInterop.SetWindowRoundedCorners(hwnd);
 
         return JsonSerializer.Serialize(new { ok = applied, command });
+    }
+
+    private static string BringWindowToFrontNoActivate(JsonElement root, string command)
+    {
+        // Electron serializes 64-bit window handles as strings so JavaScript
+        // never loses precision while crossing the pipe.
+        var hwndValue = 0L;
+        var hasHandle = false;
+        if (root.TryGetProperty("hwnd", out var hwndElement))
+        {
+            if (hwndElement.ValueKind == JsonValueKind.Number)
+            {
+                hasHandle = hwndElement.TryGetInt64(out hwndValue);
+            }
+            else if (hwndElement.ValueKind == JsonValueKind.String)
+            {
+                hasHandle = long.TryParse(hwndElement.GetString(), out hwndValue);
+            }
+        }
+        var hwnd = hasHandle ? new IntPtr(hwndValue) : IntPtr.Zero;
+        if (hwnd == IntPtr.Zero)
+        {
+            return JsonSerializer.Serialize(new { ok = false, command, error = "invalid-window-handle" });
+        }
+
+        // Cross the native topmost boundary once, then place this one window
+        // above the fullscreen client without activating it. The caller is
+        // responsible for restoring the Toolkit's auxiliary/modal layers.
+        var applied = WindowStyleInterop.ForceWindowTopmostNoActivate(hwnd, out var error);
+        WindowStyleInterop.BringWindowToFrontNoActivate(hwnd, true);
+        return JsonSerializer.Serialize(new
+        {
+            ok = applied,
+            command,
+            error = applied ? null : $"win32-error-{error}"
+        });
     }
 
     private async Task<string> GetForegroundContextAsync(string command)

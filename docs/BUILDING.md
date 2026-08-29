@@ -17,7 +17,9 @@ npm run check
 npm run build:installer
 ```
 
-The installer is written to `dist/tibia-toolkit-release`. It is intentionally unsigned in a local or ordinary CI build. An unsigned result is for testing only and must not be presented as an official signed release.
+The installer is written to `dist/tibia-toolkit-release`. It is intentionally
+unsigned. Public releases must disclose the `NotSigned` Authenticode state and
+publish checksums; they must never be presented as signed.
 
 ## Runtime configuration
 

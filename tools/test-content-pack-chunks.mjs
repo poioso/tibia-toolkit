@@ -14,8 +14,8 @@ try {
   const userDataPath = path.join(root, "user-data");
   const packRoot = path.join(userDataPath, "content-pack");
   const currentRoot = path.join(packRoot, "current");
-  await fs.mkdir(path.join(currentRoot, "assets", "data"), { recursive: true });
-  await fs.writeFile(path.join(currentRoot, "assets", "data", "item-details.json"), "old-data", "utf8");
+  await fs.mkdir(path.join(currentRoot, "assets", "library", "catalogs"), { recursive: true });
+  await fs.writeFile(path.join(currentRoot, "assets", "library", "catalogs", "item-details.json"), "old-data", "utf8");
 
   const oldManifest = {
     version: "test-old",
@@ -27,7 +27,7 @@ try {
   await fs.writeFile(path.join(currentRoot, "content-manifest.json"), JSON.stringify(oldManifest), "utf8");
 
   const archive = new AdmZip();
-  archive.addFile("assets/data/item-details.json", Buffer.from("new-data"));
+  archive.addFile("assets/library/catalogs/item-details.json", Buffer.from("new-data"));
   const archivePath = path.join(root, "items.zip");
   archive.writeZip(archivePath);
   const archiveBytes = await fs.readFile(archivePath);
@@ -64,7 +64,7 @@ try {
     reason: "pending-restart",
     chunks: [{ id: "library-data-items", bytes: archiveBytes.byteLength }]
   });
-  assert.equal(await fs.readFile(path.join(currentRoot, "assets", "data", "item-details.json"), "utf8"), "old-data");
+  assert.equal(await fs.readFile(path.join(currentRoot, "assets", "library", "catalogs", "item-details.json"), "utf8"), "old-data");
 
   const applied = await ensureContentPack({
     appIsPackaged: true,
@@ -74,7 +74,7 @@ try {
   });
   assert.equal(applied.source, "pending-update");
   assert.equal(applied.version, "test-next");
-  assert.equal(await fs.readFile(path.join(currentRoot, "assets", "data", "item-details.json"), "utf8"), "new-data");
+  assert.equal(await fs.readFile(path.join(currentRoot, "assets", "library", "catalogs", "item-details.json"), "utf8"), "new-data");
   await assert.rejects(fs.stat(path.join(packRoot, "pending-update.json")));
 
   // A published pre-chunk pack must not be accepted as a permanent cache.
@@ -94,8 +94,8 @@ try {
   await fs.writeFile(path.join(legacyCurrentRoot, "content-manifest.json"), JSON.stringify(legacyManifest), "utf8");
 
   const fullArchive = new AdmZip();
-  fullArchive.addFile("assets/ui/missing-before.png", Buffer.from("current"));
-  fullArchive.addFile("assets/ui/new-icon.png", Buffer.from("icon"));
+  fullArchive.addFile("assets/missing-before.png", Buffer.from("current"));
+  fullArchive.addFile("assets/new-icon.png", Buffer.from("icon"));
   const fullArchivePath = path.join(root, "full-next.zip");
   fullArchive.writeZip(fullArchivePath);
   const fullArchiveBytes = await fs.readFile(fullArchivePath);
@@ -122,13 +122,13 @@ try {
   });
   assert.equal(legacyResult.source, "download");
   assert.equal(legacyResult.version, "0.7.1");
-  assert.equal(await fs.readFile(path.join(legacyCurrentRoot, "assets", "ui", "missing-before.png"), "utf8"), "current");
-  assert.equal(await fs.readFile(path.join(legacyCurrentRoot, "assets", "ui", "new-icon.png"), "utf8"), "icon");
+  assert.equal(await fs.readFile(path.join(legacyCurrentRoot, "assets", "missing-before.png"), "utf8"), "current");
+  assert.equal(await fs.readFile(path.join(legacyCurrentRoot, "assets", "new-icon.png"), "utf8"), "icon");
 
   // The builder places static item atlases in the same incremental media
   // chunk as item sprites. The runtime must accept that exact grouping.
   const atlasArchive = new AdmZip();
-  atlasArchive.addFile("assets/data/item-atlases/example.png", Buffer.from("atlas"));
+  atlasArchive.addFile("assets/library/items/atlases/example.png", Buffer.from("atlas"));
   const atlasPath = path.join(root, "item-atlas.zip");
   atlasArchive.writeZip(atlasPath);
   const atlasBytes = await fs.readFile(atlasPath);
@@ -165,12 +165,12 @@ try {
     manifestUrls: []
   });
   assert.equal(atlasApplied.version, "test-atlas");
-  assert.equal(await fs.readFile(path.join(currentRoot, "assets", "data", "item-atlases", "example.png"), "utf8"), "atlas");
+  assert.equal(await fs.readFile(path.join(currentRoot, "assets", "library", "items", "atlases", "example.png"), "utf8"), "atlas");
 
   // A chunk may never escape its declared group.  Rejection must leave the
   // installed data intact, proving the pre-activation path is transactional.
   const invalidArchive = new AdmZip();
-  invalidArchive.addFile("assets/data/npcs/not-allowed.gif", Buffer.from("x"));
+  invalidArchive.addFile("assets/library/npcs/sprites/not-allowed.gif", Buffer.from("x"));
   const invalidPath = path.join(root, "invalid.zip");
   invalidArchive.writeZip(invalidPath);
   const invalidBytes = await fs.readFile(invalidPath);
@@ -196,7 +196,7 @@ try {
     userDataPath,
     manifestUrls: []
   }), /extrair os recursos/i);
-  assert.equal(await fs.readFile(path.join(currentRoot, "assets", "data", "item-details.json"), "utf8"), "new-data");
+  assert.equal(await fs.readFile(path.join(currentRoot, "assets", "library", "catalogs", "item-details.json"), "utf8"), "new-data");
 
   console.log(JSON.stringify({ passed: true, prepared, applied }, null, 2));
 } finally {

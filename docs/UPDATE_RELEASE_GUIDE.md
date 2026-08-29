@@ -44,17 +44,9 @@ Depois de o workflow publicar e validar o asset estável, o site, Discord, landi
 
 `https://github.com/poioso/tibia-toolkit/releases/latest/download/Tibia-Toolkit-Setup.exe`
 
-O trecho `/releases/latest/` é resolvido pelo GitHub para a release pública mais recente. Para isso funcionar, toda release deve incluir um asset chamado exatamente `Tibia-Toolkit-Setup.exe`, byte a byte idêntico ao instalador versionado e assinado.
+O trecho `/releases/latest/` é resolvido pelo GitHub para a release pública mais recente. Para isso funcionar, toda release deve incluir um asset chamado exatamente `Tibia-Toolkit-Setup.exe`, byte a byte idêntico ao instalador versionado e validado.
 
 Nunca colocar no site ou Discord um nome de arquivo versionado, uma URL de `updates-beta`, um caminho local da VPS ou uma URL específica como `v0.3.1`. O link público só muda se o repositório ou o nome fixo do produto mudar.
-
-### Evidência do SignPath
-
-O SignPath Foundation deve receber uma URL imutável da release analisada, por exemplo:
-
-`https://github.com/poioso/tibia-toolkit/releases/tag/v0.3.1`
-
-Nunca usar `/releases/latest/` em candidatura, auditoria ou solicitação de assinatura, porque esse destino muda com a próxima release. O asset de nome fixo é exclusivo para usuários finais.
 
 ### Canais de atualização já instalados
 
@@ -237,7 +229,7 @@ O objetivo e impedir acumulacao de instaladores antigos na Hospedainfo.
 - [ ] Post do Discord menciona corretamente o canal `downloads`.
 - [ ] GitHub, site e Discord descrevem a mesma versao e as mesmas mudancas publicadas.
 - [ ] Nenhum link do site ou Discord aponta para `updates-beta` ou para um nome de arquivo versionado.
-- [ ] Evidência enviada ao SignPath usa a URL versionada e imutável da release, nunca `/releases/latest/`.
+- [ ] A release informa claramente quando o instalador não possui assinatura Authenticode.
 - [ ] Instaladores antigos removidos conforme a politica de retencao.
 
 ## Rollback

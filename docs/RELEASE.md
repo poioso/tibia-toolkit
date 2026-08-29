@@ -13,16 +13,22 @@ website, and Discord is in [RELEASE_ANNOUNCEMENTS.md](RELEASE_ANNOUNCEMENTS.md).
 2. Run `npm ci`, `npm run check`, `npm run verify:content-contract`, the secret scan, dependency audit, a clean Windows build, and `npm run verify:packaged-runtime` against the generated `win-unpacked` directory. Complete [CONTENT_PACK_RELEASE_CHECKLIST.md](CONTENT_PACK_RELEASE_CHECKLIST.md) whenever runtime assets or local catalogs changed.
 3. Generate and review an SPDX SBOM for Node dependencies. Complete the separate NuGet/transitive-license review.
 4. Confirm that all official runtime endpoints use reviewed HTTPS domains, and that content rights and attribution are documented. For Tibia-related media, complete `docs/CIPSOFT_ASSET_COMPLIANCE.md` and include the acknowledgement in `CREDITS.md`.
-5. Confirm that repository URLs, owner usernames, privacy contact, and SignPath settings are real rather than placeholders.
+5. Confirm that repository URLs, owner usernames, privacy contact, and the unsigned-release notice are current.
 6. Commit the reviewed source, merge through the protected default branch, and create an annotated tag such as `v0.3.1`.
 
 ## GitHub workflow behavior
 
-The release workflow builds an unsigned artifact. It submits the artifact to SignPath only after both Foundation approval and `SIGNPATH_ENABLED=true` have been configured. It never substitutes an unsigned artifact for a signed public release.
+The release workflow retrieves the exact previously validated beta artifact,
+checks it against immutable versioned metadata, and publishes it without a
+rebuild. The project does not currently have an approved Authenticode signing
+service, so a public release must state that Windows may show a SmartScreen
+warning. Never describe the installer as signed.
 
-After signing, it regenerates the updater manifest so its SHA-512 and size match the signed installer, verifies project-owned executable signatures, creates checksums and provenance, and opens a draft release. A maintainer reviews the draft before it becomes public.
-
-The signed installer is published twice in each GitHub release: once with its versioned build name for traceability, and once as `Tibia-Toolkit-Setup.exe`. The second asset is byte-for-byte identical and is the only asset used by the stable public download URL.
+The installer is published twice in each GitHub release: once with its
+versioned build name for traceability, and once as `Tibia-Toolkit-Setup.exe`.
+The second asset is byte-for-byte identical and is the only asset used by the
+stable public download URL. Checksums, manifest size/SHA-512 and provenance are
+still mandatory.
 
 ## Public announcement
 
@@ -48,4 +54,4 @@ npm audit --omit=dev --audit-level=high
 
 ## Rollback
 
-Never replace a published installer in place. Publish a new version with new checksums and an updated signed artifact. If a release must be withdrawn, unpublish or mark the release as revoked in the official channel, explain the issue, and publish a corrected version after review.
+Never replace a published installer in place. Publish a new version with new checksums and a newly validated artifact. If a release must be withdrawn, unpublish or mark the release as revoked in the official channel, explain the issue, and publish a corrected version after review.

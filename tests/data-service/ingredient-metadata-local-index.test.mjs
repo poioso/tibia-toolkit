@@ -27,8 +27,8 @@ test("all Imbuement images resolve from one bounded local index build", async ()
 
   assert.equal(Object.keys(metadata).length, new Set(ALL_IMBUEMENT_INGREDIENT_NAMES).size);
   assert.ok(assetReads.length < 20, `unexpected per-item asset reads: ${assetReads.length}`);
-  assert.equal(assetReads.filter((entry) => entry === "assets/data/item-metadata.json").length, 1);
-  assert.equal(assetReads.filter((entry) => entry === "assets/data/item-details.json").length, 1);
+  assert.equal(assetReads.filter((entry) => entry === "assets/library/catalogs/item-metadata.json").length, 1);
+  assert.equal(assetReads.filter((entry) => entry === "assets/library/catalogs/item-details.json").length, 1);
   assert.deepEqual(
     Object.entries(metadata).filter(([, entry]) => !entry?.slug || !entry?.imageSrc),
     [],

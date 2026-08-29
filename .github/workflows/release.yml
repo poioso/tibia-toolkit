@@ -1,4 +1,4 @@
-name: Signed release
+name: Release
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Existing annotated tag to release, for example v0.3.1
+        description: Existing annotated tag to release, for example v0.7.6
         required: true
         type: string
 
@@ -16,16 +16,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: signed-release-${{ github.event.inputs.release_tag || github.ref }}
+  group: release-${{ github.event.inputs.release_tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
-  validate:
-    name: Validate tag and source
+  prepare:
+    name: Verify tested beta artifact
     runs-on: windows-2025
     outputs:
       release_tag: ${{ steps.release.outputs.tag }}
       version: ${{ steps.release.outputs.version }}
+      artifact_name: release-${{ github.run_id }}
     steps:
       - name: Check out release tag
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -33,140 +34,79 @@ jobs:
           ref: ${{ inputs.release_tag || github.ref }}
           fetch-depth: 0
 
-      - name: Validate version
+      - name: Validate version and tag
         id: release
         shell: pwsh
         run: |
           $version = (Get-Content -Raw package.json | ConvertFrom-Json).version
           $tag = if ('${{ github.event_name }}' -eq 'workflow_dispatch') { '${{ inputs.release_tag }}' } else { $env:GITHUB_REF_NAME }
           if ($tag -ne "v$version") { throw "A tag $tag nao corresponde a versao $version." }
+          if (-not (Test-Path -LiteralPath "docs/release-artifacts/$version.json")) {
+            throw "Metadados imutaveis ausentes para $version."
+          }
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "version=$version" >> $env:GITHUB_OUTPUT
 
-  build_unsigned:
-    name: Build unsigned artifact
-    needs: validate
-    runs-on: windows-2025
-    outputs:
-      unsigned_artifact_id: ${{ steps.upload_unsigned.outputs.artifact-id }}
-    steps:
-      - name: Check out release tag
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          ref: ${{ needs.validate.outputs.release_tag }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-
-      - name: Set up .NET SDK
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
-        with:
-          global-json-file: global.json
-
-      - name: Install and validate source
-        run: |
-          npm ci
-          npm run check
-          npm run verify:content-contract
-          npm audit --omit=dev --audit-level=high
-
-      - name: Build unsigned installer
-        run: npm run build:installer
-
-      - name: Verify unsigned package structure
-        shell: pwsh
-        run: .\scripts\verify-release.ps1 -AllowUnsigned
-
-      - name: Upload unsigned release for SignPath
-        id: upload_unsigned
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: unsigned-release-${{ github.run_id }}
-          path: dist/tibia-toolkit-release
-          if-no-files-found: error
-          retention-days: 7
-
-  sign_and_verify:
-    name: Sign with SignPath and verify
-    needs:
-      - validate
-      - build_unsigned
-    if: vars.SIGNPATH_ENABLED == 'true'
-    runs-on: windows-2025
-    environment: release-signing
-    outputs:
-      signed_artifact_name: signed-release-${{ github.run_id }}
-    steps:
-      - name: Check out release scripts
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          ref: ${{ needs.validate.outputs.release_tag }}
-
-      - name: Set up Node.js for release validation
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version-file: .nvmrc
-
-      - name: Submit signing request
-        uses: signpath/github-action-submit-signing-request@b9d91eadd323de506c0c81cf0c7fe7438f3360fd
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
-          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
-          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
-          github-artifact-id: ${{ needs.build_unsigned.outputs.unsigned_artifact_id }}
-          wait-for-completion: true
-          output-artifact-directory: artifacts/signed
-
-      - name: Synchronize signed updater manifest
-        run: node tools/update-release-manifest.mjs artifacts/signed
-
-      - name: Create stable public download asset
+      - name: Download exact beta artifacts
         shell: pwsh
         env:
-          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
         run: |
-          $releaseDirectory = 'artifacts\signed'
-          $installer = Join-Path $releaseDirectory "Tibia Toolkit Setup $env:RELEASE_VERSION.exe"
-          $stableInstaller = Join-Path $releaseDirectory 'Tibia-Toolkit-Setup.exe'
+          $ErrorActionPreference = 'Stop'
+          $metadata = Get-Content -Raw "docs/release-artifacts/$env:RELEASE_VERSION.json" | ConvertFrom-Json
+          if ($metadata.version -ne $env:RELEASE_VERSION) { throw 'Versao divergente nos metadados.' }
 
-          Copy-Item -LiteralPath $installer -Destination $stableInstaller -Force
-          $installerHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash
-          $stableHash = (Get-FileHash -LiteralPath $stableInstaller -Algorithm SHA256).Hash
-          if ($installerHash -ne $stableHash) {
-            throw 'O asset estavel de download nao corresponde ao instalador assinado.'
+          $releaseDirectory = Join-Path $PWD 'release-artifact'
+          New-Item -ItemType Directory -Path $releaseDirectory | Out-Null
+          $installerName = "Tibia Toolkit Setup $env:RELEASE_VERSION.exe"
+          $blockmapName = "$installerName.blockmap"
+          $baseUrl = 'https://downloads.tibiatoolkit.com/updates-beta'
+
+          Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/latest.yml" -OutFile (Join-Path $releaseDirectory 'latest.yml')
+          Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/$([Uri]::EscapeDataString($installerName))" -OutFile (Join-Path $releaseDirectory $installerName)
+          Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/$([Uri]::EscapeDataString($blockmapName))" -OutFile (Join-Path $releaseDirectory $blockmapName)
+
+          $expected = @{
+            'latest.yml' = $metadata.latestYml
+            $installerName = $metadata.installer
+            $blockmapName = $metadata.blockmap
+          }
+          foreach ($entry in $expected.GetEnumerator()) {
+            $path = Join-Path $releaseDirectory $entry.Key
+            $size = (Get-Item -LiteralPath $path).Length
+            $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($size -ne [Int64]$entry.Value.bytes) { throw "Tamanho divergente: $($entry.Key)" }
+            if ($hash -ne [string]$entry.Value.sha256) { throw "SHA-256 divergente: $($entry.Key)" }
           }
 
-      - name: Verify signed package and Authenticode signatures
-        shell: pwsh
-        run: .\scripts\verify-release.ps1 -ReleaseDirectory .\artifacts\signed
+          $manifest = Get-Content -Raw (Join-Path $releaseDirectory 'latest.yml')
+          if ($manifest -notmatch "(?m)^version:\s*$([regex]::Escape($env:RELEASE_VERSION))\s*$") {
+            throw 'latest.yml aponta para outra versao.'
+          }
 
-      - name: Verify project-owned Authenticode signatures
-        shell: pwsh
-        run: .\scripts\verify-signatures.ps1 -ReleaseDirectory .\artifacts\signed
+          $stableInstaller = Join-Path $releaseDirectory 'Tibia-Toolkit-Setup.exe'
+          Copy-Item -LiteralPath (Join-Path $releaseDirectory $installerName) -Destination $stableInstaller
+          if ((Get-FileHash -LiteralPath $stableInstaller -Algorithm SHA256).Hash.ToLowerInvariant() -ne $metadata.installer.sha256) {
+            throw 'O asset estavel nao corresponde ao instalador beta.'
+          }
 
-      - name: Create checksums
-        shell: pwsh
-        run: .\scripts\generate-checksums.ps1 -InputPath .\artifacts\signed
+          $signature = Get-AuthenticodeSignature -LiteralPath (Join-Path $releaseDirectory $installerName)
+          if ($signature.Status -ne 'NotSigned') {
+            throw "Estado Authenticode inesperado: $($signature.Status)"
+          }
+          .\scripts\generate-checksums.ps1 -InputPath $releaseDirectory
 
-      - name: Upload signed release artifact
+      - name: Upload verified release artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: signed-release-${{ github.run_id }}
-          path: artifacts/signed
+          name: release-${{ github.run_id }}
+          path: release-artifact
           if-no-files-found: error
           retention-days: 90
 
-  publish_release:
-    name: Attest and publish signed release
-    needs:
-      - validate
-      - sign_and_verify
-    if: vars.SIGNPATH_ENABLED == 'true'
+  publish:
+    name: Publish verified unsigned release
+    needs: prepare
     runs-on: ubuntu-24.04
     permissions:
       actions: read
@@ -177,46 +117,37 @@ jobs:
       - name: Check out release notes
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          ref: ${{ needs.validate.outputs.release_tag }}
+          ref: ${{ needs.prepare.outputs.release_tag }}
 
-      - name: Download signed release artifact
+      - name: Download verified artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
-          name: ${{ needs.sign_and_verify.outputs.signed_artifact_name }}
+          name: ${{ needs.prepare.outputs.artifact_name }}
           path: release
 
-      - name: Attest signed installer provenance
+      - name: Attest release artifact provenance
         uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661
         with:
-          subject-path: release/Tibia Toolkit Setup ${{ needs.validate.outputs.version }}.exe
+          subject-path: release/Tibia Toolkit Setup ${{ needs.prepare.outputs.version }}.exe
 
-      - name: Publish signed GitHub release
+      - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.validate.outputs.release_tag }}
-          RELEASE_VERSION: ${{ needs.validate.outputs.version }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         shell: bash
         run: |
-          assets=(
-            "release/Tibia Toolkit Setup $RELEASE_VERSION.exe"
-            release/Tibia-Toolkit-Setup.exe
-            release/latest.yml
-            release/SHA256SUMS.txt
-          )
-          if [ -f "release/Tibia Toolkit Setup $RELEASE_VERSION.exe.blockmap" ]; then
-            assets+=("release/Tibia Toolkit Setup $RELEASE_VERSION.exe.blockmap")
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "A release $RELEASE_TAG ja existe; substituicao em lugar e proibida." >&2
+            exit 1
           fi
 
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
-            gh release edit "$RELEASE_TAG" \
-              --title "Tibia Toolkit $RELEASE_VERSION" \
-              --notes-file RELEASE_NOTES.md \
-              --latest
-          else
-            gh release create "$RELEASE_TAG" \
-              --title "Tibia Toolkit $RELEASE_VERSION" \
-              --notes-file RELEASE_NOTES.md \
-              --latest \
-              "${assets[@]}"
-          fi
+          gh release create "$RELEASE_TAG" \
+            --title "Tibia Toolkit $RELEASE_VERSION" \
+            --notes-file RELEASE_NOTES.md \
+            --latest \
+            "release/Tibia Toolkit Setup $RELEASE_VERSION.exe" \
+            "release/Tibia Toolkit Setup $RELEASE_VERSION.exe.blockmap" \
+            release/Tibia-Toolkit-Setup.exe \
+            release/latest.yml \
+            release/SHA256SUMS.txt
