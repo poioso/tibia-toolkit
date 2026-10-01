@@ -21,7 +21,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.3.0" />
-    <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
+    <PackageReference Include="NAudio.Vorbis" Version="3.0.0" />
   </ItemGroup>
   <ItemGroup>
     <!-- The selector runs from a self-contained native host. Embed its controls
