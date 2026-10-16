@@ -29,7 +29,7 @@ jobs:
       artifact_name: release-${{ github.run_id }}
     steps:
       - name: Check out release tag
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.release_tag || github.ref }}
           fetch-depth: 0
@@ -115,7 +115,7 @@ jobs:
       id-token: write
     steps:
       - name: Check out release notes
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ needs.prepare.outputs.release_tag }}
 
